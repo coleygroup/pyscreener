@@ -10,8 +10,7 @@ def positive_int(arg: str):
         raise ArgumentTypeError('Value must be greater than 0!')
     return value
 
-def add_args(parser: ArgumentParser):
-    ### GENERAL ARGS ###
+def add_general_args(parser: ArgumentParser):
     parser.add_argument('--config', is_config_file=True,
                         help='filepath of a configuration file to use')
     parser.add_argument('--name',
@@ -31,7 +30,14 @@ def add_args(parser: ArgumentParser):
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='the level of output this program should print')
 
-    ### CONVERSION ARGS ###
+def add_preprocessing_args(parser: ArgumentParser):
+    parser.add_argument('--preprocessing-options', nargs='+', action='append',
+                        default='None',
+                        choices=['pdbfix', 'autobox', 
+                                 'tautomer', 'desalt', 'filter'],
+                        help='the preprocessing options to apply')
+
+def add_preparation_args(parser: ArgumentParser):
     parser.add_argument('--no-title-line', default=False, action='store_true',
                         help='whether there is no title line in the ligands csv file')
     parser.add_argument('--start', type=int, default=0,
@@ -39,6 +45,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument('--nconvert', type=int,
                         help='the number of molecules to convert')
     
+def add_screening_args(parser: ArgumentParser):
     ### DOCKING ARGS ###
     parser.add_argument('--docker', default='vina',
                         choices=['vina', 'smina', 'qvina', 'psovina'],
@@ -59,8 +66,8 @@ def add_args(parser: ArgumentParser):
                         help='the number of cores available to each worker process')
     parser.add_argument('--extra', type=shlex.split,
                         help='extra command line arguments to pass to screening software. E.g., "--exhaustiveness=16"')
-    
-    ### SCORING/PARSING ARGS ###
+
+    ### SCORING ARGS ###    
     parser.add_argument('--score-mode', default='best',
                         choices={'best', 'avg', 'boltzmann'},
                         help='The method used to calculate the overall score of an individual docking run')
@@ -70,10 +77,22 @@ def add_args(parser: ArgumentParser):
                         choices={'best', 'avg', 'boltzmann'},
                         help='The method used to calculate the overall docking score of a molecule')
 
+def add_postprocessing_args(parser: ArgumentParser):
+    parser.add_argument('--postprocessing-options', nargs='+', action='append',
+                        default='None',
+                        choices=['cluster', 'rescore', 'distribution'],
+                        help='the postprocessing options to apply')
+
 def gen_args() -> Namespace:
     parser = ArgumentParser(
         description='Automate virtual screening of compound libraries.')
-    add_args(parser)
+
+    add_general_args(parser)
+    add_preprocessing_args(parser)
+    add_preparation_args(parser)
+    add_screening_args(parser)
+    add_postprocessing_args(parser)
+
     args = parser.parse_args()
 
     if args.name is None:

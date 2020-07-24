@@ -340,5 +340,5 @@ def print_summary(total, n_ligands):
     m, s = divmod(int(total), 60)
     h, m = divmod(m, 60)
     if n_ligands > 0:
-        print(f'    Time to prepare {n_ligands} ligands: {h}h {m}m {s}s')
-        print(f'    Average time: {total/n_ligands:0.4f} s/ligand', flush=True)
+        print(f'    Time to prepare {n_ligands} ligands: {h}h {m}m {s}s',
+              f'({total/n_ligands:0.4f} s/ligand)', flush=True)

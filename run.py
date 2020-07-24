@@ -2,8 +2,6 @@ import csv
 from distutils.dir_util import copy_tree
 from operator import itemgetter
 from pathlib import Path
-# import tarfile
-# from tempfile import TemporaryFile
 
 # from pyscreener import docking_mpi as docking
 # from pyscreener import conversion_mpi as conversion
@@ -26,11 +24,11 @@ def main():
     params = vars(args.gen_args())
 
     print('Pyscreener will be run with the following arguments:')
-    for param, value in sorted(vars(params).items()):
+    for param, value in sorted(params.items()):
         print(f'  {param}: {value}')
     print(flush=True)
 
-    base_tmp_path = f'{params["tmp"]}/{params["name"]}
+    base_tmp_path = f'{params["tmp"]}/{params["name"]}'
 
     # receptor = preparation.prepare_receptor(params.mode, params.receptor)
     print('Preparing inputs ...', flush=True)

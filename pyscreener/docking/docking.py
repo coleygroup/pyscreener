@@ -11,12 +11,18 @@ from pathlib import Path
 import subprocess as sp
 import sys
 import timeit
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, NewType, Tuple
 
 from tqdm import tqdm
 
 from .autodock import build_vina_argv, parse_vina_log
 from pyscreener import utils
+
+Ligand = Tuple[str, str]
+
+def dock(inputs: Tuple[List[str], List[Ligand]], **kwargs):
+    kwargs['receptors'], kwargs['ligands'] = inputs
+    return dock_ligands(**kwargs)
 
 def build_docker_argv(docker, *args, **kwargs) -> Tuple[List[str], str, str]:
     """Build the argument vector to run a docking program
@@ -114,22 +120,23 @@ def run_and_parse_docker(docker_argv: List[str], docker: str, log: str,
 
     return parse_log_file(docker, log, score_mode)
 
-def dock_ligand(ligand: Tuple[str, str], docker: str, receptor: str,
+def dock_ligand(ligand: Ligand, docker: str, receptors: List[str],
                 center: Tuple[float, float, float],
                 size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 1, 
                 path: str = '.', extra: Optional[List[str]] = None,
                 score_mode: str = 'best',
                 repeats: int = 1, repeat_score_mode: str = 'best') -> Dict:
     """Dock the given ligand using the specified docking progam and parameters
+    into the ensemble of receptors
     
     Parameters
     ----------
-    ligand : Tuple[str, str]
+    ligand : Ligand
         a tuple containing a ligand's SMILES string and associated docking
         input file
     docker : str
         the docking program to run
-    receptor : str
+    receptors : List[str]
         the name of the pdbqt file corresponding to the receptor
     center : Tuple[float, float, float]
         the x-, y-, and z-coordinates, respectively, of the search box center
@@ -147,6 +154,9 @@ def dock_ligand(ligand: Tuple[str, str], docker: str, receptor: str,
     repeat_score_mode : str (Default = 'best')
         the method used to calculate the overall docking score of a molecule
         for repeated runs
+    ensemble_score_mode : str (Default = 'best')
+        the method by which to calculate the overall docking score of a
+        molecule in an ensemble of docking runs (multiple structures)
 
     Return
     ------
@@ -165,17 +175,26 @@ def dock_ligand(ligand: Tuple[str, str], docker: str, receptor: str,
 
     smi, pdbqt = ligand
     
-    docker_argv, out, log = build_docker_argv(
-        docker, receptor=receptor, ligand=pdbqt,
-        center=center, size=size, ncpu=ncpu, extra=extra, path=path
-    )
+    ensemble_scores = []
+    for receptor in receptors:
+        docker_argv, out, log = build_docker_argv(
+            docker, receptor=receptor, ligand=pdbqt,
+            center=center, size=size, ncpu=ncpu, extra=extra, path=path
+        )
 
-    scores = [
-        run_and_parse_docker(docker_argv, docker, log, score_mode)
-        for _ in range(repeats)
-    ]
-    scores = [score for score in scores if scores is not None]
-    score = utils.calc_score(scores, repeat_score_mode) if scores else None
+        repeat_scores = [
+            run_and_parse_docker(docker_argv, docker, log, score_mode)
+            for _ in range(repeats)
+        ]
+        repeat_scores = [score for score in repeat_scores if score is not None]
+        if repeat_scores:
+            ensemble_scores.append(utils.calc_score(repeat_scores,
+                                                    repeat_score_mode))
+
+    if ensemble_scores:
+        score = utils.calc_score(ensemble_scores, repeat_score_mode)
+    else:
+        score = None
 
     p_in = Path(pdbqt)
     p_out = Path(out)
@@ -190,7 +209,7 @@ def dock_ligand(ligand: Tuple[str, str], docker: str, receptor: str,
         'score': score
     }
 
-def dock_ligands(ligands: List[Tuple[str, str]], docker: str, receptor: str, 
+def dock_ligands(ligands: List[Ligand], docker: str, receptors: List[str], 
                  center: Tuple[float, float, float],
                  size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 4,
                  path: str = './docking_results_'+str(datetime.date.today()),
@@ -262,7 +281,7 @@ def dock_ligands(ligands: List[Tuple[str, str]], docker: str, receptor: str,
 
     with Pool(max_workers=n_workers) as client:
         dock_ligand_partial = partial(
-            dock_ligand, docker=docker, receptor=receptor,
+            dock_ligand, docker=docker, receptors=receptors,
             center=center, size=size, ncpu=ncpu, path=path,
             score_mode=score_mode, repeats=repeats
         )

@@ -1,4 +1,4 @@
-def prepare_receptor(receptor, **kwargs):
+def prepare_receptors(receptors, **kwargs):
     pass
 
 def prepare_ligands(ligands, **kwargs):

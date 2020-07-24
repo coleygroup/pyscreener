@@ -50,8 +50,9 @@ def add_screening_args(parser: ArgumentParser):
     parser.add_argument('--docker', default='vina',
                         choices=['vina', 'smina', 'qvina', 'psovina'],
                         help='the name of the docking program to use')
-    parser.add_argument('-r', '--receptor', required=True,
-                        help='the filename of the receptor')
+    parser.add_argument('-r', '--receptors', required=True,
+                        nargs='+', action='append',
+                        help='the filenames of the receptors')
     parser.add_argument('-l', '--ligands', required=True,
                         help='the name of the file containing the ligand to dock')
     parser.add_argument('-c', '--center', required=True,
@@ -70,12 +71,15 @@ def add_screening_args(parser: ArgumentParser):
     ### SCORING ARGS ###    
     parser.add_argument('--score-mode', default='best',
                         choices={'best', 'avg', 'boltzmann'},
-                        help='The method used to calculate the overall score of an individual docking run')
+                        help='The method used to calculate the score of a single docking run on a single receptor')
     parser.add_argument('--repeat', type=positive_int, default=1,
                         help='the number of times to repeat each screening run')
     parser.add_argument('--repeat-score-mode', default='best',
                         choices={'best', 'avg', 'boltzmann'},
-                        help='The method used to calculate the overall docking score of a molecule')
+                        help='The method used to calculate the overall score from multiple docking runs on the same receptor')
+    parser.add_argument('--ensemble-score-mode', default='best',
+                        choices={'best', 'avg', 'boltzmann'},
+                        help='The method used to calculate the overall score from an ensemble of docking runs')
 
 def add_postprocessing_args(parser: ArgumentParser):
     parser.add_argument('--postprocessing-options', nargs='+', action='append',

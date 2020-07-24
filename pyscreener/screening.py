@@ -1,10 +1,11 @@
-from . import docking
-from . import md
+from . import docking, md, dft
 
 def screen(mode, **kwargs):
     if mode == 'docking':
-        return docking.dock_ligands(**kwargs)
+        return docking.dock(**kwargs)
     if mode == 'md':
-        return md.run_simulations(**kwargs)
+        return md.simulate(**kwargs)
+    if mode == 'dft':
+        return dft.calculate(**kwargs)
     
     raise ValueError

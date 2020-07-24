@@ -13,28 +13,36 @@ from typing import List, Optional, Sequence, Tuple
 from rdkit import Chem
 from tqdm import tqdm
 
-OBABEL = sp.run('which obabel', shell=True, encoding='utf-8', 
-                stdout=sp.PIPE, check=True).stdout.strip()
+from pyscreener.docking.preparation import OBABEL
 
-def prepare_receptor(receptor: str) -> str:
+def prepare_receptors(receptors: List[str]) -> List[str]:
     """Prepare a receptor PDBQT file from its input file
 
     Parameter
     ---------
-    receptor : str
-        the filename of the file containing the receptor to convert
+    receptors : List[str]
+        the filenames of files containing various poses of the receptor
 
     Returns
     -------
-    receptor_pdbqt : str
-        the filename of the resulting pdbqt file
+    receptor_pdbqts : List[str]
+        the filenames of the resulting PDBQT files
     """
-    receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
-    args = [OBABEL, receptor, '-O', receptor_pdbqt,
-            '-xh', '-xr', '--partialcharge', 'gasteiger']
-    sp.run(args, stderr=sp.PIPE, check=True)
+    receptor_pdbqts = []
+    for receptor in receptors:
+        receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
+        args = [OBABEL, receptor, '-O', receptor_pdbqt,
+                '-xh', '-xr', '--partialcharge', 'gasteiger']
+        try:
+            sp.run(args, stderr=sp.PIPE, check=True)
+            receptor_pdbqts.append(receptor_pdbqt)
+        except sp.SubprocessError:
+            print(f'ERROR: failed to convert {receptor}, skipping...')
 
-    return receptor_pdbqt
+    if len(receptor_pdbqts) == 0:
+        raise RuntimeError('Preparation failed for each receptor!')
+
+    return receptor_pdbqts
 
 def prepare_ligands(ligands, *args, **kwargs) -> List[Tuple[str, str]]:
     if isinstance(ligands, str):
@@ -54,22 +62,40 @@ def prepare_ligands(ligands, *args, **kwargs) -> List[Tuple[str, str]]:
     
     raise TypeError('argument "ligand" must be of type str or Sequence[str]!')
 
-def run_obabel(smi: str, pdbqt: str):
-    argv = [OBABEL, f'-:{smi}', '-O', pdbqt,
-            '-xh', '--gen3d', '--partialcharge', 'gasteiger']
-    return sp.run(argv, check=False, stderr=sp.PIPE)
+# def run_obabel(smi: str, pdbqt: str):
+#     argv = [OBABEL, f'-:{smi}', '-O', pdbqt,
+#             '-xh', '--gen3d', '--partialcharge', 'gasteiger']
+#     return sp.run(argv, check=False, stderr=sp.PIPE)
+
+# def prepare_from_smi(smi: str, name: str = 'ligand',
+#                      path: str = '.', **kwargs) -> Tuple[str, str]:
+#     path = Path(path)
+#     if not path.is_dir():
+#         path.mkdir()
+    
+#     pdbqt = path / f'{name}.pdbqt'
+
+#     run_obabel(smi, pdbqt)
+
+#     return smi, pdbqt
 
 def prepare_from_smi(smi: str, name: str = 'ligand',
-                     path: str = '.', **kwargs) -> Tuple[str, str]:
+                     path: str = '.', **kwargs) -> Optional[Tuple[str, str]]:
     path = Path(path)
     if not path.is_dir():
         path.mkdir()
     
     pdbqt = path / f'{name}.pdbqt'
 
-    run_obabel(smi, pdbqt)
+    argv = [OBABEL, f'-:{smi}', '-O', pdbqt,
+            '-xh', '--gen3d', '--partialcharge', 'gasteiger']
+    ret = sp.run(argv, check=False, stderr=sp.PIPE)
 
-    return smi, pdbqt
+    try:
+        ret.check_returncode()
+        return smi, pdbqt
+    except sp.SubprocessError:
+        return None
 
 def prepare_from_file(ligand: str, name: Optional[str] = None,
                       path: str = '.', **kwargs) -> Tuple[str, str]:

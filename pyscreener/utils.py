@@ -1,15 +1,15 @@
 """Utility functions"""
 
 from math import exp
-from typing import List
+from typing import Sequence, TypeVar
 
-def calc_score(scores: List[float], score_mode: str = 'best') -> float:
+def calc_score(scores: Sequence[float], score_mode: str = 'best') -> float:
     """
-    Calculate an overall score from a list of scores
+    Calculate an overall score from a sequence of scores
 
     Parameters
     ----------
-    scores : List[float]
+    scores : Sequence[float]
     score_mode : str (Default = 'best')
         the method used to calculate the overall score
         Choices:

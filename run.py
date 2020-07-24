@@ -30,12 +30,12 @@ def main():
 
     base_tmp_path = f'{params["tmp"]}/{params["name"]}'
 
-    # receptor = preparation.prepare_receptor(params.mode, params.receptor)
     print('Preparing inputs ...', flush=True)
-    params['receptor'] = preparation.prepare_receptor(**params)
-    params['ligands'] = preparation.prepare_ligands(
-        path=f'{base_tmp_path}/inputs', **params
-    )
+    inputs = preparation.prepare(path=f'{base_tmp_path}/inputs', **params)
+    # params['receptor'] = preparation.prepare_receptor(**params)
+    # params['ligands'] = preparation.prepare_ligands(
+    #     path=f'{base_tmp_path}/inputs', **params
+    # )
     # ligands = preparation.prepare_ligands(
     #     mode=params.mode,
     #     ligands=params.ligands, start=params.start, nconvert=params.nconvert,
@@ -44,16 +44,9 @@ def main():
     # )
     print('Done!')
 
-    print(f'Screening {len(params["ligands"])} ligands ...', flush=True)
-    d_smi_score, rows = screening.screen(
-        path=f'{base_tmp_path}/outputs', **params
-    )
-    #     mode=params.mode, 
-    #     ligands=ligands, docker=params.docker, receptor=receptor, 
-    #     center=params.center, size=params.size,
-    #     ncpu=params.ncpu, nworkers=params.nworkers, distributed=True,
-    #     path=f'{params.tmp}/{params.name}/outputs', verbose=params.verbose
-    # )
+    print(f'Screening inputs ...', flush=True)
+    d_smi_score, rows = screening.screen(path=f'{base_tmp_path}/outputs',
+                                         inputs=inputs, **params)
     print('Done!')
 
     output_dir = f'{params["root"]}/{params["name"]}'

@@ -31,10 +31,10 @@ def add_general_args(parser: ArgumentParser):
                         help='the level of output this program should print')
 
 def add_preprocessing_args(parser: ArgumentParser):
-    parser.add_argument('--preprocessing-options', nargs='+', action='append',
+    parser.add_argument('--preprocessing-options', nargs='+',
                         default='None',
                         choices=['pdbfix', 'autobox', 
-                                 'tautomer', 'desalt', 'filter'],
+                                 'tautomers', 'desalt', 'filter'],
                         help='the preprocessing options to apply')
 
 def add_preparation_args(parser: ArgumentParser):
@@ -51,7 +51,7 @@ def add_screening_args(parser: ArgumentParser):
                         choices=['vina', 'smina', 'qvina', 'psovina'],
                         help='the name of the docking program to use')
     parser.add_argument('-r', '--receptors', required=True,
-                        nargs='+', action='append',
+                        nargs='+', #action='append',
                         help='the filenames of the receptors')
     parser.add_argument('-l', '--ligands', required=True,
                         help='the name of the file containing the ligand to dock')
@@ -82,7 +82,7 @@ def add_screening_args(parser: ArgumentParser):
                         help='The method used to calculate the overall score from an ensemble of docking runs')
 
 def add_postprocessing_args(parser: ArgumentParser):
-    parser.add_argument('--postprocessing-options', nargs='+', action='append',
+    parser.add_argument('--postprocessing-options', nargs='+',
                         default='None',
                         choices=['cluster', 'rescore', 'distribution'],
                         help='the postprocessing options to apply')

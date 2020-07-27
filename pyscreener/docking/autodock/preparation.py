@@ -13,44 +13,68 @@ from typing import List, Optional, Sequence, Tuple
 from rdkit import Chem
 from tqdm import tqdm
 
-from pyscreener.docking.preparation import OBABEL
+from pyscreener.docking.utils import Ligand, OBABEL
 
-def prepare_receptors(receptors: List[str]) -> List[str]:
+# def prepare_receptors(receptors: List[str]) -> List[str]:
+#     """Prepare a receptor PDBQT file from its input file
+
+#     Parameter
+#     ---------
+#     receptors : List[str]
+#         the filenames of files containing various poses of the receptor
+
+#     Returns
+#     -------
+#     receptor_pdbqts : List[str]
+#         the filenames of the resulting PDBQT files
+#     """
+#     receptor_pdbqts = []
+#     for receptor in receptors:
+#         receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
+#         args = [OBABEL, receptor, '-O', receptor_pdbqt,
+#                 '-xh', '-xr', '--partialcharge', 'gasteiger']
+#         try:
+#             sp.run(args, stderr=sp.PIPE, check=True)
+#             receptor_pdbqts.append(receptor_pdbqt)
+#         except sp.SubprocessError:
+#             print(f'ERROR: failed to convert {receptor}, skipping...')
+
+#     if len(receptor_pdbqts) == 0:
+#         raise RuntimeError('Preparation failed for each receptor!')
+
+#     return receptor_pdbqts
+
+def prepare_receptor(receptor: str, **kwargs) -> Optional[str]:
     """Prepare a receptor PDBQT file from its input file
 
     Parameter
     ---------
-    receptors : List[str]
-        the filenames of files containing various poses of the receptor
+    receptor : str
+        the filename of a file containing a receptor
 
     Returns
     -------
-    receptor_pdbqts : List[str]
-        the filenames of the resulting PDBQT files
+    receptor_pdbqt : Optional[str]
+        the filenames of the resulting PDBQT files. None if preparation failed
     """
-    receptor_pdbqts = []
-    for receptor in receptors:
-        receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
-        args = [OBABEL, receptor, '-O', receptor_pdbqt,
-                '-xh', '-xr', '--partialcharge', 'gasteiger']
-        try:
-            sp.run(args, stderr=sp.PIPE, check=True)
-            receptor_pdbqts.append(receptor_pdbqt)
-        except sp.SubprocessError:
-            print(f'ERROR: failed to convert {receptor}, skipping...')
+    receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
+    args = [OBABEL, receptor, '-O', receptor_pdbqt,
+            '-xh', '-xr', '--partialcharge', 'gasteiger']
+    try:
+        sp.run(args, stderr=sp.PIPE, check=True)
+    except sp.SubprocessError:
+        print(f'ERROR: failed to convert {receptor}', file=sys.stderr)
+        return None
 
-    if len(receptor_pdbqts) == 0:
-        raise RuntimeError('Preparation failed for each receptor!')
-
-    return receptor_pdbqts
+    return receptor_pdbqt
 
 def prepare_from_smi(smi: str, name: str = 'ligand',
-                     path: str = '.', **kwargs) -> Optional[Tuple[str, str]]:
+                     path: str = '.', **kwargs) -> Optional[Ligand]:
     path = Path(path)
     if not path.is_dir():
         path.mkdir()
     
-    pdbqt = path / f'{name}.pdbqt'
+    pdbqt = str(path / f'{name}.pdbqt')
 
     argv = [OBABEL, f'-:{smi}', '-O', pdbqt,
             '-xh', '--gen3d', '--partialcharge', 'gasteiger']

@@ -1,3 +1,6 @@
+"""This module contains abstract functions for preparing the inputs necessary
+to run virtual screeens in a number of docking programs"""
+
 import csv
 from math import ceil, log10
 import os
@@ -11,19 +14,46 @@ from rdkit import Chem
 from tqdm import tqdm
 
 from . import autodock, ucsfdock, rdock
+from .utils import Ligand, OBABEL
+from pyscreener.utils import Input
 
-OBABEL = sp.run('which obabel', shell=True, encoding='utf-8', 
-                stdout=sp.PIPE, check=True).stdout.strip()
-
-def prepare_receptor(docker: str, receptors, **kwargs):
+def prepare(docker, **kwargs) -> Input:
+    """Prepare all of the inputs for the specified docking program"""
     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
-        return autodock.prepare_receptors(receptors)
-    if docker == 'dock':
-        return ucsfdock.prepare_receptors(receptors, **kwargs)
-    if docker == 'rdock':
-        return rdock.prepare_receptors(receptors, **kwargs)
+        receptors = prepare_receptors(
+            prepare_receptor=autodock.prepare_receptor, **kwargs)
+        ligands = prepare_ligands(
+            prepare_from_smi=autodock.prepare_from_smi, **kwargs)
 
-    raise ValueError(f'{docker} is not a recognized docking program')
+        return receptors, ligands
+
+    if docker == 'dock':
+        # receptors = prepare_receptors(
+        #     prepare_receptor=ucsfdock.prepare_receptor, **kwargs)
+        # ligands = prepare_ligands(
+        #     prepare_from_smi=ucsfdock.prepare_from_smi, **kwargs)
+
+        raise NotImplementedError
+
+    if docker == 'rdock':
+        # receptors = prepare_receptors(
+        #     prepare_receptor=rdock.prepare_receptor, **kwargs)
+        # ligands = prepare_ligands(
+        #     prepare_from_smi=rdock.prepare_from_smi, **kwargs)
+
+        raise NotImplementedError
+
+    raise ValueError(f'Unrecognized docking program: "{docker}"')
+
+# def prepare_receptor(docker: str, receptors, **kwargs):
+#     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
+#         return ad.prepare_receptors(receptors)
+#     if docker == 'dock':
+#         return ucsfdock.prepare_receptors(receptors, **kwargs)
+#     if docker == 'rdock':
+#         return rdock.prepare_receptors(receptors, **kwargs)
+
+#     raise ValueError(f'{docker} is not a recognized docking program')
 
 # def prepare_ligands(docker: str, ligands, **kwargs):
 #     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
@@ -35,18 +65,33 @@ def prepare_receptor(docker: str, receptors, **kwargs):
 
 #     raise ValueError(f'{docker} is not a recognized docking program')
 
-def prepare_ligands(docker, ligands, **kwargs) -> List[Tuple[str, str]]:
-    prepare_from_smi = {
-        'vina': autodock.prepare_from_smi,
-        'smina': autodock.prepare_from_smi,
-        'qvina': autodock.prepare_from_smi,
-        'psovina': autodock.prepare_from_smi,
-        'ucsfdock': ucsfdock.prepare_from_smi
-    }.get(docker)
-    
-    if prepare_from_smi is None:
-        raise ValueError(f'Unrecognized docking program: {docker}')
-    
+def prepare_receptors(receptors, prepare_receptor: Callable[[str], str],
+                      **kwargs) -> List[str]:   
+    """Prepare a receptor input file from its supply file
+
+    Parameter
+    ---------
+    receptors : List[str]
+        the filenames of files containing various poses of the receptor
+
+    Returns
+    -------
+    receptor_inputs : List[str]
+        the filenames of the resulting input receptor files
+    """
+    receptor_inputs = []
+    for receptor in receptors:
+        receptor_input = prepare_receptor(receptor, **kwargs)
+        if receptor_input:
+            receptor_inputs.append(receptor_input)
+
+    if len(receptor_inputs) == 0:
+        raise RuntimeError('Preparation failed for each receptor!')
+
+    return receptor_inputs
+
+def prepare_ligands(ligands, prepare_from_smi: Callable[..., Ligand], 
+                    **kwargs) -> List[Ligand]:
     if isinstance(ligands, str):
         p_ligand = Path(ligands)
 
@@ -64,9 +109,9 @@ def prepare_ligands(docker, ligands, **kwargs) -> List[Tuple[str, str]]:
     
     raise TypeError('argument "ligand" must be of type str or Sequence[str]!')
 
-def prepare_from_file(filename: str, prepare_from_smi: Callable,
+def prepare_from_file(filename: str, prepare_from_smi: Callable[..., Ligand],
                       name: Optional[str] = None, path: str = '.', 
-                      **kwargs) -> Tuple[str, str]:
+                      **kwargs) -> Ligand:
     """Convert a single ligand to the appropriate input format
 
     Parameters
@@ -84,10 +129,9 @@ def prepare_from_file(filename: str, prepare_from_smi: Callable,
 
     Returns
     -------
-    smi : str
-        the SMILES string corresponding to the converted ligand
-    input_filename : string
-        the filename of the prepared input file
+    Ligand
+        a tuple of the SMILES string the prepared input file corresponding
+        to the molecule contained in filename
     """
     name = name or Path(filename).stem
 
@@ -96,11 +140,12 @@ def prepare_from_file(filename: str, prepare_from_smi: Callable,
 
     return prepare_from_smi(smi, name, path)
 
-def prepare_from_smis(smis: Sequence[str], prepare_from_smi: Callable,
+def prepare_from_smis(smis: Sequence[str],
+                      prepare_from_smi: Callable[..., Ligand],
                       names: Optional[Sequence[str]] = None, 
                       start: int = 0, nconvert: Optional[int] = None,
                       path: str = '.', ncpu: int = 1, distributed: bool = True, 
-                      verbose: int = 0, **kwargs) -> List[Tuple[str, str]]:
+                      verbose: int = 0, **kwargs) -> List[Ligand]:
     """Convert the list of SMILES strings to their corresponding PDBQT files
 
     Parameters
@@ -127,7 +172,7 @@ def prepare_from_smis(smis: Sequence[str], prepare_from_smi: Callable,
 
     Returns
     -------
-    ligands : List[Tuple[str, str]]
+    ligands : List[Ligand]
         a list of tuples containing a ligand's SMILES string and the filepath
         of the corresponding .pdbqt file, which are named:
             lig0.pdbqt, lig1.pdbqt, ...
@@ -170,8 +215,10 @@ def prepare_from_smis(smis: Sequence[str], prepare_from_smi: Callable,
         # pdbqts = [f'{path}/{name}.pdbqt' for name in names]
         # ligands = list(zip(smis, pdbqts))
         ligands = [
-            ligand for ligand in client.map(
-                prepare_from_smi, smis, names, paths, chunksize=batch_size
+            ligand for ligand in tqdm(
+                client.map(prepare_from_smi, smis, names, paths, 
+                           chunksize=batch_size), total=len(smis),
+                desc='Converting ligand', unit='ligand', smoothing=0.
             ) if ligand
         ]
         # ligands = [ligand for ligand in ligands if ligand]
@@ -188,12 +235,13 @@ def prepare_from_smis(smis: Sequence[str], prepare_from_smi: Callable,
         
     return ligands
 
-def prepare_from_csv(csv_filename: str, prepare_from_smi: Callable,
+def prepare_from_csv(csv_filename: str,
+                     prepare_from_smi: Callable[..., Ligand],
                      title_line: bool = True,
                      smiles_col: int = 0, name_col: Optional[int] = None,
                      start: int = 0, nconvert: Optional[int] = None,
                      njobs: int = 1, path: str = '.', verbose: int = 0,
-                     **kwargs) -> List[Tuple[str, str]]:
+                     **kwargs) -> List[Ligand]:
     """Prepare the PDBQT files corresponding to the molecules contained in a 
     CSV file
 
@@ -228,7 +276,7 @@ def prepare_from_csv(csv_filename: str, prepare_from_smi: Callable,
 
     Returns
     -------
-    ligands : List[Tuple[str, str]]
+    ligands : List[Ligand]
         a list of tuples containing a ligand's SMILES string and the filepath
         of the corresponding .pdbqt file.
         PDBQT files are named <compound_id>.pdbqt if compound_id property
@@ -259,11 +307,12 @@ def prepare_from_csv(csv_filename: str, prepare_from_smi: Callable,
 
     return ligands
 
-def prepare_from_supply(supply: str, prepare_from_smi: Callable,
+def prepare_from_supply(supply: str,
+                        prepare_from_smi: Callable[..., Ligand],
                         id_prop_name: Optional[str] = None,
                         start: int = 0, nconvert: Optional[int] = None,  
                         njobs: int = 1, path: str = '.', verbose: int = 0,
-                        **kwargs) -> List[Tuple[str, str]]:
+                        **kwargs) -> List[Ligand]:
     """Prepare the PDBQT files corresponding to the molecules contained in a 
     chemical supply file
 
@@ -293,7 +342,7 @@ def prepare_from_supply(supply: str, prepare_from_smi: Callable,
 
     Returns
     -------
-    ligands : List[Tuple[str, str]]
+    ligands : List[Ligand]
         a list of tuples containing a ligand's SMILES string and the filepath
         of the corresponding .pdbqt file.
         PDBQT files are named <compound_id>.pdbqt if compound_id property
@@ -312,15 +361,22 @@ def prepare_from_supply(supply: str, prepare_from_smi: Callable,
             f'input file: "{supply}" does not have .sdf or .smi extension')
 
     smis = []
-    names = []
+    names = None
 
-    for mol in mols:
-        if mol is None:
-            continue
+    if id_prop_name:
+        names = []
+        for mol in mols:
+            if mol is None:
+                continue
 
-        smis.append(Chem.MolToSmiles(mol))
-        if id_prop_name:
+            smis.append(Chem.MolToSmiles(mol))
             names.append(mol.GetProp(id_prop_name))
+    else:
+        for mol in mols:
+            if mol is None:
+                continue
+
+            smis.append(Chem.MolToSmiles(mol))
 
     ligands = prepare_from_smis(smis, prepare_from_smi, 
                                 names=names, path=path,

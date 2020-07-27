@@ -53,21 +53,15 @@ def build_vina_argv(docker: str, receptor: str, ligand: str,
     if docker not in {'vina', 'smina', 'psovina', 'qvina'}:
         raise ValueError(f'Inappropriate docking program: "{docker}"')
 
-    if receptor == '' or ligand == '':
-        raise ValueError('receptor or ligand filename was empty')
-    if not Path(receptor).exists():
-        raise ValueError('receptor file does not exist')
-    if not Path(ligand).exists():
-        raise ValueError('ligand file does not exist')
-
-    p_out = Path(path)
-    if not p_out.is_dir():
-        p_out.mkdir(parents=True)
+    path = Path(path)
+    if not path.is_dir():
+        path.mkdir(parents=True)
 
     name = name or (Path(receptor).stem+'_' +Path(ligand).stem)
-    out = str(p_out / (name+f'_{docker}_out.pdbqt'))
-    log = str(p_out / (name+f'_{docker}_log.txt'))
     extra = extra or []
+
+    out = f'{path}/{docker}_{name}_out.pdbqt'
+    log = f'{path}/{docker}_{name}_log.txt'
     
     vina_type_argv = [
         docker, f'--receptor={receptor}', f'--ligand={ligand}',

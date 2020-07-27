@@ -4,7 +4,7 @@ simulations and parsing the results into a mapping of ligand -> docking score"""
 from collections import defaultdict
 import datetime
 from functools import partial
-from itertools import takewhile
+from itertools import chain, takewhile
 from math import ceil, exp
 import os
 from pathlib import Path
@@ -16,15 +16,19 @@ from typing import Dict, List, Optional, NewType, Tuple
 from tqdm import tqdm
 
 from .autodock import build_vina_argv, parse_vina_log
-from pyscreener import utils
+from .utils import Ligand
+from pyscreener.utils import calc_score, Input
 
-Ligand = Tuple[str, str]
+def dock(docker: str, inputs: Input, **kwargs):
+    if docker in {'vina', 'psovina', 'smina', 'qvina'}:
+        kwargs['receptors'], kwargs['ligands'] = inputs
+        return dock_ligands(docker=docker, **kwargs)
+    if docker == 'ucsfdock':
+        raise NotImplementedError
 
-def dock(inputs: Tuple[List[str], List[Ligand]], **kwargs):
-    kwargs['receptors'], kwargs['ligands'] = inputs
-    return dock_ligands(**kwargs)
+    raise ValueError(f'Unrecognized docking program: "{docker}"')
 
-def build_docker_argv(docker, *args, **kwargs) -> Tuple[List[str], str, str]:
+def build_docker_argv(docker, **kwargs) -> Tuple[List[str], str, str]:
     """Build the argument vector to run a docking program
     
     Parameters
@@ -42,11 +46,11 @@ def build_docker_argv(docker, *args, **kwargs) -> Tuple[List[str], str, str]:
             'psovina': build_vina_argv,
             'qvina': build_vina_argv,
             'smina': build_vina_argv,
-        }[docker](docker=docker, *args, **kwargs)
+        }[docker](docker=docker, **kwargs)
     except KeyError:
         print(f'WARNING: Unrecognized docking program: "{docker}"')
         print('Defaulting to AutoDock Vina')
-        return build_vina_argv(docker='vina', *args, **kwargs)
+        return build_vina_argv(docker='vina', **kwargs)
 
 def parse_log_file(docker: str, log: str,
                    score_mode : str = 'best') -> Optional[float]:
@@ -110,11 +114,14 @@ def run_and_parse_docker(docker_argv: List[str], docker: str, log: str,
         the score calculated from the docking run. None if docking
         run failed for any reason or generated an unparsable log file.
     """
+    # try:
+    ret = sp.run(docker_argv, stdout=sp.PIPE, stderr=sp.PIPE)
     try:
-        sp.run(docker_argv, stdout=sp.PIPE, stderr=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print('ERROR: failed to dock ligand located in file',
-              f'"{docker_argv[2].split("=")[1]}". Skipping...',
+              f'"{docker_argv[2].split("=")[1]}".\n',
+              f'Message: {ret.stderr.decode("utf-8")}\nSkipping...',
               file=sys.stderr, flush=True)
         return None
 
@@ -124,10 +131,9 @@ def dock_ligand(ligand: Ligand, docker: str, receptors: List[str],
                 center: Tuple[float, float, float],
                 size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 1, 
                 path: str = '.', extra: Optional[List[str]] = None,
-                score_mode: str = 'best',
-                repeats: int = 1, repeat_score_mode: str = 'best') -> Dict:
+                score_mode: str = 'best', repeats: int = 1) -> List[List[Dict]]:
     """Dock the given ligand using the specified docking progam and parameters
-    into the ensemble of receptors
+    into the ensemble of receptors repeatedly
     
     Parameters
     ----------
@@ -149,71 +155,68 @@ def dock_ligand(ligand: Ligand, docker: str, receptors: List[str],
     score_mode : str (Default = 'best')
         the method used to calculate the docking score of an individual
         docking run
-    repeats : int (Deafult = 1)
+    repeats : int (Default = 1)
         the number of times to repeat a docking run
-    repeat_score_mode : str (Default = 'best')
-        the method used to calculate the overall docking score of a molecule
-        for repeated runs
-    ensemble_score_mode : str (Default = 'best')
-        the method by which to calculate the overall docking score of a
-        molecule in an ensemble of docking runs (multiple structures)
 
     Return
     ------
-    row : Dict
-        a row of a dataframe for this ligand's docking run containing the
-        following columns
+    ensemble_repeats : List[List[Dict]]
+        a list of dataframes for this ligand's docking runs into the
+        ensemble of receptors, each containing the following columns:
             smiles  - the ligand's SMILES string
             name    - the name of the ligand
             in      - the filename of the input ligand file
             out     - the filename of the output docked ligand file
-            log     - the filename of the log file
+            log     - the filename of the output log file
             score   - the ligand's docking score
     """
     if repeats <= 0:
         raise ValueError(f'Repeats must be greater than 0! ({repeats})')
 
     smi, pdbqt = ligand
-    
-    ensemble_scores = []
+
+    p_pdbqt = Path(pdbqt)
+    ligand_name = p_pdbqt.stem
+    in_file = f'{p_pdbqt.parent.name}/{p_pdbqt.name}'
+
+    ensemble_repeats = []
     for receptor in receptors:
-        docker_argv, out, log = build_docker_argv(
-            docker, receptor=receptor, ligand=pdbqt,
-            center=center, size=size, ncpu=ncpu, extra=extra, path=path
-        )
+        repeat_rows = []
+        for repeat in range(repeats):
 
-        repeat_scores = [
-            run_and_parse_docker(docker_argv, docker, log, score_mode)
-            for _ in range(repeats)
-        ]
-        repeat_scores = [score for score in repeat_scores if score is not None]
-        if repeat_scores:
-            ensemble_scores.append(utils.calc_score(repeat_scores,
-                                                    repeat_score_mode))
+            name = f'{Path(receptor).stem}_{ligand_name}_{repeat}'
 
-    if ensemble_scores:
-        score = utils.calc_score(ensemble_scores, repeat_score_mode)
-    else:
-        score = None
+            docker_argv, out, log = build_docker_argv(
+                docker, receptor=receptor, ligand=pdbqt, name=name,
+                center=center, size=size, ncpu=ncpu, extra=extra, path=path
+            )
 
-    p_in = Path(pdbqt)
-    p_out = Path(out)
-    p_log = Path(log)
+            p_out = Path(out)
+            p_log = Path(log)
+            score = run_and_parse_docker(docker_argv, docker, log, score_mode)
 
-    return {
-        'smiles': smi,
-        'name': Path(pdbqt).stem,
-        'in': f'{p_in.parent.name} / {p_in.name}',
-        'out': f'{p_out.parent.name} / {p_out.name}',
-        'log': f'{p_log.parent.name} / {p_log.name}',
-        'score': score
-    }
+            if score:
+                repeat_rows.append({
+                    'smiles': smi,
+                    'name': ligand_name,
+                    'in': in_file,
+                    'out': f'{p_out.parent.name} / {p_out.name}',
+                    'log': f'{p_log.parent.name} / {p_log.name}',
+                    'score': score
+                })
 
-def dock_ligands(ligands: List[Ligand], docker: str, receptors: List[str], 
+        if repeat_rows:
+            ensemble_repeats.append(repeat_rows)
+
+    return ensemble_repeats
+
+def dock_ligands(docker: str, receptors: List[str], ligands: List[Ligand],
                  center: Tuple[float, float, float],
                  size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 4,
                  path: str = './docking_results_'+str(datetime.date.today()),
                  score_mode: str = 'best', repeats: int = 1,
+                 repeat_score_mode: str = 'best',
+                 ensemble_score_mode: str = 'best',
                  distributed: bool = True, nworkers: int = -1,
                  verbose: int = 0,
                  **kwargs) -> Tuple[Dict[str, Optional[float]], List[Dict]]:
@@ -231,7 +234,13 @@ def dock_ligands(ligands: List[Ligand], docker: str, receptors: List[str],
     path : string (Default = './docking_results_YYYY-MM-DD/')
     score_mode : str (Default = 'best')
     repeats : int (Default = 1)
-        see dock_ligand() for parameter documentation
+        see dock_ligand() for documentation of above parameters
+    repeat_score_mode : str (Default = 'best')
+        the method used to calculate the overall docking score of a molecule
+        for repeated runs
+    ensemble_score_mode : str (Default = 'best')
+        the method by which to calculate the overall docking score of a
+        molecule in an ensemble of docking runs (multiple structures)
     distributed: bool (Default = True)
         whether the work should be performed over a distributed system. 
         Setting this value to false will result in all simulations being
@@ -285,20 +294,44 @@ def dock_ligands(ligands: List[Ligand], docker: str, receptors: List[str],
             center=center, size=size, ncpu=ncpu, path=path,
             score_mode=score_mode, repeats=repeats
         )
-        rows = client.map(dock_ligand_partial, ligands, chunksize=batch_size)
-        rows = list(tqdm(rows, total=len(ligands), smoothing=0.,
-                    desc='Docking ligands', unit='ligand'))
+        ligands_ensemble_repeats = list(tqdm(
+            client.map(dock_ligand_partial, ligands, chunksize=batch_size),
+            total=len(ligands), smoothing=0.,
+            desc='Docking ligands', unit='ligand'
+        ))
+        # rowsss = list(tqdm(rowsss, total=len(ligands), smoothing=0.,
+        #               desc='Docking ligands', unit='ligand'))
     
-    # record only the top-scoring conformation/tautomer
+    # record only the top score for a given SMILES string across all repeated
+    # ensemble dockings and tautomers and conformations
     d_smi_score = defaultdict(lambda: float('inf'))
-    for row in rows:
-        smi = row['smiles']
-        score = row['score']
-        if score is None:
+    for ligand_ensemble in ligands_ensemble_repeats:
+        if len(ligand_ensemble) == 0:
             continue
+
+        ensemble_scores = [
+            calc_score(
+                [repeat['score'] for repeat in receptor], 
+                repeat_score_mode
+            ) for receptor in ligand_ensemble
+        ]
+        score = calc_score(ensemble_scores, ensemble_score_mode)
+        # for repeat_rows in ensemble_rows:
+        #     repeat_score = utils.calc_score(
+        #         [row['score'] for row in repeat_rows], repeat_score_mode
+        #     )
+        #     ensemble_scores.append(repeat_score)
+
+        # score = utils.calc_score(ensemble_scores, ensemble_score_mode)
+
+        smi = ligand_ensemble[0][0]['smiles']
         curr_score = d_smi_score[smi]
         d_smi_score[smi] = min(curr_score, score)
     d_smi_score = dict(d_smi_score)
+
+    rows = [repeat for ligand_ensemble in ligands_ensemble_repeats
+                   for receptor in ligand_ensemble
+                   for repeat in receptor]
 
     total = timeit.default_timer() - begin
     m, s = divmod(int(total), 60)

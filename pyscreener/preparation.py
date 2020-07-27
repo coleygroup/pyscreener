@@ -1,28 +1,22 @@
 from typing import TypeVar
 
 from . import docking, md, dft
-
-Input = TypeVar('Input')
+from .utils import Input
 
 def prepare(mode, **kwargs) -> Input:
     if mode == 'docking':
-        receptor = docking.prepare_receptor(**kwargs)
-        ligands = docking.prepare_ligands(**kwargs)
-
-        inputs = (receptor, ligands)
-    elif mode == 'md':
+        return docking.prepare(**kwargs)
+    if mode == 'md':
         raise NotImplementedError
 
         # receptor = md.prepare_receptor(**kwargs)
         # ligands = md.prepare_ligands(**kwargs)
 
         # inputs = receptor, ligands
-    elif mode == 'dft':
+    if mode == 'dft':
         raise NotImplementedError
-    else:
-        raise ValueError(f'Unrecognized mode: "{mode}"')
 
-    return inputs
+    raise ValueError(f'Unrecognized mode: "{mode}"')
 
 # def prepare_receptor(mode, **kwargs):
 #     if mode == 'docking':

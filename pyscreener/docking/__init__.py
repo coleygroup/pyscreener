@@ -1,2 +1,2 @@
-from .docking import *
-from .preparation import *
+from .docking import dock
+from .preparation import prepare

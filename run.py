@@ -28,20 +28,14 @@ def main():
         print(f'  {param}: {value}')
     print(flush=True)
 
+    print('Preprocessing ...', end=' ', flush=True)
+    params = preprocessing.preprocess(**params)
+    print('Done!')
+
     base_tmp_path = f'{params["tmp"]}/{params["name"]}'
 
     print('Preparing inputs ...', flush=True)
     inputs = preparation.prepare(path=f'{base_tmp_path}/inputs', **params)
-    # params['receptor'] = preparation.prepare_receptor(**params)
-    # params['ligands'] = preparation.prepare_ligands(
-    #     path=f'{base_tmp_path}/inputs', **params
-    # )
-    # ligands = preparation.prepare_ligands(
-    #     mode=params.mode,
-    #     ligands=params.ligands, start=params.start, nconvert=params.nconvert,
-    #     title_line=params.title_line, ncpu=params.ncpu,
-    #     path=f'{params.tmp}/{params.name}/inputs', verbose=params.verbose
-    # )
     print('Done!')
 
     print(f'Screening inputs ...', flush=True)

@@ -1,13 +1,26 @@
 from typing import List
 
+from .autobox import autobox
+from .filter import filter_ligands
+
 def preprocess(preprocessing_options: List[str], **kwargs):
-    if 'pdbfix' in preprocessing_options:
-        pass
+    if 'None' in preprocessing_options:
+        return kwargs
+
     if 'autobox' in preprocessing_options:
-        pass
-    if 'tautomer' in preprocessing_options:
-        pass
+        kwargs['center'], kwargs['size'] = autobox(
+            pdbfile=kwargs['receptors'][0], **kwargs)
+
+    if 'pdbfix' in preprocessing_options:
+        from .pdbfix import pdbfix
+        kwargs['receptors'] = [pdbfix(pdbfile=kwargs['receptors'][0], **kwargs)]
+    
+    if 'filter' in preprocessing_options:
+        kwargs['ligands'], kwargs['names'] = filter_ligands(**kwargs)
+    
     if 'desalt' in preprocessing_options:
         pass
-    if 'filter' in preprocessing_options:
+    if 'tautomers' in preprocessing_options:
         pass
+
+    return kwargs

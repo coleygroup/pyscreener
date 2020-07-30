@@ -2,6 +2,7 @@
 to run virtual screeens in a number of docking programs"""
 
 import csv
+from itertools import chain
 from math import ceil, log10
 import os
 from pathlib import Path
@@ -45,26 +46,6 @@ def prepare(docker, **kwargs) -> Input:
 
     raise ValueError(f'Unrecognized docking program: "{docker}"')
 
-# def prepare_receptor(docker: str, receptors, **kwargs):
-#     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
-#         return ad.prepare_receptors(receptors)
-#     if docker == 'dock':
-#         return ucsfdock.prepare_receptors(receptors, **kwargs)
-#     if docker == 'rdock':
-#         return rdock.prepare_receptors(receptors, **kwargs)
-
-#     raise ValueError(f'{docker} is not a recognized docking program')
-
-# def prepare_ligands(docker: str, ligands, **kwargs):
-#     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
-#         return autodock.prepare_ligands(ligands, **kwargs)
-#     if docker == 'dock':
-#         return ucsfdock.prepare_ligands(ligands, **kwargs)
-#     if docker == 'rdock':
-#         return rdock.prepare_ligands(ligands, **kwargs)
-
-#     raise ValueError(f'{docker} is not a recognized docking program')
-
 def prepare_receptors(receptors, prepare_receptor: Callable[[str], str],
                       **kwargs) -> List[str]:   
     """Prepare a receptor input file from its supply file
@@ -90,8 +71,16 @@ def prepare_receptors(receptors, prepare_receptor: Callable[[str], str],
 
     return receptor_inputs
 
-def prepare_ligands(ligands, prepare_from_smi: Callable[..., Ligand], 
-                    **kwargs) -> List[Ligand]:
+def prepare_ligands(ligands, **kwargs):
+    return list(chain(*(
+        prepare_ligand(ligand, **kwargs) for ligand in ligands
+    )))
+
+def prepare_ligand(ligand,
+                   prepare_from_smi: Callable[..., Ligand],
+                   prepare_from_file: Callable[..., Ligand],
+                   prep_mode: str = '2d',
+                   **kwargs) -> List[Ligand]:
     if isinstance(ligands, str):
         p_ligand = Path(ligands)
 
@@ -100,7 +89,10 @@ def prepare_ligands(ligands, prepare_from_smi: Callable[..., Ligand],
         if p_ligand.suffix == '.csv':
             return prepare_from_csv(ligands, prepare_from_smi, **kwargs)
         if p_ligand.suffix in {'.sdf', '.smi'}:
-            return prepare_from_supply(ligands, prepare_from_smi, **kwargs)
+            return prepare_from_supply(
+                ligands, prepare_from_smi, 
+                prepare_from_file, prep_mode, **kwargs
+            )
         
         return [prepare_from_file(ligands, prepare_from_smi, **kwargs)]
 

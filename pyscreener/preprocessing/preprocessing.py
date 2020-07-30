@@ -18,8 +18,6 @@ def preprocess(preprocessing_options: List[str], **kwargs):
     if 'filter' in preprocessing_options:
         kwargs['ligands'], kwargs['names'] = filter_ligands(**kwargs)
     
-    if 'desalt' in preprocessing_options:
-        pass
     if 'tautomers' in preprocessing_options:
         pass
 

@@ -50,11 +50,12 @@ def add_screening_args(parser: ArgumentParser):
     parser.add_argument('--docker', default='vina',
                         choices=['vina', 'smina', 'qvina', 'psovina'],
                         help='the name of the docking program to use')
-    parser.add_argument('-r', '--receptors', required=True,
-                        nargs='+', #action='append',
+    parser.add_argument('-r', '--receptors', required=True, nargs='+',
                         help='the filenames of the receptors')
-    parser.add_argument('-l', '--ligands', required=True,
-                        help='the name of the file containing the ligand to dock')
+    parser.add_argument('-l', '--ligands', required=True, nargs='+',
+                        help='the filenames containing the ligands to dock')
+    parser.add_argument('--use-3d', action='store_true', default='False',
+                        help='how to treat the preparation of ligands from files containing three-dimensional information. If False, use only the 2D graph of each molecule in the SDF file when preparing inputs. Faster, but will result in the loss of conformational/tautomeric information.If True, se the 3D information contained in the file when preparing an input. Slower, but will preserve conformational/tautomeric information.')
     parser.add_argument('-c', '--center', required=True,
                         type=float, nargs=3,
                         metavar=('CENTER_X', 'CENTER_Y', 'CENTER_Z'),

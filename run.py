@@ -39,10 +39,14 @@ def main():
     print('Done!')
 
     print(f'Screening inputs ...', flush=True)
-    d_smi_score, rows = screening.screen(path=f'{base_tmp_path}/outputs',
-                                         inputs=inputs, **params)
+    d_smi_score, rows = screening.screen(
+        path=f'{base_tmp_path}/outputs', inputs=inputs, **params)
     print('Done!')
 
+    print(f'Postprocessing ...', flush=True)
+    postprocessing.postprocess(
+        d_smi_score=d_smi_score, path=f'{params["name"]}', **params)
+    print('Done!')
     output_dir = f'{params["root"]}/{params["name"]}'
     copy_tree(base_tmp_path, output_dir)
 

@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from .autodock import build_vina_argv, parse_vina_log
 from .utils import Ligand
-from pyscreener.utils import calc_score, Input
+from ..utils import calc_score, Input
 
 def dock(docker: str, inputs: Input, **kwargs):
     if docker in {'vina', 'psovina', 'smina', 'qvina'}:

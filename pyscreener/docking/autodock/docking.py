@@ -6,7 +6,7 @@ from math import exp
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from pyscreener import utils
+from ... import utils
 
 def build_vina_argv(docker: str, receptor: str, ligand: str,
                     center: Tuple[float, float, float],

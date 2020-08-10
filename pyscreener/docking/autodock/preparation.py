@@ -13,7 +13,7 @@ from typing import List, Optional, Sequence, Tuple
 from rdkit import Chem
 from tqdm import tqdm
 
-from pyscreener.docking.utils import Ligand, OBABEL
+from ..utils import Ligand, OBABEL
 
 def prepare_receptor(receptor: str, **kwargs) -> Optional[str]:
     """Prepare a receptor PDBQT file from its input file

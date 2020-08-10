@@ -1,6 +1,7 @@
 from typing import List
 
 from .cluster import cluster
+from .rescoring import rescore
 from .visualization import visualize
 
 def postprocess(postprocessing_options: List[str], **kwargs):
@@ -9,7 +10,5 @@ def postprocess(postprocessing_options: List[str], **kwargs):
     else:
         d_smi_score_clusters = None
 
-    if 'rescore' in postprocessing_options:
-        pass
     if 'visualize' in postprocessing_options:
-        pass
+        visualize(d_smi_score_clusters=d_smi_score_clusters, **kwargs)

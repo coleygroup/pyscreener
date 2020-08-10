@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess as sp
 import sys
 
-from pyscreener.docking.utils import OBABEL
+from ..utils import OBABEL
 
 def prepare_receptors(receptors, **kwargs):
     """Prepare a receptor mol2 file from its input file

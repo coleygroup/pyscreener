@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from . import autodock, ucsfdock, rdock
 from .utils import Ligand, OBABEL
-from pyscreener.utils import Input
+from ..utils import Input
 
 def prepare(docker, **kwargs) -> Input:
     """Prepare all of the inputs for the specified docking program"""
@@ -81,23 +81,23 @@ def prepare_ligand(ligand,
                    prepare_from_file: Callable[..., Ligand],
                    prep_mode: str = '2d',
                    **kwargs) -> List[Ligand]:
-    if isinstance(ligands, str):
-        p_ligand = Path(ligands)
+    if isinstance(ligand, str):
+        p_ligand = Path(ligand)
 
         if not p_ligand.exists():
-            return [prepare_from_smi(ligands, **kwargs)]
+            return [prepare_from_smi(ligand, **kwargs)]
         if p_ligand.suffix == '.csv':
-            return prepare_from_csv(ligands, prepare_from_smi, **kwargs)
+            return prepare_from_csv(ligand, prepare_from_smi, **kwargs)
         if p_ligand.suffix in {'.sdf', '.smi'}:
             return prepare_from_supply(
-                ligands, prepare_from_smi, 
+                ligand, prepare_from_smi, 
                 prepare_from_file, prep_mode, **kwargs
             )
         
-        return [prepare_from_file(ligands, prepare_from_smi, **kwargs)]
+        return [prepare_from_file(ligand, prepare_from_smi, **kwargs)]
 
-    elif isinstance(ligands, Sequence):
-        return prepare_from_smis(ligands, prepare_from_smi, **kwargs)
+    elif isinstance(ligand, Sequence):
+        return prepare_from_smis(ligand, prepare_from_smi, **kwargs)
     
     raise TypeError('argument "ligand" must be of type str or Sequence[str]!')
 

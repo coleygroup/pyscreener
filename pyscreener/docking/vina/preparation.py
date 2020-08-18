@@ -1,21 +1,25 @@
 """This module contains functions for preparing input files of vina-type
 docking software"""
 
-import csv
-from math import ceil, log10
-import os
 from pathlib import Path
 import subprocess as sp
 import sys
-import timeit
-from typing import List, Optional, Sequence, Tuple
-
-from rdkit import Chem
-from tqdm import tqdm
+from typing import Iterable, List, Optional, Tuple
 
 from ..utils import Ligand, OBABEL
+from ..preparation import prepare_receptors, prepare_ligands
+from ...utils import Input
 
-def prepare_receptor(receptor: str, **kwargs) -> Optional[str]:
+def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
+                   center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
+                   ncpu: int = 1, **kwargs) -> Input:
+    receptors = prepare_receptors(receptors, prepare_receptor)
+    ligands = prepare_ligands(ligands, prepare_from_smi,
+                              prepare_from_file, **kwargs)
+    return {'receptors': receptors, 'ligands': ligands, 
+            'center': center, 'size': size, 'ncpu': ncpu}
+
+def prepare_receptor(receptor: str) -> Optional[str]:
     """Prepare a receptor PDBQT file from its input file
 
     Parameter
@@ -26,7 +30,7 @@ def prepare_receptor(receptor: str, **kwargs) -> Optional[str]:
     Returns
     -------
     receptor_pdbqt : Optional[str]
-        the filenames of the resulting PDBQT files. None if preparation failed
+        the filename of the resulting PDBQT file. None if preparation failed
     """
     receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
     args = [OBABEL, receptor, '-O', receptor_pdbqt,
@@ -41,6 +45,25 @@ def prepare_receptor(receptor: str, **kwargs) -> Optional[str]:
 
 def prepare_from_smi(smi: str, name: str = 'ligand',
                      path: str = '.', **kwargs) -> Optional[Ligand]:
+    """Prepare an input ligand file from the ligand's SMILES string
+
+    Parameters
+    ----------
+    smi : str
+        the SMILES string of the ligand
+    name : Optional[str] (Default = None)
+        the name of the ligand.
+    path : str (Default = '.')
+        the path under which the output PDBQT file should be written
+    **kwargs
+        additional and unused keyword arguments
+
+    Returns
+    -------
+    Optional[Ligand]
+        a tuple of the SMILES string and the corresponding prepared input file.
+        None if preparation failed for any reason
+    """
     path = Path(path)
     if not path.is_dir():
         path.mkdir()
@@ -53,10 +76,11 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
 
     try:
         ret.check_returncode()
-        return smi, pdbqt
     except sp.SubprocessError:
         return None
 
+    return smi, pdbqt
+    
 def prepare_from_file(filename: str, use_3d: bool = False,
                       name: Optional[str] = None, path: str = '.', 
                       **kwargs) -> Ligand:
@@ -90,14 +114,16 @@ def prepare_from_file(filename: str, use_3d: bool = False,
     smis = [line.split()[0] for line in lines]
 
     if not use_3d:
-        return [prepare_from_smi(smi, name, path) for smi in smis]
+        ligands = [prepare_from_smi(smi, f'{name}_{i}', path) 
+                   for i, smi in enumerate(smis)]
+        return [lig for lig in ligands if lig]
     
     path = Path(path)
     if not path.is_dir():
         path.mkdir()
 
     pdbqt = f'{path}/{name}_.pdbqt'
-    argv = [OBABEL, filename, '-opdbqt', '-O', pdbqt]
+    argv = [OBABEL, filename, '-opdbqt', '-O', pdbqt, '-m']
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
     
     try:
@@ -111,6 +137,8 @@ def prepare_from_file(filename: str, use_3d: bool = False,
             continue
         n_mols = int(line.split()[0])
 
+    # have to think about some molecules failing and how that affects numbering
     pdbqts = [f'{path}/{name}_{i}.pdbqt' for i in range(1, n_mols)]
 
     return list(zip(smis, pdbqts))
+    

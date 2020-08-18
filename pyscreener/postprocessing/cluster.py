@@ -1,4 +1,5 @@
-# from collections import defaultdict
+"""This module contains functions for clutering a set of molecules"""
+
 import csv
 from itertools import chain
 import os
@@ -11,54 +12,20 @@ from typing import Dict, Iterable, List, Optional
 import h5py
 import numpy as np
 from scipy import sparse
-import sklearn as sk
+from sklearn.cluster import MiniBatchKMeans
 
 from . import fingerprints
 
-def cluster_fps_h5(fps_h5: str, n_cluster: int = 100) -> List[int]:
-    """
-    Cluster the molecular fingerprints
+def cluster(d_smi_score: Dict[str, Optional[float]],
+            path: str = '.', **kwargs) -> List[Dict]:
+    d_smi_cid = cluster_smis(d_smi_score.keys(), path=path, **kwargs)
 
-    Parameters
-    ----------
-    fps : str
-        the filepath of an h5py file containing the NxM matrix of the
-        molecular representations, where N is the number of molecules and
-        M is the length of the feature representation
-    ncluster : int (Default = 100)
-        the number of clusters to form with the given fingerprints (if the
-        input method requires this parameter)
+    smi_score_clusters = {}
+    for smi, score in d_smi_score.items():
+        cid = d_smi_cid[smi]
+        smi_score_clusters[cid][smi] = score
 
-    Returns
-    -------
-    cids : List[int]
-        the cluster id corresponding to a given fingerprint
-    """
-    begin = timeit.default_timer()
-
-    batch_size = 1000
-    n_iter = 1000
-
-    clusterer = sk.cluster.MiniBatchKMeans(n_clusters=n_cluster,
-                                           batch_size=batch_size)
-
-    with h5py.File(fps_h5, 'r') as h5f:
-        fps = h5f['fps']
-        chunk_size = fps.chunks[0]
-
-        for _ in range(n_iter):
-            rand_idxs = sorted(sample(range(len(fps)), batch_size))
-            batch_fps = fps[rand_idxs]
-            clusterer.partial_fit(batch_fps)
-
-        cidss = [clusterer.predict(fps[i:i+chunk_size])
-                 for i in range(0, len(fps), chunk_size)]
-
-    elapsed = timeit.default_timer() - begin
-
-    print(f'Clustering took: {elapsed:0.3f}s')
-
-    return list(chain(*cidss))
+    return list(smi_score_clusters.values())
 
 def cluster_smis(smis: Iterable[str], n_cluster: int = 100, 
                  path: str = '.', name: str = 'fps', 
@@ -93,20 +60,7 @@ def cluster_smis(smis: Iterable[str], n_cluster: int = 100,
     smis = [smi for i, smi in enumerate(smis) if i not in invalid_idxs]
     cids = cluster_fps_h5(fps_h5, n_cluster)
     
-    d_smi_cid = dict(zip(smis, cids))
-
-    return d_smi_cid
-
-def cluster(d_smi_score: Dict[str, Optional[float]], path: str = '.',
-            **kwargs) -> List[Dict]:
-    d_smi_cid = cluster_smis(d_smi_score.keys(), path=path, **kwargs)
-
-    smi_score_clusters = {}
-    for smi, score in d_smi_score.items():
-        cid = d_smi_cid[smi]
-        smi_score_clusters[cid][smi] = score
-
-    return list(smi_score_clusters.values())
+    return dict(zip(smis, cids))
 
 def cluster_file(filepath: str, delimiter: str = ',',
                  title_line: bool = True, smiles_col: int = 0,
@@ -160,6 +114,49 @@ def cluster_file(filepath: str, delimiter: str = ',',
     elapsed = timeit.default_timer() - start
     print(f'Total time to cluster the {len(cluster_ids)} mols in "{filepath}"',
           f'over: {elapsed:0.3f}s')
+
+def cluster_fps_h5(fps_h5: str, n_cluster: int = 100) -> List[int]:
+    """Cluster the feature matrix of fingerprints in fps_h5
+
+    Parameters
+    ----------
+    fps : str
+        the filepath of an h5py file containing the NxM matrix of
+        molecular fingerprints, where N is the number of molecules and
+        M is the length of the fingerprint (feature representation)
+    ncluster : int (Default = 100)
+        the number of clusters to form with the given fingerprints (if the
+        input method requires this parameter)
+
+    Returns
+    -------
+    cids : List[int]
+        the cluster id corresponding to a given fingerprint
+    """
+    begin = timeit.default_timer()
+
+    BATCH_SIZE = 1000
+    ITER = 1000
+
+    clusterer = MiniBatchKMeans(n_clusters=n_cluster, batch_size=BATCH_SIZE)
+
+    with h5py.File(fps_h5, 'r') as h5f:
+        fps = h5f['fps']
+        chunk_size = fps.chunks[0]
+
+        for _ in range(ITER):
+            rand_idxs = sorted(sample(range(len(fps)), BATCH_SIZE))
+            batch_fps = fps[rand_idxs]
+            clusterer.partial_fit(batch_fps)
+
+        cidss = [clusterer.predict(fps[i:i+chunk_size])
+                 for i in range(0, len(fps), chunk_size)]
+
+    elapsed = timeit.default_timer() - begin
+
+    print(f'Clustering took: {elapsed:0.3f}s')
+
+    return list(chain(*cidss))
 
 # def write_clusters(path: str, d_cluster_smidxs: Dict[int, List[int]],
 #                    smis: h5py.Dataset) -> str:

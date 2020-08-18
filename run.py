@@ -32,26 +32,29 @@ def main():
     params = preprocessing.preprocess(**params)
     print('Done!')
 
-    base_tmp_path = f'{params["tmp"]}/{params["name"]}'
+    name = params['name']
+    base_tmp_path = Path(params['tmp']) / name
+    in_path = base_tmp_path / 'inputs'
+    out_path = base_tmp_path / 'outputs'
 
     print('Preparing inputs ...', flush=True)
-    inputs = preparation.prepare(path=f'{base_tmp_path}/inputs', **params)
+    inputs = preparation.prepare(path=in_path, **params)
     print('Done!')
 
     print(f'Screening inputs ...', flush=True)
-    d_smi_score, rows = screening.screen(
-        path=f'{base_tmp_path}/outputs', inputs=inputs, **params)
+    d_smi_score, rows = screening.screen(path=out_path, inputs=inputs, **params)
     print('Done!')
 
     print(f'Postprocessing ...', flush=True)
     postprocessing.postprocess(
-        d_smi_score=d_smi_score, path=f'{params["name"]}', **params)
+        d_smi_score=d_smi_score, path=name, **params)
     print('Done!')
-    output_dir = f'{params["root"]}/{params["name"]}'
-    copy_tree(base_tmp_path, output_dir)
 
-    scores_filename = f'{output_dir}/{params["name"]}_scores.csv'
-    extended_filename = f'{output_dir}/{params["name"]}_extended.csv'
+    output_dir = Path(params['root']) / name
+    copy_tree(str(base_tmp_path), str(output_dir))
+
+    scores_filename = output_dir / f'{name}_scores.csv'
+    extended_filename = output_dir / f'{name}_extended.csv'
 
     smis_scores = sorted(d_smi_score.items(), key=itemgetter(1))
     with open(scores_filename, 'w') as fid:

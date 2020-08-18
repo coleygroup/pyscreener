@@ -1,10 +1,11 @@
+"""This module contains functions for generating the feature matrix of a set of
+molecules located either in a sequence of SMILES strings or in a file"""
+
 import csv
 from functools import partial
 import gzip
 import os
 from pathlib import Path
-# import sys
-# import timeit
 from typing import Iterable, Optional, Set, Tuple
 
 import h5py
@@ -86,12 +87,12 @@ def gen_fps_h5(smis: Iterable[str], n_mols: Optional[int] = None,
         #         sem.acquire()
         #         yield row
         # rows = gen_rows(reader, semaphore)
-        smi_to_fp_partial = partial(smi_to_fp, radius=radius, length=length)
+        smi_to_fp_ = partial(smi_to_fp, radius=radius, length=length)
 
         invalid_idxs = set()
         offset = 0
 
-        fps = pool.map(smi_to_fp_partial, smis, chunksize=CHUNKSIZE)
+        fps = pool.map(smi_to_fp_, smis, chunksize=CHUNKSIZE)
         for i, fp in tqdm(enumerate(fps), total=n_mols,
                           desc='Calculating fingerprints', unit='fp'):
             while fp is None:
@@ -101,6 +102,7 @@ def gen_fps_h5(smis: Iterable[str], n_mols: Optional[int] = None,
             
             fps_dset[i] = fp
             # semaphore.release()
+
         # original dataset size included potentially invalid SMILES
         n_mols_valid = n_mols - len(invalid_idxs)
         if n_mols_valid != n_mols:
@@ -169,11 +171,3 @@ def gen_fps_h5_from_file(filepath: str, delimiter: str = ',',
             smis, n_mols, path, name, **kwargs)
 
     return fps_h5, invalid_rows
-
-# def main():
-#     filepath = sys.argv[1]
-#     fps_h5 = parse_smiles_par(filepath, njobs=sys.argv[2])
-#     print(fps_h5)
-
-# if __name__ == '__main__':
-#     main()

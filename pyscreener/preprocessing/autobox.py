@@ -1,3 +1,6 @@
+"""This module contains functions for ligand autoboxing in docking
+simulations"""
+
 from itertools import takewhile
 from typing import List, Optional, Tuple
 
@@ -6,8 +9,7 @@ def extract_xyz(line: str) -> Tuple[float, float, float]:
 
 def minimum_bounding_box(coords: List[Tuple[float, float, float]], 
                          buffer: int = 0) -> Tuple[Tuple, Tuple]:
-    """
-    Calculate the minimum bounding box for a list of coordinates
+    """Calculate the minimum bounding box for a list of coordinates
 
     Parameters
     ----------

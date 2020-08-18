@@ -18,6 +18,7 @@ def add_general_args(parser: ArgumentParser):
     parser.add_argument('--mode', default='docking',
                         choices=['docking', 'md', 'dft'],
                         help='the mode in which to run pyscreener')
+
     parser.add_argument('--distributed', action='store_true', default=True,
                         help='whether to parallelize computation using a distributed setup')
     parser.add_argument('--nworkers', type=int, metavar='N_WORKERS', default=-1,
@@ -32,9 +33,9 @@ def add_general_args(parser: ArgumentParser):
 
 def add_preprocessing_args(parser: ArgumentParser):
     parser.add_argument('--preprocessing-options', nargs='+',
-                        default='None',
-                        choices=['pdbfix', 'autobox', 
-                                 'tautomers', 'desalt', 'filter'],
+                        default='none',
+                        choices=['pdbfix', 'autobox', 'tautomers', 'desalt', 
+                                 'filter'],
                         help='the preprocessing options to apply')
 
 def add_preparation_args(parser: ArgumentParser):
@@ -84,8 +85,8 @@ def add_screening_args(parser: ArgumentParser):
 
 def add_postprocessing_args(parser: ArgumentParser):
     parser.add_argument('--postprocessing-options', nargs='+',
-                        default='None',
-                        choices=['cluster', 'rescore', 'distribution'],
+                        default='none',
+                        choices=['cluster', 'distribution'],
                         help='the postprocessing options to apply')
 
 def gen_args() -> Namespace:

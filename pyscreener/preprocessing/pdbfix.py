@@ -1,3 +1,6 @@
+"""This module contains the function pdbfix, which is used to fix input PDB
+files or retrieve them based on their pdbID from the PDB"""
+
 from typing import Optional
 
 from pdbfixer import PDBFixer

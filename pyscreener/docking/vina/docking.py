@@ -199,7 +199,8 @@ def dock_ligand(ligand: Ligand, docker: str, receptors: List[str],
 
 def dock_inputs(docker: str, receptors: List[str], ligands: List[Ligand],
                 center: Tuple[float, float, float],
-                size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 4,
+                size: Tuple[int, int, int] = (10, 10, 10),
+                ncpu: int = 4, extra: Optional[List[str]] = None,
                 path: str = './docking_results_'+str(date.today()),
                 score_mode: str = 'best', repeats: int = 1,
                 client: Optional[Executor] = None, 
@@ -247,8 +248,8 @@ def dock_inputs(docker: str, receptors: List[str], ligands: List[Ligand],
     """
     dock_ligand_ = partial(
         dock_ligand, docker=docker, receptors=receptors,
-        center=center, size=size, ncpu=ncpu, path=path,
-        score_mode=score_mode, repeats=repeats
+        center=center, size=size, ncpu=ncpu, extra=extra,
+        path=path, score_mode=score_mode, repeats=repeats
     )
 
     if client:

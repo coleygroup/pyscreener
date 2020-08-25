@@ -1,4 +1,5 @@
 from itertools import takewhile
+import os
 from pathlib import Path
 import subprocess as sp
 import sys
@@ -8,25 +9,61 @@ from ..utils import OBABEL, Ligand
 from ..preparation import prepare_receptors, prepare_ligands
 from ...utils import Input
 
-VDW_DEFN_FILE = 'dock6/parameters/vdw_AMBER_parm99.defn'
-FLEX_DEFN_FILE = 'dock6/parameters/flex.defn'
-FLEX_DRIVE_FILE = 'dock6/parameters/flex_drive.tbl'
+DOCK6 = Path(os.environ['DOCK6'])
+DOCK6_BIN = DOCK6 / 'bin'
+DOCK6_PARAMS = DOCK6 / 'parameters'
+
+DMS = DOCK6_BIN / 'dms'
+SPHGEN = DOCK6_BIN / 'sphgen'
+SPHERE_SELECTOR = DOCK6_BIN / 'sphere_selector'
+SHOWBOX = DOCK6_BIN / 'showbox'
+GRID = DOCK6_BIN / 'grid'
+
+VDW_DEFN_FILE = DOCK6_PARAMS / 'vdw_AMBER_parm99.defn'
+FLEX_DEFN_FILE = DOCK6_PARAMS / 'flex.defn'
+FLEX_DRIVE_FILE = DOCK6_PARAMS / 'flex_drive.tbl'
 
 def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
                    center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
                    ncpu: int = 1, path: str = '.',
                    **kwargs) -> Dict:
-    # 1 preparation of ligands and receptors
-    receptors = prepare_receptors(receptors, prepare_receptor)
+    sphs_grids = []
+    for receptor in receptors:
+        receptor_input_files = prepare_receptor(receptor)
+        if receptor_input_files is None:
+            continue
+
+        rec_withH_mol2, rec_noH_pdb = receptor_input_files
+        rec_dms = prepare_dms(rec_noH_pdb)
+        rec_sph = gen_sph(rec_dms)
+        rec_sph = select_spheres(
+            rec_sph, center, size, 
+            kwargs['docked_ligand'], kwargs['use_largest'], kwargs['buffer']
+        )
+        rec_box = prepare_box(
+            rec_sph, center, size,
+            kwargs['enclose_spheres'], kwargs['buffer']
+        )
+        grid_prefix = prepare_grid(rec_withH_mol2, rec_box)
+        sphs_grids.append((rec_sph, grid_prefix))
+
+    if len(sphs_grids) == 0:
+        raise RuntimeError('All receptors failed conversion')
+
     ligands = prepare_ligands(ligands, prepare_from_smi,
                               prepare_from_file, **kwargs)
-    # 2 generating receptors surfaces and spheres
-    # 3 generating boxes and grids
-    # 4 generating ensemble input files
-    
-    # ligands is type List[Tuple[str, List[str]]] where the innermost
-    # List[str] is the ensemble_infiles
-    return {'ligands': ligands}
+
+    smis_infiless = []
+    for smi, ligand_file in ligands:
+        ensemble_infiles = []
+        for sph, grid in sphs_grids:
+            input_file, outfile_prefix = prepare_input_file(
+                ligand_file, sph, grid, path
+            )
+            ensemble_infiles.append((input_file, outfile_prefix))
+        smis_infiless.append((smi, ensemble_infiles))
+
+    return {'ligands': smis_infiless}
 
 def prepare_receptor(receptor: str):
     """Prepare a receptor mol2 file from its input file
@@ -42,20 +79,21 @@ def prepare_receptor(receptor: str):
         the filename of the resulting MOL2 file
     """
     p_rec = Path(receptor)
-    rec_withH = str(p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
-    rec_noH = str(p_rec.with_name(f'{p_rec.stem}_noH.pdb'))
+    rec_withH_mol2 = str(p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
+    rec_noH_pdb = str(p_rec.with_name(f'{p_rec.stem}_noH.pdb'))
 
     # receptor_file = str(Path(receptor).with_suffix('.mol2'))
-    args_withH = [OBABEL, receptor, '-omol2', '-O', rec_withH,
+    args_withH = [OBABEL, receptor, '-omol2', '-O', rec_withH_mol2,
                   '-h', '--partialcharge', 'gasteiger']
-    args_noH = [OBABEL, receptor, '-opdb', '-O', rec_noH]
+    args_noH = [OBABEL, receptor, '-opdb', '-O', rec_noH_pdb]
     try:
         sp.run(args_withH, stderr=sp.PIPE, check=True)
         sp.run(args_noH, stderr=sp.PIPE, check=True)
     except sp.SubprocessError:
-        print(f'ERROR: failed to convert {receptor}, skipping...')
+        print(f'ERROR: failed to convert receptor: "{receptor}"')
+        return None
 
-    return rec_withH, rec_noH
+    return rec_withH_mol2, rec_noH_pdb
 
 def prepare_from_smi(smi: str, name: str = 'ligand',
                      path: str = '.', **kwargs) -> Optional[Ligand]:
@@ -155,26 +193,18 @@ def prepare_from_file(filename: str, use_3d: bool = False,
     return list(zip(smis, mol2s))
 
 def prepare_dms(rec_noH_pdb: str, probe_radius: float = 1.4):
-    rec_dms = str(Path(rec_noH).with_suffix('.dms'))
-    argv = ['dms', rec_noH_pdb, '-n', '-w', probe_radius, '-v', '-o', rec_dms]
+    rec_dms = str(Path(rec_noH_pdb).with_suffix('.dms'))
+    argv = [DMS, rec_noH_pdb, '-n', '-w', probe_radius, '-v', '-o', rec_dms]
     sp.run(argv, check=True)
 
     return rec_dms
 
-# def prepare_sph(dms_file: str, steric_clash_dist: float = 0.0,
-#                 max_radius: float = 4.0, min_radius: float = 1.4,
-#                 center: Tuple[float, float, float],
-#                 size: Tuple[float, float, float],
-#                 docked_ligand_file: Optional[str] = None,
-#                 use_largest: bool = False, buffer: float = 10.0) -> str:
-#     pass
-
-def gen_sph(dms_file: str, steric_clash_dist: float = 0.0,
+def gen_sph(rec_dms: str, steric_clash_dist: float = 0.0,
             max_radius: float = 4.0, min_radius: float = 1.4) -> str:
-    sph_file = str(Path(dms_file).with_suffix('.sph'))
+    sph_file = str(Path(rec_dms).with_suffix('.sph'))
 
     with open('INSPH', 'w') as fid:
-        fid.write(f'{dms_file}\n')
+        fid.write(f'{rec_dms}\n')
         fid.write('R\n')
         fid.write('X\n')
         fid.write(f'{steric_clash_dist:0.1f}\n')
@@ -182,7 +212,7 @@ def gen_sph(dms_file: str, steric_clash_dist: float = 0.0,
         fid.write(f'{min_radius:0.1f}\n')
         fid.write(f'{sph_file}\n')
     
-    argv = ['sphgen', '-i', 'INSPH', '-o', 'OUTSPH']
+    argv = [SPHGEN, '-i', 'INSPH', '-o', 'OUTSPH']
     sp.run(argv, check=True)
     
     # try:
@@ -198,7 +228,7 @@ def select_spheres(sph_file: str,
                    docked_ligand_file: Optional[str] = None,
                    use_largest: bool = False, buffer: float = 10.0) -> str:
     if docked_ligand_file:
-        argv = ['sphere_selector', sph_file, docked_ligand_file, buffer]
+        argv = [SPHERE_SELECTOR, sph_file, docked_ligand_file, buffer]
         sp.run(argv, check=True)
         # sphere_selector always outputs this filename
         return 'selected_spheres.sph'
@@ -241,9 +271,10 @@ def select_spheres(sph_file: str,
 
     return selected_sph_file
 
-def prepare_box(sph_file: str, enclose_spheres: bool, buffer: float,
+def prepare_box(sph_file: str,
                 center: Tuple[float, float, float],
-                size: Tuple[float, float, float]) -> str:
+                size: Tuple[float, float, float],
+                enclose_spheres: bool = True, buffer: float = 10.0) -> str:
     p_sph = Path(sph_file)
     p_box = p_sph.with_name(f'{p_sph.stem}_box.pdb')
     box_file = str(p_box)
@@ -261,7 +292,7 @@ def prepare_box(sph_file: str, enclose_spheres: bool, buffer: float,
             fid.write(f'[{size[0]} {size[1]} {size[2]}]\n')
         fid.write(f'{box_file}\n')
     
-    sp.run('showbox < box.in', shell=True, check=True)
+    sp.run(f'{SHOWBOX} < box.in', shell=True, check=True)
 
     return box_file
 
@@ -283,18 +314,20 @@ def prepare_grid(rec_withH: str, box_file: str):
         fid.write('dielectric_factor 4.0\n')
         fid.write('bump_filter yes\n')
         fid.write('bump_overlap 0.75\n')
-        fid.write(f'receptor_file {receptor_file}\n')
+        fid.write(f'receptor_file {rec_withH}\n')
         fid.write(f'box_file {box_file}\n')
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
         fid.write(f'score_grid_prefix  {grid_prefix}\n')
 
-    sp.run(['grid', '-i', 'grid.in', '-o', 'gridinfo.out'], check=True)
+    sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], check=True)
 
     return grid_prefix
 
-def prepare_input_file(ligand_file: str, sph_file, grid_prefix) -> str:
-    input_file = f'{Path(ligand_file).stem}_{Path(sph_file).stem}.in'
+def prepare_input_file(ligand_file: str, sph_file,
+                       grid_prefix, path) -> Tuple[str, str]:
+    input_file = f'{Path(sph_file).stem}_{Path(ligand_file).stem}.in'
     input_file = Path(path) / input_file
+    outfile_prefix = input_file.stem
 
     with open(input_file, 'w') as fid:
         fid.write('conformer_search_type flex\n')
@@ -374,9 +407,9 @@ def prepare_input_file(ligand_file: str, sph_file, grid_prefix) -> str:
         fid.write(f'flex_defn_file {FLEX_DEFN_FILE}\n')
         fid.write(f'flex_drive_file {FLEX_DRIVE_FILE}\n')
 
-        fid.write(f'ligand_outfile_prefix {outfile}\n')
+        fid.write(f'ligand_outfile_prefix {outfile_prefix}\n')
         fid.write('write_orientations no\n')
         fid.write('num_scored_conformers 1\n')
         fid.write('rank_ligands no\n')
     
-    return str(input_file)
+    return str(input_file), outfile_prefix

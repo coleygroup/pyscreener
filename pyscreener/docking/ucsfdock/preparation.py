@@ -1,3 +1,7 @@
+try:
+    import importlib.resources as resources
+except ModuleNotFoundError:
+    import importlib_resources as resources
 from itertools import takewhile
 import os
 from pathlib import Path
@@ -5,16 +9,20 @@ import subprocess as sp
 import sys
 from typing import Dict, Iterable, Optional, Tuple
 
-from ..utils import OBABEL, Ligand
+from ..utils import Ligand
 from ..preparation import prepare_receptors, prepare_ligands
 from ...utils import Input
+
+with resources.path('pyscreener.docking.ucsfdock', '.') as p_module:
+    PREP_REC = p_module / 'scripts' / 'prep_rec.py'
+    WRITE_DMS = p_module / 'scripts' / 'write_dms.py'
 
 DOCK6 = Path(os.environ['DOCK6'])
 DOCK6_BIN = DOCK6 / 'bin'
 DOCK6_PARAMS = DOCK6 / 'parameters'
 
 DMS = DOCK6_BIN / 'dms'
-SPHGEN = DOCK6_BIN / 'sphgen'
+SPHGEN = DOCK6_BIN / 'sphgen_cpp'
 SPHERE_SELECTOR = DOCK6_BIN / 'sphere_selector'
 SHOWBOX = DOCK6_BIN / 'showbox'
 GRID = DOCK6_BIN / 'grid'
@@ -23,10 +31,9 @@ VDW_DEFN_FILE = DOCK6_PARAMS / 'vdw_AMBER_parm99.defn'
 FLEX_DEFN_FILE = DOCK6_PARAMS / 'flex.defn'
 FLEX_DRIVE_FILE = DOCK6_PARAMS / 'flex_drive.tbl'
 
-def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
+def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
                    center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
-                   ncpu: int = 1, path: str = '.',
-                   **kwargs) -> Dict:
+                   ncpu: int = 1, path: str = '.', **kwargs) -> Dict:
     sphs_grids = []
     for receptor in receptors:
         receptor_input_files = prepare_receptor(receptor)
@@ -35,7 +42,7 @@ def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
 
         rec_withH_mol2, rec_noH_pdb = receptor_input_files
         rec_dms = prepare_dms(rec_noH_pdb)
-        rec_sph = gen_sph(rec_dms)
+        rec_sph = prepare_sph(rec_dms)
         rec_sph = select_spheres(
             rec_sph, center, size, 
             kwargs['docked_ligand'], kwargs['use_largest'], kwargs['buffer']
@@ -57,10 +64,10 @@ def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
     for smi, ligand_file in ligands:
         ensemble_infiles = []
         for sph, grid in sphs_grids:
-            input_file, outfile_prefix = prepare_input_file(
+            infile, outfile_prefix = prepare_input_file(
                 ligand_file, sph, grid, path
             )
-            ensemble_infiles.append((input_file, outfile_prefix))
+            ensemble_infiles.append((infile, outfile_prefix))
         smis_infiless.append((smi, ensemble_infiles))
 
     return {'ligands': smis_infiless}
@@ -82,13 +89,15 @@ def prepare_receptor(receptor: str):
     rec_withH_mol2 = str(p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
     rec_noH_pdb = str(p_rec.with_name(f'{p_rec.stem}_noH.pdb'))
 
-    # receptor_file = str(Path(receptor).with_suffix('.mol2'))
-    args_withH = [OBABEL, receptor, '-omol2', '-O', rec_withH_mol2,
-                  '-h', '--partialcharge', 'gasteiger']
-    args_noH = [OBABEL, receptor, '-opdb', '-O', rec_noH_pdb]
+    # with importlib.resources.path(
+    #     'pyscreener.docking.ucsfdock.scripts', 'prep_rec.py') as prep_rec:
+
+    args_withH_mol2 = ['chimera', '--nogui', '--script',
+                    f'{PREP_REC} {receptor} {rec_withH_mol2}']
+    args_noH_pdb = ['obabel', receptor, '-opdb', '-O', rec_noH_pdb]
     try:
-        sp.run(args_withH, stderr=sp.PIPE, check=True)
-        sp.run(args_noH, stderr=sp.PIPE, check=True)
+        sp.run(args_withH_mol2, stdout=sp.PIPE, stderr=sp.PIPE, check=True)
+        sp.run(args_noH_pdb, stderr=sp.PIPE, check=True)
     except sp.SubprocessError:
         print(f'ERROR: failed to convert receptor: "{receptor}"')
         return None
@@ -122,7 +131,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
     
     mol2 = str(path / f'{name}.mol2')
 
-    argv = [OBABEL, f'-:{smi}', '-omol2', '-O', mol2,
+    argv = ['obabel', f'-:{smi}', '-omol2', '-O', mol2,
             '-h', '--gen3d', '--partialcharge', 'gasteiger']
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
 
@@ -160,7 +169,7 @@ def prepare_from_file(filename: str, use_3d: bool = False,
     """
     name = name or Path(filename).stem
 
-    ret = sp.run([OBABEL, filename, '-osmi'], stdout=sp.PIPE, check=True)
+    ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
     lines = ret.stdout.decode('utf-8').splitlines()
     smis = [line.split()[0] for line in lines]
 
@@ -174,7 +183,8 @@ def prepare_from_file(filename: str, use_3d: bool = False,
         path.mkdir()
 
     mol2 = f'{path}/{name}_.mol2'
-    argv = [OBABEL, filename, '-omol2', '-O', mol2, '-m']
+    argv = ['obabel', filename, '-omol2', '-O', mol2, '-m',
+            '-h', '--partialcharge', 'gasteiger']
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
     
     try:
@@ -194,25 +204,24 @@ def prepare_from_file(filename: str, use_3d: bool = False,
 
 def prepare_dms(rec_noH_pdb: str, probe_radius: float = 1.4):
     rec_dms = str(Path(rec_noH_pdb).with_suffix('.dms'))
-    argv = [DMS, rec_noH_pdb, '-n', '-w', probe_radius, '-v', '-o', rec_dms]
-    sp.run(argv, check=True)
+
+    # with importlib.resources.path(
+    #     'pyscreener.docking.ucsfdock.scripts', 'write_dms.py') as write_dms:
+
+    argv = ['chimera', '--nogui', '--script',
+            f'{WRITE_DMS} {rec_noH_pdb} {probe_radius} {rec_dms}']
+    # argv = [DMS, rec_noH_pdb, '-n', '-w', probe_radius, '-v', '-o', rec_dms]
+    sp.run(argv, stdout=sp.PIPE, check=True)
 
     return rec_dms
 
-def gen_sph(rec_dms: str, steric_clash_dist: float = 0.0,
-            max_radius: float = 4.0, min_radius: float = 1.4) -> str:
+def prepare_sph(rec_dms: str, steric_clash_dist: float = 0.0,
+                min_radius: float = 1.4, max_radius: float = 4.0) -> str:
     sph_file = str(Path(rec_dms).with_suffix('.sph'))
-
-    with open('INSPH', 'w') as fid:
-        fid.write(f'{rec_dms}\n')
-        fid.write('R\n')
-        fid.write('X\n')
-        fid.write(f'{steric_clash_dist:0.1f}\n')
-        fid.write(f'{max_radius:0.1f}\n')
-        fid.write(f'{min_radius:0.1f}\n')
-        fid.write(f'{sph_file}\n')
     
-    argv = [SPHGEN, '-i', 'INSPH', '-o', 'OUTSPH']
+    argv = [SPHGEN, '-i', rec_dms, '-o', sph_file, 
+            '-s', 'R', 'd', 'X', '-l', str(steric_clash_dist),
+            'm', str(min_radius), '-x', str(max_radius)]
     sp.run(argv, check=True)
     
     # try:
@@ -234,42 +243,35 @@ def select_spheres(sph_file: str,
         return 'selected_spheres.sph'
 
     p_sph = Path(sph_file)
-    selected_sph_file = str(p_sph.with_name(f'{p_sph.stem}_selected'))
-    
-    def parse_xyz(line):
-        tokens = line.split(' ')
-        x, y, z = tokens[1:4]
-        return float(x), float(y), float(z)
+    p_selected_sph = p_sph.parents / f'{p_sph.stem}_selected.{p_sph.suffix}'
 
-    def inside_docking_box(x, y, z):
-        for i, coord in enumerate([x, y, z]):
+    def inside_docking_box(line):
+        """Are the coordinates contained in the line inside the docking box?"""
+        try:
+            tokens = line.split()
+            xyz = list(map(float, tokens[1:4]))
+        except ValueError:
+            return False
+
+        for i, coord in enumerate(xyz):
             if not center[i]-size[i] <= coord <= center[i]+size[i]:
                 return False
         return True
 
-    with open(sph_file, 'r') as fid_in, open(selected_sph_file, 'w') as fid_out:
-        fid_out.write('DOCK receptor spheres\n')
-        fid_out.write('Pyscreener selected spheres\n')
-        
+    with open(sph_file, 'r') as fid_in, open(p_selected_sph, 'w') as fid_out:
         if use_largest:
-            # consume all intro lines
+            fid_out.write(f'DOCK spheres largest cluster\n')
             for line in takewhile(lambda line: 'cluster' not in line, fid_in):
                 continue
-
-            # write all lines in the first (largest) cluster
-            for line in takewhile(lambda line: 'cluster' not in line, fid_in):
-                fid_out.write(line)
+            lines = list(takewhile(lambda line: 'cluster' not in line, fid_in))
         else:
-            for line in fid_in:
-                try:
-                    x, y, z = parse_xyz(line)
-                except ValueError:
-                    continue    # skip unparsable lines
+            fid_out.write(f'DOCK spheres within radii {size} of {center}\n')
+            lines = [line for line in fid_in if inside_docking_box(line)]
 
-                if inside_docking_box(x, y, z):
-                    fid_out.write(line)
+        fid_out.write(f'cluster 1 number of spheres in cluster {len(lines)}\n')
+        fid_out.writelines(lines)
 
-    return selected_sph_file
+    return str(p_selected_sph)
 
 def prepare_box(sph_file: str,
                 center: Tuple[float, float, float],
@@ -279,7 +281,7 @@ def prepare_box(sph_file: str,
     p_box = p_sph.with_name(f'{p_sph.stem}_box.pdb')
     box_file = str(p_box)
 
-    with open('box.in', 'r') as fid:
+    with open('box.in', 'w') as fid:
         if enclose_spheres:
             fid.write('Y\n')
             fid.write(f'{buffer}\n')
@@ -325,11 +327,11 @@ def prepare_grid(rec_withH: str, box_file: str):
 
 def prepare_input_file(ligand_file: str, sph_file,
                        grid_prefix, path) -> Tuple[str, str]:
-    input_file = f'{Path(sph_file).stem}_{Path(ligand_file).stem}.in'
-    input_file = Path(path) / input_file
-    outfile_prefix = input_file.stem
+    infile = f'{Path(sph_file).stem}_{Path(ligand_file).stem}.in'
+    infile = Path(path) / infile
+    outfile_prefix = infile.stem
 
-    with open(input_file, 'w') as fid:
+    with open(infile, 'w') as fid:
         fid.write('conformer_search_type flex\n')
         fid.write('write_fragment_libraries no\n')
         fid.write('user_specified_anchor no\n')
@@ -353,6 +355,7 @@ def prepare_input_file(ligand_file: str, sph_file,
         fid.write('skip_molecule no\n')
         fid.write('read_mol_solvation no\n')
         fid.write('calculate_rmsd no\n')
+        fid.write('use_rmsd_reference_mol no\n')
         fid.write('use_database_filter no\n')
         fid.write('orient_ligand yes\n')
         fid.write('automated_matching yes\n')
@@ -409,7 +412,8 @@ def prepare_input_file(ligand_file: str, sph_file,
 
         fid.write(f'ligand_outfile_prefix {outfile_prefix}\n')
         fid.write('write_orientations no\n')
-        fid.write('num_scored_conformers 1\n')
+        fid.write('num_scored_conformers 5\n')
+        fid.write('write_conformations no\n')
         fid.write('rank_ligands no\n')
     
-    return str(input_file), outfile_prefix
+    return str(infile), outfile_prefix

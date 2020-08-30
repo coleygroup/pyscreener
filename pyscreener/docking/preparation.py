@@ -14,7 +14,7 @@ from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 from rdkit import Chem
 from tqdm import tqdm
 
-from .utils import Ligand, OBABEL
+from .utils import Ligand
 from ..utils import Input
 
 def prepare_receptors(receptors: Iterable[str], 

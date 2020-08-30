@@ -4,14 +4,23 @@
 *.csv
 *.pdb
 *.pdbqt
+*.dms
+*.sph
+*.mol2
+*.bmp
+*.nrg
 *.gz
 *.zip
 *.batch
 *.txt
 *.ini
 *.err
+*.in
 *.out
 *.ipynb
+
+INSPH
+OUTSPH
 
 .DS_Store*
 .ipynb_checkpoints*

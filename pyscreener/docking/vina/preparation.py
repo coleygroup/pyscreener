@@ -6,7 +6,7 @@ import subprocess as sp
 import sys
 from typing import Iterable, List, Optional, Tuple
 
-from ..utils import Ligand, OBABEL
+from ..utils import Ligand
 from ..preparation import prepare_receptors, prepare_ligands
 from ...utils import Input
 
@@ -33,7 +33,7 @@ def prepare_receptor(receptor: str) -> Optional[str]:
         the filename of the resulting PDBQT file. None if preparation failed
     """
     receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
-    args = [OBABEL, receptor, '-O', receptor_pdbqt,
+    args = ['obabel', receptor, '-O', receptor_pdbqt,
             '-xh', '-xr', '--partialcharge', 'gasteiger']
     try:
         sp.run(args, stderr=sp.PIPE, check=True)
@@ -70,7 +70,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
     
     pdbqt = str(path / f'{name}.pdbqt')
 
-    argv = [OBABEL, f'-:{smi}', '-O', pdbqt,
+    argv = ['obabel', f'-:{smi}', '-O', pdbqt,
             '-xh', '--gen3d', '--partialcharge', 'gasteiger']
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
 
@@ -109,7 +109,7 @@ def prepare_from_file(filename: str, use_3d: bool = False,
     """
     name = name or Path(filename).stem
 
-    ret = sp.run([OBABEL, filename, '-osmi'], stdout=sp.PIPE, check=True)
+    ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
     lines = ret.stdout.decode('utf-8').splitlines()
     smis = [line.split()[0] for line in lines]
 
@@ -123,7 +123,7 @@ def prepare_from_file(filename: str, use_3d: bool = False,
         path.mkdir()
 
     pdbqt = f'{path}/{name}_.pdbqt'
-    argv = [OBABEL, filename, '-opdbqt', '-O', pdbqt, '-m']
+    argv = ['obabel', filename, '-opdbqt', '-O', pdbqt, '-m']
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
     
     try:

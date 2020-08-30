@@ -8,8 +8,7 @@ from typing import Sequence, TypeVar
 Input = TypeVar('Input')
 
 def calc_score(scores: Sequence[float], score_mode: str = 'best') -> float:
-    """
-    Calculate an overall score from a sequence of scores
+    """Calculate an overall score from a sequence of scores
 
     Parameters
     ----------
@@ -28,6 +27,7 @@ def calc_score(scores: Sequence[float], score_mode: str = 'best') -> float:
     if score_mode not in {'best', 'avg', 'boltzmann'}:
         raise ValueError(f'Unrecognized score mode: "{score_mode}"')
 
+    scores = sorted(scores)
     if score_mode == 'best':
         score = scores[0]
     elif score_mode == 'avg':

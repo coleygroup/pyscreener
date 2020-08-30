@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-# from ..docking import run_and_parse_docker
 from ..utils import Ligand, run_and_parse_docker
 from ...utils import calc_score
 

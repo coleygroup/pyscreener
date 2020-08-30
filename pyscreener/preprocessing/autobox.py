@@ -1,21 +1,21 @@
 """This module contains functions for ligand autoboxing in docking
 simulations"""
 
-from itertools import takewhile
+from itertools import chain, takewhile
 from typing import List, Optional, Tuple
 
-def extract_xyz(line: str) -> Tuple[float, float, float]:
+def parse_xyz(line: str) -> Tuple[float, float, float]:
     return tuple(map(float, line.split()[5:8]))
 
 def minimum_bounding_box(coords: List[Tuple[float, float, float]], 
-                         buffer: int = 0) -> Tuple[Tuple, Tuple]:
+                         buffer: float = 10.) -> Tuple[Tuple, Tuple]:
     """Calculate the minimum bounding box for a list of coordinates
 
     Parameters
     ----------
     coords : List[Tuple[float, float, float]]
-        a list of x-, y-, and z-coordinates
-    buffer : int (Default = 0)
+        a list of tuples corresponding to x-, y-, and z-coordinates
+    buffer : float (Default = 10.)
         the amount of buffer to add to the minimum bounding box
 
     Returns
@@ -25,28 +25,21 @@ def minimum_bounding_box(coords: List[Tuple[float, float, float]],
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the minimum bounding box
     """
-    min_x, min_y, min_z = float('inf'), float('inf'), float('inf')
-    max_x, max_y, max_z = float('-inf'), float('-inf'), float('-inf')
-    for x, y, z in coords:
-        min_x = min(x, min_x)
-        max_x = max(x, max_x)
-        
-        min_y = min(y, min_y)
-        max_y = max(y, max_y)
+    xs, ys, zs = zip(*coords)
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    min_z, max_z = min(zs), max(zs)
 
-        min_z = min(z, min_z)
-        max_z = max(z, max_z)
+    center_x = (max_x + min_x) / 2
+    center_y = (max_y + min_y) / 2
+    center_z = (max_z + min_z) / 2
 
-    c_x = (max_x + min_x) / 2
-    c_y = (max_y + min_y) / 2
-    c_z = (max_z + min_z) / 2
+    size_x = (max_x - center_x) + buffer
+    size_y = (max_y - center_y) + buffer
+    size_z = (max_z - center_z) + buffer
 
-    s_x = int(max_x - c_x) + buffer
-    s_y = int(max_y - c_y) + buffer
-    s_z = int(max_z - c_z) + buffer
-
-    center = c_x, c_y, c_z
-    size = s_x, s_y, s_z
+    center = center_x, center_y, center_z
+    size = size_x, size_y, size_z
 
     return center, size
 
@@ -86,28 +79,29 @@ def from_residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
         for line in fid:    # advance to the atom information lines
             if 'ATOM' in line:
                 break
-
+        fid = chain([line], fid)    # prepend the first line to the generator
         for line in fid:
-            fields = line.split()
-            record, _, atom_type, _, _, res_num, x, y, z, _, _, _ = fields
+            record, _, a_type, _, _, res_num, x, y, z, _, _, _ = line.split()
             if 'ATOM' != record:
                 break
 
-            if res_num in residues and atom_type == 'CA':
+            if res_num in residues and a_type == 'CA':
                 residue_coords.append((float(x), float(y), float(z)))
     
     return minimum_bounding_box(residue_coords)
 
-def from_docked_ligand(pdbfile: str, buffer: int = 10) -> Tuple[Tuple, Tuple]:
-    """
-    Generate a ligand autobox from a PDB file containing a docked ligand
+def from_docked_ligand(docked_ligand_file: str,
+                       buffer: int = 10) -> Tuple[Tuple, Tuple]:
+    """Generate a ligand autobox from a PDB file containing a docked ligand
 
     The ligand autobox is the minimum bounding box of the docked ligand with
-    an equal buffer in each dimension
+    an equal buffer in each dimension. The PDB file should be either just the
+    protein with a single docked ligand or a PDB file containing just the
+    docked ligand.
 
     Parameters
     ----------
-    pdbfile : str
+    docked_ligand_file : str
         a PDB-format file containing the coordinates of a docked ligand
     buffer : int (Default = 10)
         the buffer to add around the ligand autobox, in Angstroms
@@ -119,13 +113,13 @@ def from_docked_ligand(pdbfile: str, buffer: int = 10) -> Tuple[Tuple, Tuple]:
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    with open(pdbfile) as fid:
+    with open(docked_ligand_file) as fid:
         for line in fid:
             if 'HETATM' in line:
                 break
-
+        fid = chain([line], fid)    # prepend the first line to the generator
         ligand_atom_coords = [
-            extract_xyz(line)
+            parse_xyz(line)
             for line in takewhile(lambda line: 'HETATM' in line, fid)
         ]
 

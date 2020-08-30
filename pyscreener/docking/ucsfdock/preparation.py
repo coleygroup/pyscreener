@@ -87,10 +87,7 @@ def prepare_receptor(receptor: str):
     """
     p_rec = Path(receptor)
     rec_withH_mol2 = str(p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
-    rec_noH_pdb = str(p_rec.with_name(f'{p_rec.stem}_noH.pdb'))
-
-    # with importlib.resources.path(
-    #     'pyscreener.docking.ucsfdock.scripts', 'prep_rec.py') as prep_rec:
+    rec_noH_pdb = str(p_rec.with_name(f'DOCK_{p_rec.stem}.pdb'))
 
     args_withH_mol2 = ['chimera', '--nogui', '--script',
                     f'{PREP_REC} {receptor} {rec_withH_mol2}']
@@ -205,12 +202,8 @@ def prepare_from_file(filename: str, use_3d: bool = False,
 def prepare_dms(rec_noH_pdb: str, probe_radius: float = 1.4):
     rec_dms = str(Path(rec_noH_pdb).with_suffix('.dms'))
 
-    # with importlib.resources.path(
-    #     'pyscreener.docking.ucsfdock.scripts', 'write_dms.py') as write_dms:
-
     argv = ['chimera', '--nogui', '--script',
             f'{WRITE_DMS} {rec_noH_pdb} {probe_radius} {rec_dms}']
-    # argv = [DMS, rec_noH_pdb, '-n', '-w', probe_radius, '-v', '-o', rec_dms]
     sp.run(argv, stdout=sp.PIPE, check=True)
 
     return rec_dms

@@ -10,14 +10,14 @@ from os import PathLike
 import timeit
 from typing import Dict, List, Tuple
 
-from . import vina
+from . import vina, ucsfdock
 from ..utils import calc_score
 
 def dock(docker: str, inputs: Dict,
          path: str = './docking_results_'+str(datetime.date.today()),
          score_mode: str = 'best', repeats: int = 1,
          repeat_score_mode: str = 'best', ensemble_score_mode: str = 'best',
-         distributed: bool = True, ncpu: int = 1, nworkers: int = -1, 
+         distributed: bool = False, ncpu: int = 1, num_workers: int = -1, 
          verbose: int = 0, **kwargs) -> Tuple[Dict[str, float], List[Dict]]:
     """Run the specified docking program with the given inputs
 
@@ -77,18 +77,18 @@ def dock(docker: str, inputs: Dict,
         from mpi4py import MPI
         from mpi4py.futures import MPIPoolExecutor as Pool
 
-        n_workers = MPI.COMM_WORLD.size
+        num_workers = MPI.COMM_WORLD.size
     else:
         from concurrent.futures import ProcessPoolExecutor as Pool
-        if n_workers == -1:
+        if num_workers == -1:
             try:
-                n_workers = len(os.sched_getaffinity(0)) // ncpu
+                num_workers = len(os.sched_getaffinity(0)) // ncpu
             except AttributeError:
-                n_workers = os.cpu_count()
+                num_workers = os.cpu_count()
 
     # BATCHES_PER_PROCESS = 32
     # batch_size = ceil(size / (BATCHES_PER_PROCESS*n_workers))
-    CHUNKSIZE = 32
+    CHUNKSIZE = 64
 
     try:
         dock_inputs = {
@@ -96,11 +96,12 @@ def dock(docker: str, inputs: Dict,
             'psovina': vina.dock_inputs,
             'qvina': vina.dock_inputs,
             'smina': vina.dock_inputs,
+            'dock': ucsfdock.dock_inputs
         }[docker]
     except KeyError:
-        raise ValueError(f'Unrecognized docking program: {docker}')
+        raise ValueError(f'Unrecognized docking program: "{docker}"')
 
-    with Pool(max_workers=n_workers) as client:
+    with Pool(max_workers=num_workers) as client:
         rowsss = dock_inputs(
             docker=docker, **inputs, path=path, score_mode=score_mode, 
             repeats=repeats, chunksize=CHUNKSIZE, client=client

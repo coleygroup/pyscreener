@@ -19,9 +19,10 @@ def add_general_args(parser: ArgumentParser):
                         choices=['docking', 'md', 'dft'],
                         help='the mode in which to run pyscreener')
 
-    parser.add_argument('--distributed', action='store_true', default=True,
+    parser.add_argument('--distributed', action='store_true', default=False,
                         help='whether to parallelize computation using a distributed setup')
-    parser.add_argument('--nworkers', type=int, metavar='N_WORKERS', default=-1,
+    parser.add_argument('-nw', '--num-workers', type=int, default=-1,
+                        metavar='N_WORKERS',
                         help='the number of workers to use. (Only used when distributed=False.)')
     
     parser.add_argument('--root', default='.',
@@ -32,11 +33,14 @@ def add_general_args(parser: ArgumentParser):
                         help='the level of output this program should print')
 
 def add_preprocessing_args(parser: ArgumentParser):
-    parser.add_argument('--preprocessing-options', nargs='+',
-                        default='none',
+    parser.add_argument('--preprocessing-options', nargs='+', default='none',
                         choices=['pdbfix', 'autobox', 'tautomers', 'desalt', 
                                  'filter'],
                         help='the preprocessing options to apply')
+    parser.add_argument('--docked-ligand',
+                        help='the name of a file containing the coordinates of a docked/bound ligand. If using Vina-type software, this file must be a PDB format file. If using Dock, do not select this preprocessing option as autoboxing occurs during input preparation.')
+    parser.add_argument('--buffer', type=float, default=10.,
+                        help='the amount of buffer space to add around the docked ligand when calculating the docking box.')
 
 def add_preparation_args(parser: ArgumentParser):
     parser.add_argument('--no-title-line', default=False, action='store_true',
@@ -46,10 +50,9 @@ def add_preparation_args(parser: ArgumentParser):
     parser.add_argument('--nconvert', type=int,
                         help='the number of molecules to convert')
     
-def add_screening_args(parser: ArgumentParser):
-    ### DOCKING ARGS ###
+def add_docking_args(parser: ArgumentParser):
     parser.add_argument('--docker', default='vina',
-                        choices=['vina', 'smina', 'qvina', 'psovina'],
+                        choices=['vina', 'smina', 'qvina', 'psovina', 'dock'],
                         help='the name of the docking program to use')
     parser.add_argument('-r', '--receptors', required=True, nargs='+',
                         help='the filenames of the receptors')
@@ -57,14 +60,20 @@ def add_screening_args(parser: ArgumentParser):
                         help='the filenames containing the ligands to dock')
     parser.add_argument('--use-3d', action='store_true', default='False',
                         help='how to treat the preparation of ligands from files containing three-dimensional information. If False, use only the 2D graph of each molecule in the SDF file when preparing inputs. Faster, but will result in the loss of conformational/tautomeric information.If True, se the 3D information contained in the file when preparing an input. Slower, but will preserve conformational/tautomeric information.')
-    parser.add_argument('-c', '--center', required=True,
-                        type=float, nargs=3,
+    parser.add_argument('-c', '--center', required=True, type=float, nargs=3,
                         metavar=('CENTER_X', 'CENTER_Y', 'CENTER_Z'),
                         help='the x-, y-, and z-coordinates of the center of the docking box')
-    parser.add_argument('-s', '--size', required=True,
-                        type=int, nargs=3,
+    parser.add_argument('-s', '--size', required=True, type=int, nargs=3,
                         metavar=('SIZE_X', 'SIZE_Y', 'SIZE_Z'),
                         help='the x-, y-, and z-dimensions of the docking box')
+    
+    # DOCK args
+    parser.add_argument('--use-largest', action='store_true', default=False,
+                        help='whether to use the largest cluster of spheres when preparing the .sph file for DOCK docking')
+    parser.add_argument('--dont-enclose-spheres', action='store_true',
+                        default=False,
+                        help='whether to not enclose the selected spheres during DOCK docking box construction. Using this flag will manually construct the docking box using the input center and size arguments. Enclosing selected spheres is the typical way in which docking boxes are constructed for DOCK.')
+def add_screening_args(parser: ArgumentParser):
     parser.add_argument('--ncpu', type=int, default=1, metavar='N_CPU',
                         help='the number of cores available to each worker process')
     parser.add_argument('--extra', type=shlex.split,
@@ -84,8 +93,7 @@ def add_screening_args(parser: ArgumentParser):
                         help='The method used to calculate the overall score from an ensemble of docking runs')
 
 def add_postprocessing_args(parser: ArgumentParser):
-    parser.add_argument('--postprocessing-options', nargs='+',
-                        default='none',
+    parser.add_argument('--postprocessing-options', nargs='+', default='none',
                         choices=['cluster', 'distribution'],
                         help='the postprocessing options to apply')
 
@@ -97,6 +105,7 @@ def gen_args() -> Namespace:
     add_preprocessing_args(parser)
     add_preparation_args(parser)
     add_screening_args(parser)
+    add_docking_args(parser)
     add_postprocessing_args(parser)
 
     args = parser.parse_args()
@@ -106,5 +115,8 @@ def gen_args() -> Namespace:
         
     args.title_line = not args.no_title_line
     del args.no_title_line
+
+    args.enclose_spheres = not args.dont_enclose_spheres
+    del args.dont_enclose_spheres
 
     return args

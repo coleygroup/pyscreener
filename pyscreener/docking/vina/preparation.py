@@ -4,18 +4,17 @@ docking software"""
 from pathlib import Path
 import subprocess as sp
 import sys
-from typing import Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
-from ..utils import Ligand
 from ..preparation import prepare_receptors, prepare_ligands
-from ...utils import Input
 
 def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
                    center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
-                   ncpu: int = 1, **kwargs) -> Input:
+                   ncpu: int = 1, path: str = '.', **kwargs) -> Dict:
     receptors = prepare_receptors(receptors, prepare_receptor)
-    ligands = prepare_ligands(ligands, prepare_from_smi,
-                              prepare_from_file, **kwargs)
+    ligands = prepare_ligands(ligands, prepare_from_smi, prepare_from_file, 
+                              path=f'{path}/inputs', **kwargs)
+                              
     return {'receptors': receptors, 'ligands': ligands, 
             'center': center, 'size': size, 'ncpu': ncpu}
 
@@ -44,7 +43,7 @@ def prepare_receptor(receptor: str) -> Optional[str]:
     return receptor_pdbqt
 
 def prepare_from_smi(smi: str, name: str = 'ligand',
-                     path: str = '.', **kwargs) -> Optional[Ligand]:
+                     path: str = '.', **kwargs) -> Optional[Tuple]:
     """Prepare an input ligand file from the ligand's SMILES string
 
     Parameters
@@ -60,7 +59,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
 
     Returns
     -------
-    Optional[Ligand]
+    Optional[Tuple]
         a tuple of the SMILES string and the corresponding prepared input file.
         None if preparation failed for any reason
     """
@@ -83,7 +82,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
     
 def prepare_from_file(filename: str, use_3d: bool = False,
                       name: Optional[str] = None, path: str = '.', 
-                      **kwargs) -> Ligand:
+                      **kwargs) -> Tuple:
     """Convert a single ligand to the appropriate input format
 
     Parameters
@@ -103,7 +102,7 @@ def prepare_from_file(filename: str, use_3d: bool = False,
 
     Returns
     -------
-    List[Ligand]
+    List[Tuple]
         a tuple of the SMILES string the prepared input file corresponding
         to the molecule contained in filename
     """

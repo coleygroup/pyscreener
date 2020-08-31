@@ -9,7 +9,7 @@ def prepare(docker, **kwargs) -> Dict:
         return vina.prepare_inputs(docker=docker, **kwargs)
 
     if docker == 'dock':
-        raise NotImplementedError
+        return ucsfdock.prepare_inputs(**kwargs)
 
     if docker == 'rdock':
         raise NotImplementedError

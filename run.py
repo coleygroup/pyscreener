@@ -34,15 +34,15 @@ def main():
 
     name = params['name']
     base_tmp_path = Path(params['tmp']) / name
-    in_path = base_tmp_path / 'inputs'
-    out_path = base_tmp_path / 'outputs'
-
+    output_dir = Path(params['root']) / name
+    
     print('Preparing inputs ...', flush=True)
-    inputs = preparation.prepare(path=in_path, **params)
+    inputs = preparation.prepare(path=base_tmp_path, **params)
     print('Done!')
 
     print(f'Screening inputs ...', flush=True)
-    d_smi_score, rows = screening.screen(path=out_path, inputs=inputs, **params)
+    d_smi_score, rows = screening.screen(path=base_tmp_path,
+                                         inputs=inputs, **params)
     print('Done!')
 
     print(f'Postprocessing ...', flush=True)
@@ -50,7 +50,7 @@ def main():
         d_smi_score=d_smi_score, path=name, **params)
     print('Done!')
 
-    output_dir = Path(params['root']) / name
+    
     copy_tree(str(base_tmp_path), str(output_dir))
 
     scores_filename = output_dir / f'{name}_scores.csv'

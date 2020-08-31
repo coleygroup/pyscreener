@@ -5,6 +5,7 @@ except ModuleNotFoundError:
 from itertools import takewhile
 import os
 from pathlib import Path
+import shutil
 import subprocess as sp
 import sys
 from typing import Dict, Iterable, Optional, Tuple
@@ -33,7 +34,7 @@ FLEX_DRIVE_FILE = DOCK6_PARAMS / 'flex_drive.tbl'
 
 def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
                    center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
-                   ncpu: int = 1, path: str = '.', **kwargs) -> Dict:
+                   path: str = '.', **kwargs) -> Dict:
     sphs_grids = []
     for receptor in receptors:
         receptor_input_files = prepare_receptor(receptor)
@@ -55,22 +56,24 @@ def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
         sphs_grids.append((rec_sph, grid_prefix))
 
     if len(sphs_grids) == 0:
-        raise RuntimeError('All receptors failed conversion')
+        raise RuntimeError('All receptor preparation failed!')
 
-    ligands = prepare_ligands(ligands, prepare_from_smi,
-                              prepare_from_file, **kwargs)
+    ligands = prepare_ligands(ligands, prepare_from_smi, prepare_from_file,
+                              path=f'{path}/inputs', **kwargs)
 
-    smis_infiless = []
-    for smi, ligand_file in ligands:
-        ensemble_infiles = []
-        for sph, grid in sphs_grids:
-            infile, outfile_prefix = prepare_input_file(
-                ligand_file, sph, grid, path
-            )
-            ensemble_infiles.append((infile, outfile_prefix))
-        smis_infiless.append((smi, ensemble_infiles))
+    return {'ligands': ligands, 'receptors': sphs_grids}
 
-    return {'ligands': smis_infiless}
+    # smis_infiless = []
+    # for smi, ligand_file in ligands:
+    #     ensemble_infiles = []
+    #     for sph, grid in sphs_grids:
+    #         infile, outfile_prefix = prepare_input_file(
+    #             ligand_file, sph, grid, path
+    #         )
+    #         ensemble_infiles.append((infile, outfile_prefix))
+    #     smis_infiless.append((smi, ensemble_infiles))
+
+    # return {'ligands': smis_infiless}
 
 def prepare_receptor(receptor: str):
     """Prepare a receptor mol2 file from its input file
@@ -215,13 +218,8 @@ def prepare_sph(rec_dms: str, steric_clash_dist: float = 0.0,
     argv = [SPHGEN, '-i', rec_dms, '-o', sph_file, 
             '-s', 'R', 'd', 'X', '-l', str(steric_clash_dist),
             'm', str(min_radius), '-x', str(max_radius)]
-    sp.run(argv, check=True)
+    sp.run(argv, stdout=sp.PIPE, check=True)
     
-    # try:
-    #     ret.check_returncode()
-    # except sp.SubprocessError:
-    #     return None
-
     return sph_file
 
 def select_spheres(sph_file: str, 
@@ -229,14 +227,15 @@ def select_spheres(sph_file: str,
                    size: Tuple[float, float, float],
                    docked_ligand_file: Optional[str] = None,
                    use_largest: bool = False, buffer: float = 10.0) -> str:
+    p_sph = Path(sph_file)
+    selected_sph = str(p_sph.parent / f'{p_sph.stem}_selected{p_sph.suffix}')
+
     if docked_ligand_file:
         argv = [SPHERE_SELECTOR, sph_file, docked_ligand_file, buffer]
         sp.run(argv, check=True)
         # sphere_selector always outputs this filename
-        return 'selected_spheres.sph'
-
-    p_sph = Path(sph_file)
-    p_selected_sph = p_sph.parents / f'{p_sph.stem}_selected.{p_sph.suffix}'
+        shutil.move('selected_spheres.sph', selected_sph)
+        return selected_sph
 
     def inside_docking_box(line):
         """Are the coordinates contained in the line inside the docking box?"""
@@ -251,7 +250,7 @@ def select_spheres(sph_file: str,
                 return False
         return True
 
-    with open(sph_file, 'r') as fid_in, open(p_selected_sph, 'w') as fid_out:
+    with open(sph_file, 'r') as fid_in, open(selected_sph, 'w') as fid_out:
         if use_largest:
             fid_out.write(f'DOCK spheres largest cluster\n')
             for line in takewhile(lambda line: 'cluster' not in line, fid_in):
@@ -261,10 +260,10 @@ def select_spheres(sph_file: str,
             fid_out.write(f'DOCK spheres within radii {size} of {center}\n')
             lines = [line for line in fid_in if inside_docking_box(line)]
 
-        fid_out.write(f'cluster 1 number of spheres in cluster {len(lines)}\n')
+        fid_out.write(f'cluster     1 number of spheres in cluster {len(lines)}\n')
         fid_out.writelines(lines)
 
-    return str(p_selected_sph)
+    return selected_sph
 
 def prepare_box(sph_file: str,
                 center: Tuple[float, float, float],
@@ -287,7 +286,7 @@ def prepare_box(sph_file: str,
             fid.write(f'[{size[0]} {size[1]} {size[2]}]\n')
         fid.write(f'{box_file}\n')
     
-    sp.run(f'{SHOWBOX} < box.in', shell=True, check=True)
+    sp.run(f'{SHOWBOX} < box.in', shell=True, stdout=sp.PIPE, check=True)
 
     return box_file
 
@@ -314,15 +313,21 @@ def prepare_grid(rec_withH: str, box_file: str):
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
         fid.write(f'score_grid_prefix  {grid_prefix}\n')
 
-    sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], check=True)
+    sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'],
+           stdout=sp.PIPE, check=True)
 
     return grid_prefix
 
-def prepare_input_file(ligand_file: str, sph_file,
-                       grid_prefix, path) -> Tuple[str, str]:
+def prepare_input_file(ligand_file: str, sph_file: str,
+                       grid_prefix: str, path: str = '.') -> Tuple[str, str]:
+    path = Path(path)
     infile = f'{Path(sph_file).stem}_{Path(ligand_file).stem}.in'
-    infile = Path(path) / infile
-    outfile_prefix = infile.stem
+    infile = path / 'inputs' / infile
+
+    out_dir = path / 'outputs'
+    if not out_dir.is_dir():
+        out_dir.mkdir(parents=True)
+    outfile_prefix = out_dir / infile.stem
 
     with open(infile, 'w') as fid:
         fid.write('conformer_search_type flex\n')

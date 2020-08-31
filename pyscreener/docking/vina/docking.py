@@ -200,8 +200,7 @@ def dock_inputs(docker: str, receptors: List[str], ligands: List[Ligand],
                 center: Tuple[float, float, float],
                 size: Tuple[int, int, int] = (10, 10, 10),
                 ncpu: int = 4, extra: Optional[List[str]] = None,
-                path: str = './docking_results_'+str(date.today()),
-                score_mode: str = 'best', repeats: int = 1,
+                path: str = '.', score_mode: str = 'best', repeats: int = 1,
                 client: Optional[Executor] = None, 
                 chunksize: int = 32) -> List[List[List[Dict]]]:
     """Run the specified docking program with the input ligands and parameters
@@ -245,23 +244,18 @@ def dock_inputs(docker: str, receptors: List[str], ligands: List[Ligand],
         single ligand/receptor combo, and the dictionary is a singular row of
         a dataframe. See also: dock_ligand
     """
+    path = Path(path) / 'outputs'
+
     dock_ligand_ = partial(
         dock_ligand, docker=docker, receptors=receptors,
         center=center, size=size, ncpu=ncpu, extra=extra,
         path=path, score_mode=score_mode, repeats=repeats
     )
 
-    if client:
-        rowsss = list(tqdm(
-            client.map(dock_ligand_, ligands, chunksize=chunksize),
-            total=len(ligands), smoothing=0.,
-            desc='Docking ligands', unit='ligand'
-        ))
-    else:
-        rowsss = list(tqdm(
-            map(dock_ligand_, ligands, chunksize=chunksize),
-            total=len(ligands), smoothing=0.,
-            desc='Docking ligands', unit='ligand'
-        ))
-
+    map_ = client.map if client else map
+    rowsss = list(tqdm(
+        map_(dock_ligand_, ligands, chunksize=chunksize),
+        total=len(ligands), smoothing=0.,
+        desc='Docking ligands', unit='ligand'
+    ))
     return rowsss

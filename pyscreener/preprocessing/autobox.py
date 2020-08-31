@@ -90,7 +90,7 @@ def from_residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     
     return minimum_bounding_box(residue_coords)
 
-def from_docked_ligand(docked_ligand_file: str,
+def from_docked_ligand(docked_ligand: str,
                        buffer: int = 10) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a PDB file containing a docked ligand
 
@@ -101,7 +101,7 @@ def from_docked_ligand(docked_ligand_file: str,
 
     Parameters
     ----------
-    docked_ligand_file : str
+    docked_ligand : str
         a PDB-format file containing the coordinates of a docked ligand
     buffer : int (Default = 10)
         the buffer to add around the ligand autobox, in Angstroms
@@ -113,7 +113,7 @@ def from_docked_ligand(docked_ligand_file: str,
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    with open(docked_ligand_file) as fid:
+    with open(docked_ligand) as fid:
         for line in fid:
             if 'HETATM' in line:
                 break

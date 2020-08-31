@@ -112,7 +112,8 @@ def prepare_from_smis(smis: Sequence[str],
                       prepare_from_smi: Callable[..., Ligand],
                       names: Optional[Sequence[str]] = None, 
                       start: int = 0, nconvert: Optional[int] = None,
-                      path: str = '.', ncpu: int = 1, distributed: bool = True, 
+                      path: str = '.', ncpu: int = 1,
+                      distributed: bool = False, 
                       verbose: int = 0, **kwargs) -> List[Ligand]:
     """Convert the list of SMILES strings to their corresponding PDBQT files
 

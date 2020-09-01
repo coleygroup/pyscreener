@@ -3,10 +3,6 @@ from distutils.dir_util import copy_tree
 from operator import itemgetter
 from pathlib import Path
 
-# from pyscreener import docking_mpi as docking
-# from pyscreener import conversion_mpi as conversion
-# from pyscreener.args import gen_args
-
 from pyscreener import (args, preprocessing, preparation, 
                         screening, postprocessing)
 
@@ -28,39 +24,35 @@ def main():
         print(f'  {param}: {value}')
     print(flush=True)
 
+    name = params['name']
+    tmp_dir = Path(params['tmp']) / name
+    out_dir = Path(params['root']) / name
+
     print('Preprocessing ...', end=' ', flush=True)
-    params = preprocessing.preprocess(**params)
+    params = preprocessing.preprocess(path=tmp_dir, **params)
     print('Done!')
 
-    name = params['name']
-    base_tmp_path = Path(params['tmp']) / name
-    output_dir = Path(params['root']) / name
-    
     print('Preparing inputs ...', flush=True)
-    inputs = preparation.prepare(path=base_tmp_path, **params)
+    inputs = preparation.prepare(path=tmp_dir, **params)
     print('Done!')
 
     print(f'Screening inputs ...', flush=True)
-    d_smi_score, rows = screening.screen(path=base_tmp_path,
-                                         inputs=inputs, **params)
+    d_smi_score, rows = screening.screen(path=tmp_dir, inputs=inputs, **params)
     print('Done!')
 
     print(f'Postprocessing ...', flush=True)
-    postprocessing.postprocess(
-        d_smi_score=d_smi_score, path=name, **params)
+    postprocessing.postprocess(d_smi_score=d_smi_score, path=out_dir, **params)
     print('Done!')
 
-    
-    copy_tree(str(base_tmp_path), str(output_dir))
+    copy_tree(str(tmp_dir), str(out_dir))
 
-    scores_filename = output_dir / f'{name}_scores.csv'
-    extended_filename = output_dir / f'{name}_extended.csv'
+    scores_filename = out_dir / f'{name}_scores.csv'
+    extended_filename = out_dir / f'{name}_extended.csv'
 
-    smis_scores = sorted(d_smi_score.items(), key=itemgetter(1))
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
-        writer.writerows(smis_scores)
+        writer.writerows(sorted(d_smi_score.items(), key=itemgetter(1)))
     
     rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
     with open(extended_filename, 'w') as fid:

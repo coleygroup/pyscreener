@@ -98,19 +98,19 @@ def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
                 lig_mol2, sph_file, grid_prefix, name, path
             )
 
-            log = str(Path(outfile_prefix).parent / f'{name}.out')
+            log = Path(outfile_prefix).parent / f'{name}.out'
             argv = [DOCK6, '-i', infile, '-o', log]
 
-            out = f'{outfile_prefix}_scored.mol2'
+            out = Path(f'{outfile_prefix}_scored.mol2')
             score = run_and_parse_docker(argv, parse_out, out, score_mode)
 
             if score:
                 repeat_rows.append({
                     'smiles': smi,
                     'name': name,
-                    'in': infile,
-                    'log': log,
-                    'out': out,
+                    'in': Path(infile.parent.name) / infile.name,
+                    'log': Path(log.parent.name) / log.name,
+                    'out': Path(out.parent.name) / out.name,
                     'score': score
                 })
 
@@ -290,4 +290,4 @@ def prepare_input_file(ligand_file: str, sph_file: str, grid_prefix: str,
         fid.write('write_conformations no\n')
         fid.write('rank_ligands no\n')
     
-    return str(infile), outfile_prefix
+    return infile, outfile_prefix

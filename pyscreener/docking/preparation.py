@@ -19,7 +19,7 @@ from ..utils import Input
 
 def prepare_receptors(receptors: Iterable[str], 
                       prepare_receptor: Callable[[str], str],
-                      **kwargs) -> List[str]:   
+                      *args, **kwargs) -> List[str]:   
     """Prepare a receptor input file from its supply file
 
     Parameter
@@ -38,8 +38,11 @@ def prepare_receptors(receptors: Iterable[str],
     """
     receptor_inputs = []
     for receptor in receptors:
-        receptor_input = prepare_receptor(receptor, **kwargs)
-        if receptor_input:
+        receptor_input = prepare_receptor(receptor, *args, **kwargs)
+        if receptor_input is None:
+            print(f'ERROR: failed to prepare receptor: "{receptor}."',
+                  'Skipping...')
+        else:
             receptor_inputs.append(receptor_input)
 
     if len(receptor_inputs) == 0:
@@ -47,20 +50,20 @@ def prepare_receptors(receptors: Iterable[str],
 
     return receptor_inputs
 
-def prepare_ligands(ligands: Iterable, *args, **kwargs):
+def prepare_ligands(ligands: Iterable, *args, **kwargs) -> List[Ligand]:
     return list(chain(*(
-        prepare_ligand(ligand, *args, **kwargs) for ligand in ligands
+        prepare_ligands_(source, *args, **kwargs) for source in ligands
     )))
 
-def prepare_ligand(ligand: Union[str, Sequence[str]],
-                   prepare_from_smi: Callable[..., Ligand],
-                   prepare_from_file: Callable[..., Ligand],
-                   use_3d: bool = False, **kwargs) -> List[Ligand]:
-    """Prepare the input for a single ligand file
+def prepare_ligands_(source: Union[str, Sequence[str]],
+                     prepare_from_smi: Callable[..., Ligand],
+                     prepare_from_file: Callable[..., Ligand],
+                     use_3d: bool = False, **kwargs) -> List[Ligand]:
+    """Prepare the input for a single ligand file or SMILES string
 
     Parameters
     ----------
-    ligand : Union[str, Sequence[str]]
+    source : Union[str, Sequence[str]]
         a single SMILES string, the filepath of a file containing one or many 
         ligands, or a Sequence of SMILES strings each corresponding to one
         ligand
@@ -81,38 +84,38 @@ def prepare_ligand(ligand: Union[str, Sequence[str]],
     Raises
     ------
     TypeError
-        if ligand is not a string representing a SMILES string, a string
+        if source is not a string representing a SMILES string, a string
         representing a filepath, or a Sequence of SMILES strings
     """
-    if isinstance(ligand, str):
-        p_ligand = Path(ligand)
+    if isinstance(source, str):
+        p_ligand = Path(source)
 
         if not p_ligand.exists():
-            return [prepare_from_smi(ligand, **kwargs)]
+            return [prepare_from_smi(source, **kwargs)]
 
         if p_ligand.suffix == '.csv':
-            return prepare_from_csv(ligand, prepare_from_smi, **kwargs)
+            return prepare_from_csv(source, prepare_from_smi, **kwargs)
         if p_ligand.suffix == '.smi':
-            return prepare_from_supply(ligand, prepare_from_smi, **kwargs)
+            return prepare_from_supply(source, prepare_from_smi, **kwargs)
         if p_ligand.suffix == '.sdf':
             if use_3d:
-                return prepare_from_file(ligand, **kwargs)
+                return prepare_from_file(source, **kwargs)
             else:
-                return prepare_from_supply(ligand, prepare_from_smi, **kwargs)
+                return prepare_from_supply(source, prepare_from_smi, **kwargs)
         
-        return prepare_from_file(ligand, **kwargs)
+        return prepare_from_file(source, **kwargs)
 
-    elif isinstance(ligand, Sequence):
-        return prepare_from_smis(ligand, prepare_from_smi, **kwargs)
+    elif isinstance(source, Sequence):
+        return prepare_from_smis(source, prepare_from_smi, **kwargs)
     
-    raise TypeError('Arg "ligand" must be of type str or Sequence[str].',
-                    f'Got: {type(ligand)}')
+    raise TypeError('Arg "source" must be of type str or Sequence[str].',
+                    f'Got: {type(source)}')
 
 def prepare_from_smis(smis: Sequence[str],
                       prepare_from_smi: Callable[..., Ligand],
                       names: Optional[Sequence[str]] = None, 
                       start: int = 0, nconvert: Optional[int] = None,
-                      path: str = '.', ncpu: int = 1,
+                      path: str = '.', num_workers: int = -1, ncpu: int = 1,
                       distributed: bool = False, 
                       verbose: int = 0, **kwargs) -> List[Ligand]:
     """Convert the list of SMILES strings to their corresponding PDBQT files
@@ -132,8 +135,14 @@ def prepare_from_smis(smis: Sequence[str],
         the index at which to start ligand preparation
     nconvert : Optional[int] (Default = None)
         the number of ligands to convert. If None, convert all ligands
+    num_workers : int (Default = -1)
+        the number of workers to parallelize preparation over. Only used when
+        distributed is False. A value of -1 will attempt to use as many workers
+        as cores available to this process or, failing that, the number of cores
+        on this machine
     ncpu : int (Default = 1)
-        the number of cores available to each worker
+        the number of cores available to each worker. Used only if the
+        num_workers argument is set
     verbose : int, (Default = 0)
         whether or not to print performance data
     **kwargs
@@ -152,13 +161,16 @@ def prepare_from_smis(smis: Sequence[str],
         from mpi4py import MPI
         from mpi4py.futures import MPIPoolExecutor as Pool
 
-        n_workers = MPI.COMM_WORLD.size * ncpu
+        num_workers = MPI.COMM_WORLD.size * ncpu
     else:
         from concurrent.futures import ProcessPoolExecutor as Pool
-        try:
-            n_workers = len(os.sched_getaffinity(0))
-        except AttributeError:
-            n_workers = os.cpu_count()
+        if num_workers == -1:
+            try:
+                num_workers = len(os.sched_getaffinity(0))
+            except AttributeError:
+                num_workers = os.cpu_count()
+        else:
+            num_workers = num_workers * ncpu
 
     path = Path(path)
     if not path.is_dir():
@@ -177,9 +189,9 @@ def prepare_from_smis(smis: Sequence[str],
     smis = smis[start:stop]
 
     CHUNKS_PER_WORKER = 16
-    batch_size = ceil(len(smis) / (CHUNKS_PER_WORKER*n_workers))
+    batch_size = ceil(len(smis) / (CHUNKS_PER_WORKER*num_workers))
 
-    with Pool(max_workers=n_workers) as client:
+    with Pool(max_workers=num_workers) as client:
         paths = (path for _ in range(len(smis)))
         ligands = [
             ligand for ligand in tqdm(
@@ -200,7 +212,8 @@ def prepare_from_csv(csv_filename: str,
                      title_line: bool = True,
                      smiles_col: int = 0, name_col: Optional[int] = None,
                      start: int = 0, nconvert: Optional[int] = None,
-                     njobs: int = 1, path: str = '.', verbose: int = 0,
+                     num_workers: int = -1, ncpu: int = 1,
+                     path: str = '.', verbose: int = 0,
                      **kwargs) -> List[Ligand]:
     """Prepare the input files corresponding to the molecules contained in a 
     CSV file
@@ -227,8 +240,14 @@ def prepare_from_csv(csv_filename: str,
         the index at which to start conversion
     nconvert : Optional[int] (Default = None)
         the number of ligands to convert. If None, convert all molecules
-    njobs : int (Default = 1)
-        the number of jobs to distribute input preparation over
+    num_workers : int (Default = -1)
+        the number of workers to parallelize preparation over. Only used when
+        distributed is False. A value of -1 will attempt to use as many workers
+        as cores available to this process or, failing that, the number of cores
+        on this machine
+    ncpu : int (Default = 1)
+        the number of cores available to each worker. Used only if the
+        num_workers argument is set
     verbose : int (Default = 0)
         the level of output to print
     **kwargs
@@ -259,7 +278,8 @@ def prepare_from_csv(csv_filename: str,
     
     ligands = prepare_from_smis(smis, prepare_from_smi,
                                 names=names, path=path,
-                                start=start, nconvert=nconvert, njobs=njobs)
+                                start=start, nconvert=nconvert,
+                                num_workers=num_workers, ncpu=ncpu)
 
     total = timeit.default_timer() - begin
     if verbose > 1:
@@ -271,7 +291,8 @@ def prepare_from_supply(supply: str,
                         prepare_from_smi: Callable[..., Ligand],
                         id_prop_name: Optional[str] = None,
                         start: int = 0, nconvert: Optional[int] = None,  
-                        njobs: int = 1, path: str = '.', verbose: int = 0,
+                        num_workers: int = -1, ncpu: int = 1,
+                        path: str = '.', verbose: int = 0,
                         **kwargs) -> List[Ligand]:
     """Prepare the input files corresponding to the molecules contained in a 
     molecule supply file
@@ -293,8 +314,14 @@ def prepare_from_supply(supply: str,
         the index at which to start ligand conversion
     nconvert : Optional[int] (Default = None)
         the number of ligands to convert. If None, convert all molecules
-    njobs : int (Default = 1)
-        the number of jobs to distribute input preparation over
+    num_workers : int (Default = -1)
+        the number of workers to parallelize preparation over. Only used when
+        distributed is False. A value of -1 will attempt to use as many workers
+        as cores available to this process or, failing that, the number of cores
+        on this machine
+    ncpu : int (Default = 1)
+        the number of cores available to each worker. Used only if the
+        num_workers argument is set
     verbose : int (Default = 0)
         the level of output to print
     **kwargs
@@ -340,7 +367,8 @@ def prepare_from_supply(supply: str,
 
     ligands = prepare_from_smis(smis, prepare_from_smi, 
                                 names=names, path=path,
-                                start=start, nconvert=nconvert, n_jobs=njobs)
+                                start=start, nconvert=nconvert,
+                                num_workers=num_workers, ncpu=ncpu)
 
     total = timeit.default_timer() - begin
     if verbose > 1:

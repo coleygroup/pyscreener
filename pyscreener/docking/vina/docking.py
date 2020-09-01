@@ -166,7 +166,6 @@ def dock_ligand(ligand: Ligand, docker: str, receptors: List[str],
 
     p_pdbqt = Path(pdbqt)
     ligand_name = p_pdbqt.stem
-    in_file = Path(p_pdbqt.parent.name) / p_pdbqt.name
 
     ensemble_rowss = []
     for receptor in receptors:
@@ -185,9 +184,9 @@ def dock_ligand(ligand: Ligand, docker: str, receptors: List[str],
                 repeat_rows.append({
                     'smiles': smi,
                     'name': ligand_name,
-                    'in': str(in_file),
-                    'out': str(Path(p_out.parent.name) / p_out.name),
-                    'log': str(Path(p_log.parent.name) / p_log.name),
+                    'in': Path(p_pdbqt.parent.name) / p_pdbqt.name,
+                    'out': Path(p_out.parent.name) / p_out.name,
+                    'log': Path(p_log.parent.name) / p_log.name,
                     'score': score
                 })
 

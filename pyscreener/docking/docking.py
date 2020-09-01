@@ -10,7 +10,7 @@ from os import PathLike
 import timeit
 from typing import Dict, List, Tuple
 
-from . import vina, ucsfdock
+# from . import vina, ucsfdock
 from ..utils import calc_score
 
 def dock(docker: str, inputs: Dict,
@@ -46,7 +46,7 @@ def dock(docker: str, inputs: Dict,
     ncpu : int (Default = 1)
         the number of cores available to each worker. Only used if distributed
         is False.
-    nworkers : int (Default = -1)
+    num_workers : int (Default = -1)
         the number of workers to distribute docking simulations over. A value
         of -1 will use all available cores. This argument only needs to be set
         if distributed is False.
@@ -90,15 +90,21 @@ def dock(docker: str, inputs: Dict,
     # batch_size = ceil(size / (BATCHES_PER_PROCESS*n_workers))
     CHUNKSIZE = 64
 
-    try:
-        dock_inputs = {
-            'vina': vina.dock_inputs,
-            'psovina': vina.dock_inputs,
-            'qvina': vina.dock_inputs,
-            'smina': vina.dock_inputs,
-            'dock': ucsfdock.dock_inputs
-        }[docker]
-    except KeyError:
+    # try:
+    #     dock_inputs = {
+    #         'vina': vina.dock_inputs,
+    #         'psovina': vina.dock_inputs,
+    #         'qvina': vina.dock_inputs,
+    #         'smina': vina.dock_inputs,
+    #         'dock': ucsfdock.dock_inputs
+    #     }[docker]
+    # except KeyError:
+
+    if docker in {'vina', 'smina', 'psovina', 'qvina'}:
+        from .vina import dock_inputs
+    elif docker == 'dock':
+        from .ucsfdock import dock_inputs
+    else:
         raise ValueError(f'Unrecognized docking program: "{docker}"')
 
     with Pool(max_workers=num_workers) as client:

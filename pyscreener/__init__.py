@@ -1,1 +1,1 @@
-from ._version import __version__
+from pyscreener._version import __version__

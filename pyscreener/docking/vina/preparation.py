@@ -6,7 +6,7 @@ import subprocess as sp
 import sys
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from ..preparation import prepare_receptors, prepare_ligands
+from pyscreener.docking.preparation import prepare_receptors, prepare_ligands
 
 def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
                    center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 

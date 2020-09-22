@@ -6,8 +6,8 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-from ..utils import run_and_parse_docker
-from ...utils import calc_score
+from pyscreener.utils import calc_score
+from pyscreener.docking.utils import run_and_parse_docker
 
 DOCK6 = Path(os.environ['DOCK6'])
 DOCK6_PARAMS = DOCK6 / 'parameters'

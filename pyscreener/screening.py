@@ -1,4 +1,4 @@
-from . import docking, md, dft
+from pyscreener import docking, md, dft
 
 def screen(mode, **kwargs):
     if mode == 'docking':

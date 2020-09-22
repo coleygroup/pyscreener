@@ -10,9 +10,9 @@ import subprocess as sp
 import sys
 from typing import Dict, Iterable, Optional, Tuple
 
-from ..utils import Ligand
-from ..preparation import prepare_receptors, prepare_ligands
-from ...utils import Input
+from pyscreener.docking.utils import Ligand
+from pyscreener.docking.preparation import prepare_receptors, prepare_ligands
+from pyscreener.utils import Input
 
 with resources.path('pyscreener.docking.ucsfdock', '.') as p_module:
     PREP_REC = p_module / 'scripts' / 'prep_rec.py'

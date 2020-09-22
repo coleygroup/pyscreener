@@ -11,8 +11,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-from ..utils import Ligand, run_and_parse_docker
-from ...utils import calc_score
+from pyscreener.utils import calc_score
+from pyscreener.docking.utils import Ligand, run_and_parse_docker
 
 Dataframe = List[Dict]
 

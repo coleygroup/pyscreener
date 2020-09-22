@@ -1,2 +1,2 @@
-from .dft import *
-from .preparation import *
+from pyscreener.dft import *
+from pyscreener.preparation import *

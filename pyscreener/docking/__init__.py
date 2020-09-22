@@ -1,6 +1,6 @@
 from typing import Dict
 
-from .docking import dock
+from pyscreener.docking import dock
 
 def prepare(docker, **kwargs) -> Dict:
     """Prepare all of the inputs for the specified docking program"""

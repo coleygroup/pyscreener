@@ -11,7 +11,7 @@ import timeit
 from typing import Dict, List, Tuple
 
 # from . import vina, ucsfdock
-from ..utils import calc_score
+from pyscreener.utils import calc_score
 
 def dock(docker: str, inputs: Dict,
          path: str = './docking_results_'+str(datetime.date.today()),

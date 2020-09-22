@@ -1,7 +1,7 @@
 from typing import TypeVar
 
-from . import docking, md, dft
-from .utils import Input
+from pyscreener import docking, md, dft
+from pyscreener.utils import Input
 
 def prepare(mode, **kwargs) -> Input:
     if mode == 'docking':

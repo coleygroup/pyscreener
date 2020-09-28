@@ -19,7 +19,7 @@ def clustered_hist(yss: Iterable[Iterable[float]], name: str):
         yaxis_title_text='Count',
         barmode='stack'
     )
-    fig.write_html(f'{name}_scores_histogram.html')
+    fig.write_image(f'{name}_scores_histogram.pdf')
 
 def hist(ys: Iterable[float], name: str):
     fig = go.Figure()
@@ -32,7 +32,7 @@ def hist(ys: Iterable[float], name: str):
         xaxis_title_text='Docking Score',
         yaxis_title_text='Count'
     )
-    return fig.write_html(f'{name}_clusters_scores_histogram.html')
+    return fig.write_image(f'{name}_clusters_scores_histogram.pdf')
 
 def text(ys: Iterable[float]):
     counts = Counter(round(y, 1) for y in ys)

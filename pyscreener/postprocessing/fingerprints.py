@@ -20,7 +20,8 @@ def smi_to_fp(smi: str, radius: int = 2,
         return None
 
     return np.array(Chem.GetMorganFingerprintAsBitVect(
-        mol, radius, nBits=length, useChirality=True))
+        mol, radius, nBits=length, useChirality=True)
+    )
 
 def gen_fps_h5(smis: Iterable[str], n_mols: Optional[int] = None,
                path: str = '.', name: str = 'fps',

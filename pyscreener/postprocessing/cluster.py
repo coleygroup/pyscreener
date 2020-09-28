@@ -14,11 +14,10 @@ import numpy as np
 from scipy import sparse
 from sklearn.cluster import MiniBatchKMeans
 
-from . import fingerprints
+from pyscreener.postprocessing import fingerprints
 
-def cluster(d_smi_score: Dict[str, Optional[float]],
-            path: str = '.', **kwargs) -> List[Dict]:
-    d_smi_cid = cluster_smis(d_smi_score.keys(), path=path, **kwargs)
+def cluster(d_smi_score: Dict[str, Optional[float]], **kwargs) -> List[Dict]:
+    d_smi_cid = cluster_smis(d_smi_score.keys(), **kwargs)
 
     smi_score_clusters = {}
     for smi, score in d_smi_score.items():
@@ -157,74 +156,3 @@ def cluster_fps_h5(fps_h5: str, n_cluster: int = 100) -> List[int]:
     print(f'Clustering took: {elapsed:0.3f}s')
 
     return list(chain(*cidss))
-
-# def write_clusters(path: str, d_cluster_smidxs: Dict[int, List[int]],
-#                    smis: h5py.Dataset) -> str:
-#     """Write each cluster to a separate file under the given path"""
-#     p = Path(path)
-#     if not p.is_dir():
-#         p.mkdir(parents=True)
-
-#     for _, smidxs in d_cluster_smidxs.items():
-#         write_cluster(str(p / f'cluster_{id:003d}.smi'), smidxs, smis)
-
-# def write_cluster(filepath: str, smidxs: List[int],
-#                   smis: h5py.Dataset) -> None:
-#     """Write each string in smis to filepath"""
-#     with open(filepath, 'w', newline='') as f:
-#         f.write('smiles\n')
-#         for idx in smidxs:
-#             smi = smis[idx]
-#             f.write(f'{smi}\n')
-
-# def cluster_fps(fps: np.ndarray,
-#                 n_cluster: int = 100, method: str = 'minibatch',
-#                 n_workers: Optional[int] = None) -> np.ndarray:
-#     """
-#     Cluster the molecular fingerprints, fps, by a given method
-
-#     Parameters
-#     ----------
-#     fps : np.ndarray
-#         the feature matrix of the molecules to cluster
-#     n_cluster : int (Default = 100)
-#         the number of clusters to form with the given fingerprints (if the
-#         input method requires this parameter)
-#     method : str (Default = 'kmeans')
-#         the clusering method to use.
-#         Choices include:
-#         - 'kmeans': k-means clustering
-#         - 'minibatch': mini-batch k-means clustering: 
-#         - 'optics': OPTICS clustering
-#     n_workers : Optional[int]
-#         the number of jobs to parallelize clustering over, if possible
-
-#     Returns
-#     -------
-#     cluster_ids : np.ndarray
-#         the cluster id corresponding to a given fingerprint
-#     """
-#     begin = timeit.default_timer()
-
-#     fps = sparse.vstack(fps, format='csr')
-
-#     if method == 'kmeans':
-#         clusterer = cluster.KMeans(n_clusters=n_cluster, n_jobs=n_workers)
-#     elif method == 'minibatch':
-#         clusterer = cluster.MiniBatchKMeans(
-#             n_clusters=n_cluster, n_init=10, batch_size=100, init_size=1000)
-#     elif method == 'optics':
-#         clusterer = cluster.OPTICS(
-#             min_samples=0.01, metric='jaccard', n_jobs=n_workers)
-#     else:
-#         raise ValueError(f'Unrecognized clustering method: "{method}"')
-
-#     cluster_ids = clusterer.fit_predict(fps)
-
-#     elapsed = timeit.default_timer() - begin
-#     print(f'Clustering and predictions took: {elapsed:0.3f}s')
-
-#     return cluster_ids
-
-# if __name__ == '__main__':
-#     cluster_smiles_file(sys.argv[1], njobs=MAX_CPU)

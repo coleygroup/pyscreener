@@ -8,10 +8,10 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from pyscreener.docking.preparation import prepare_receptors, prepare_ligands
 
-def prepare_inputs(docker: str, receptors: Iterable[str], ligands: Iterable,
+def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
                    center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
                    ncpu: int = 1, path: str = '.', **kwargs) -> Dict:
-    receptors = prepare_receptors(prepare_receptor, receptors)
+    receptors = prepare_receptors(receptors, prepare_receptor)
     ligands = prepare_ligands(ligands, prepare_from_smi, prepare_from_file, 
                               path=f'{path}/inputs', **kwargs)
                               

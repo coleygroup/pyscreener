@@ -3,8 +3,6 @@
 from math import exp
 from typing import Sequence, TypeVar
 
-# Input is an abstract type that corresponds to the set of inputs necessary
-# to perform a given virtual screen.
 Input = TypeVar('Input')
 
 def calc_score(scores: Sequence[float], score_mode: str = 'best') -> float:

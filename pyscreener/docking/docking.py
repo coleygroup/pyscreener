@@ -1,6 +1,5 @@
 """This module contains the singular function dock, which is a template
 function for performing docking runs over a distributed system"""
-
 from collections import defaultdict
 import datetime
 from itertools import chain
@@ -10,7 +9,6 @@ from os import PathLike
 import timeit
 from typing import Dict, List, Tuple
 
-# from . import vina, ucsfdock
 from pyscreener.utils import calc_score
 
 def dock(docker: str, inputs: Dict,
@@ -88,22 +86,12 @@ def dock(docker: str, inputs: Dict,
 
     # BATCHES_PER_PROCESS = 32
     # batch_size = ceil(size / (BATCHES_PER_PROCESS*n_workers))
-    CHUNKSIZE = 64
-
-    # try:
-    #     dock_inputs = {
-    #         'vina': vina.dock_inputs,
-    #         'psovina': vina.dock_inputs,
-    #         'qvina': vina.dock_inputs,
-    #         'smina': vina.dock_inputs,
-    #         'dock': ucsfdock.dock_inputs
-    #     }[docker]
-    # except KeyError:
+    CHUNKSIZE = 32
 
     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
-        from .vina import dock_inputs
+        from pyscreener.docking.vina import dock_inputs
     elif docker == 'dock':
-        from .ucsfdock import dock_inputs
+        from pyscreener.docking.ucsfdock import dock_inputs
     else:
         raise ValueError(f'Unrecognized docking program: "{docker}"')
 

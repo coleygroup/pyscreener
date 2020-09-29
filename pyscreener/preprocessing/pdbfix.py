@@ -1,16 +1,17 @@
 """This module contains the function pdbfix, which is used to fix input PDB
 files or retrieve them based on their pdbID from the PDB"""
-
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
 from pdbfixer import PDBFixer
 from simtk.openmm.app import PDBFile
 
-def pdbfix(pdbfile, pdbid: Optional[str] = None, pH: float = 7.0) -> str:
+def pdbfix(receptors: Optional[List[str]] = None, pdbid: Optional[str] = None, 
+           pH: float = 7.0, path: str = '.', **kwargs) -> str:
     if pdbid:
         fixer = PDBFixer(pdbid=pdbid)
     else:
-        fixer = PDBFixer(filename=pdbfile)
+        fixer = PDBFixer(filename=receptors[0])
 
     fixer.findMissingResidues()
     fixer.findNonstandardResidues()
@@ -20,6 +21,11 @@ def pdbfix(pdbfile, pdbid: Optional[str] = None, pH: float = 7.0) -> str:
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(pH)
 
-    PDBFile.writeFile(fixer.topology, fixer.positions, open(pdbfile, 'w'))
+    if receptors:
+        outfile = receptors[0]
+    else:
+        outfile = Path(path)/f'{pdbid}.pdb'
+
+    PDBFile.writeFile(fixer.topology, fixer.positions, open(outfile, 'w'))
     
-    return pdbfile
+    return outfile

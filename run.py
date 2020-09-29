@@ -2,9 +2,9 @@ import csv
 from distutils.dir_util import copy_tree
 from operator import itemgetter
 from pathlib import Path
+import tempfile
 
-from pyscreener import (args, preprocessing, preparation, 
-                        screening, postprocessing)
+from pyscreener import args, preprocess, prepare, screen, postprocess
 
 def main():
     print('''\
@@ -25,26 +25,35 @@ def main():
     print(flush=True)
 
     name = params['name']
-    tmp_dir = Path(params['tmp']) / name
-    out_dir = Path(params['root']) / name
 
+    tmp_dir = Path(tempfile.gettempdir()) / name
+    if not tmp_dir.exists():
+        tmp_dir.mkdir(parents=True)
+
+    out_dir = Path(params['root']) / name
+    if not out_dir.exists():
+        out_dir.mkdir(parents=True)
+
+    params['path'] = tmp_dir
     print('Preprocessing ...', end=' ', flush=True)
-    params = preprocessing.preprocess(path=tmp_dir, **params)
+    params = preprocess(**params)
     print('Done!')
 
     print('Preparing inputs ...', flush=True)
-    inputs = preparation.prepare(path=tmp_dir, **params)
+    inputs = prepare(**params)
     print('Done!')
 
     print(f'Screening inputs ...', flush=True)
-    d_smi_score, rows = screening.screen(path=tmp_dir, inputs=inputs, **params)
+    d_smi_score, rows = screen(inputs=inputs, **params)
     print('Done!')
 
+    params['path'] = out_dir
     print(f'Postprocessing ...', flush=True)
-    postprocessing.postprocess(d_smi_score=d_smi_score, path=out_dir, **params)
+    postprocess(d_smi_score=d_smi_score, **params)
     print('Done!')
 
-    copy_tree(str(tmp_dir), str(out_dir))
+    if params['copy_all']:
+        copy_tree(str(tmp_dir), str(out_dir))
 
     scores_filename = out_dir / f'{name}_scores.csv'
     extended_filename = out_dir / f'{name}_extended.csv'

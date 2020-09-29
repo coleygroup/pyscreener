@@ -1,2 +1,2 @@
-from pyscreener.dft import *
-from pyscreener.preparation import *
+from pyscreener.dft.dft import calculate
+from pyscreener.dft.preparation import prepare

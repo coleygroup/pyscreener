@@ -1,1 +1,1 @@
-from pyscreener.md import simulate
+from pyscreener.md.md import simulate

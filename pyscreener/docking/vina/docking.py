@@ -1,5 +1,4 @@
 """This module contains functions for running vina-type docking software"""
-
 from concurrent.futures import Executor
 from datetime import date
 from functools import partial

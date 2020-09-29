@@ -4,51 +4,18 @@ simulations"""
 from itertools import chain, takewhile
 from typing import List, Optional, Tuple
 
-def parse_xyz(line: str) -> Tuple[float, float, float]:
-    return tuple(map(float, line.split()[5:8]))
-
-def minimum_bounding_box(coords: List[Tuple[float, float, float]], 
-                         buffer: float = 10.) -> Tuple[Tuple, Tuple]:
-    """Calculate the minimum bounding box for a list of coordinates
-
-    Parameters
-    ----------
-    coords : List[Tuple[float, float, float]]
-        a list of tuples corresponding to x-, y-, and z-coordinates
-    buffer : float (Default = 10.)
-        the amount of buffer to add to the minimum bounding box
-
-    Returns
-    -------
-    center: Tuple[float, float, float]
-        the x-, y-, and z-coordinates of the center of the minimum bounding box
-    size: Tuple[float, float, float]
-        the x-, y-, and z-radii of the minimum bounding box
-    """
-    xs, ys, zs = zip(*coords)
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
-    min_z, max_z = min(zs), max(zs)
-
-    center_x = (max_x + min_x) / 2
-    center_y = (max_y + min_y) / 2
-    center_z = (max_z + min_z) / 2
-
-    size_x = (max_x - center_x) + buffer
-    size_y = (max_y - center_y) + buffer
-    size_z = (max_z - center_z) + buffer
-
-    center = center_x, center_y, center_z
-    size = size_x, size_y, size_z
-
-    return center, size
-
-def autobox(pdbfile: str, residues: Optional[List[int]],
-            buffer: int = 10) -> Tuple[Tuple, Tuple]:
+def autobox(receptors: Optional[List[str]] = None,
+            residues: Optional[List[int]] = None,
+            docked_ligand_file: Optional[str] = None,
+            buffer: int = 10, **kwargs) -> Tuple[Tuple, Tuple]:
     if residues:
-        center, size = from_residues(pdbfile, residues)
+        center, size = from_residues(receptors[0], residues)
     else:
-        center, size = from_docked_ligand(pdbfile, buffer)
+        # allow user to only specify one receptor file
+        docked_ligand_file = docked_ligand_file or receptors[0]
+        center, size = from_docked_ligand(docked_ligand_file, buffer)
+
+    print(f'Autoboxing with center={center} and size={size}')
 
     return center, size
 
@@ -124,3 +91,42 @@ def from_docked_ligand(docked_ligand: str,
         ]
 
     return minimum_bounding_box(ligand_atom_coords, buffer)
+
+def parse_xyz(line: str) -> Tuple[float, float, float]:
+    return tuple(map(float, line.split()[5:8]))
+
+def minimum_bounding_box(coords: List[Tuple[float, float, float]], 
+                         buffer: float = 10.) -> Tuple[Tuple, Tuple]:
+    """Calculate the minimum bounding box for a list of coordinates
+
+    Parameters
+    ----------
+    coords : List[Tuple[float, float, float]]
+        a list of tuples corresponding to x-, y-, and z-coordinates
+    buffer : float (Default = 10.)
+        the amount of buffer to add to the minimum bounding box
+
+    Returns
+    -------
+    center: Tuple[float, float, float]
+        the x-, y-, and z-coordinates of the center of the minimum bounding box
+    size: Tuple[float, float, float]
+        the x-, y-, and z-radii of the minimum bounding box
+    """
+    xs, ys, zs = zip(*coords)
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    min_z, max_z = min(zs), max(zs)
+
+    center_x = (max_x + min_x) / 2
+    center_y = (max_y + min_y) / 2
+    center_z = (max_z + min_z) / 2
+
+    size_x = (max_x - center_x) + buffer
+    size_y = (max_y - center_y) + buffer
+    size_z = (max_z - center_z) + buffer
+
+    center = center_x, center_y, center_z
+    size = size_x, size_y, size_z
+
+    return center, size

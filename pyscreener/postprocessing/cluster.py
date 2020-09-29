@@ -1,5 +1,4 @@
 """This module contains functions for clutering a set of molecules"""
-
 import csv
 from itertools import chain
 import os
@@ -16,17 +15,25 @@ from sklearn.cluster import MiniBatchKMeans
 
 from pyscreener.postprocessing import fingerprints
 
-def cluster(d_smi_score: Dict[str, Optional[float]], **kwargs) -> List[Dict]:
-    d_smi_cid = cluster_smis(d_smi_score.keys(), **kwargs)
+def cluster(d_smi_score: Dict[str, Optional[float]],
+            name: str = 'clusters', path: str = '.', **kwargs) -> List[Dict]:
+    d_smi_cid = cluster_smis(d_smi_score.keys(), len(d_smi_score), **kwargs)
 
-    smi_score_clusters = {}
+    clusters_csv = (Path(path) / name).with_suffix('.csv')
+    with open(clusters_csv, 'w') as fid:
+        writer = csv.writer(fid)
+        writer.writerow(['smiles', 'cluster_id'])
+        writer.writerows(d_smi_cid.items())
+
+    d_cluster_smi_score = {}
     for smi, score in d_smi_score.items():
         cid = d_smi_cid[smi]
-        smi_score_clusters[cid][smi] = score
+        d_cluster_smi_score[cid][smi] = score
 
-    return list(smi_score_clusters.values())
+    return list(d_cluster_smi_score.values())
 
-def cluster_smis(smis: Iterable[str], n_cluster: int = 100, 
+def cluster_smis(smis: Iterable[str], n_mols: int, *,
+                 n_cluster: int = 10, 
                  path: str = '.', name: str = 'fps', 
                  **kwargs) -> Dict[str, int]:
     """Cluster the SMILES strings
@@ -54,67 +61,14 @@ def cluster_smis(smis: Iterable[str], n_cluster: int = 100,
     fingerprints.gen_fps_h5
     """
     fps_h5, invalid_idxs = fingerprints.gen_fps_h5(
-        smis, path=path, name=name, **kwargs)
+        smis, n_mols, path=path, name=name, **kwargs)
 
     smis = [smi for i, smi in enumerate(smis) if i not in invalid_idxs]
     cids = cluster_fps_h5(fps_h5, n_cluster)
     
     return dict(zip(smis, cids))
 
-def cluster_file(filepath: str, delimiter: str = ',',
-                 title_line: bool = True, smiles_col: int = 0,
-                 distributed: bool = True, n_workers: int = -1, 
-                 n_cluster: int = 100, path: Optional[str] = None):
-    """
-    Cluster the molecules
-
-    Parameters
-    ----------
-    filepath : str
-        the filepath of the .smi file to cluster
-    smiles_col : int (Default = 0)
-        the column containing the SMILES string in each row
-    title_line : bool (Default = True)
-        does the file contain a title line?
-    n_workers : int (Default = -1)
-        the number of jobs to parallelize fingerprint preparation over. 
-        A value of -1 uses all available cores
-    n_cluster : int (Default = 100)
-        the number of clusters to group the molecules into
-    path : Optional[str]
-        the path under which all clustering files should be written.
-    """
-    start = timeit.default_timer()
-
-    fps_h5, invalid_rows = fingerprints.gen_fps_h5_from_file(
-        filepath, delimiter=delimiter, smiles_col=smiles_col,
-        title_line=title_line, n_workers=n_workers, path=path)
-
-    cluster_ids = cluster_fps_h5(fps_h5, n_cluster=n_cluster)
-
-    if path is None:
-        path = Path(filepath)
-        path = path.with_name(f'{path.stem}_clusters')
-
-    with open(filepath) as fid_in, open(path, 'w') as fid_out:
-        reader = csv.reader(fid_in)
-        if title_line:
-            next(reader)
-
-        offset = 0
-        fid_out.write('smiles,cluster\n')
-        for i, row in enumerate(reader):
-            while (i+offset) in invalid_rows:
-                offset += 1
-                row = next(reader)
-            smi = row[smiles_col]
-            fid_out.write(f'{smi},{cluster_ids[i]}\n')
-
-    elapsed = timeit.default_timer() - start
-    print(f'Total time to cluster the {len(cluster_ids)} mols in "{filepath}"',
-          f'over: {elapsed:0.3f}s')
-
-def cluster_fps_h5(fps_h5: str, n_cluster: int = 100) -> List[int]:
+def cluster_fps_h5(fps_h5: str, n_cluster: int = 10) -> List[int]:
     """Cluster the feature matrix of fingerprints in fps_h5
 
     Parameters

@@ -1,2 +1,2 @@
-def prepare_ligands(**kwargs):
+def prepare(**kwargs):
     pass

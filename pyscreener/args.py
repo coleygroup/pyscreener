@@ -27,8 +27,8 @@ def add_general_args(parser: ArgumentParser):
     
     parser.add_argument('--root', default='.',
                         help='the root directory under which to organize all program outputs')
-    parser.add_argument('--tmp', default=os.environ.get('TMP', '.'),
-                        help='path to your system\'s TMP directory. If using a distributed setup, this directory must be shared between all machines.')
+    parser.add_argument('--copy-all', action='store_true', default=False,
+                        help='whether all prepared input files and generated output files should be copied to the final output directory. By default, these files are all stored in a temporary directory.')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='the level of output this program should print')
 
@@ -37,10 +37,14 @@ def add_preprocessing_args(parser: ArgumentParser):
                         choices=['pdbfix', 'autobox', 'tautomers', 'desalt', 
                                  'filter'],
                         help='the preprocessing options to apply')
-    parser.add_argument('--docked-ligand',
+    parser.add_argument('--docked-ligand-file',
                         help='the name of a file containing the coordinates of a docked/bound ligand. If using Vina-type software, this file must be a PDB format file. If using Dock, do not select this preprocessing option as autoboxing occurs during input preparation.')
     parser.add_argument('--buffer', type=float, default=10.,
                         help='the amount of buffer space to add around the docked ligand when calculating the docking box.')
+    parser.add_argument('--pdbid',
+                        help='the PDB ID of the crystal structure to dock against')
+    parser.add_argument('--pH', type=float, default=7.,
+                        help='the pH for which to calculate protonation state for protein and ligand residues')
 
 def add_preparation_args(parser: ArgumentParser):
     parser.add_argument('--no-title-line', default=False, action='store_true',
@@ -54,7 +58,7 @@ def add_docking_args(parser: ArgumentParser):
     parser.add_argument('--docker', default='vina',
                         choices=['vina', 'smina', 'qvina', 'psovina', 'dock'],
                         help='the name of the docking program to use')
-    parser.add_argument('-r', '--receptors', required=True, nargs='+',
+    parser.add_argument('-r', '--receptors', nargs='+',
                         help='the filenames of the receptors')
     parser.add_argument('-l', '--ligands', required=True, nargs='+',
                         help='the filenames containing the ligands to dock')
@@ -73,6 +77,7 @@ def add_docking_args(parser: ArgumentParser):
     parser.add_argument('--dont-enclose-spheres', action='store_true',
                         default=False,
                         help='whether to not enclose the selected spheres during DOCK docking box construction. Using this flag will manually construct the docking box using the input center and size arguments. Enclosing selected spheres is the typical way in which docking boxes are constructed for DOCK.')
+                        
 def add_screening_args(parser: ArgumentParser):
     parser.add_argument('--ncpu', type=int, default=1, metavar='N_CPU',
                         help='the number of cores available to each worker process')
@@ -83,7 +88,7 @@ def add_screening_args(parser: ArgumentParser):
     parser.add_argument('--score-mode', default='best',
                         choices={'best', 'avg', 'boltzmann'},
                         help='The method used to calculate the score of a single docking run on a single receptor')
-    parser.add_argument('--repeat', type=positive_int, default=1,
+    parser.add_argument('--repeats', type=positive_int, default=1,
                         help='the number of times to repeat each screening run')
     parser.add_argument('--repeat-score-mode', default='best',
                         choices={'best', 'avg', 'boltzmann'},
@@ -94,8 +99,13 @@ def add_screening_args(parser: ArgumentParser):
 
 def add_postprocessing_args(parser: ArgumentParser):
     parser.add_argument('--postprocessing-options', nargs='+', default='none',
-                        choices=['cluster', 'distribution'],
+                        choices=['cluster', 'visualize'],
                         help='the postprocessing options to apply')
+    parser.add_argument('--n-cluster', type=int, default=10,
+                        help='the number of clusters to form')
+    parser.add_argument('--viz-mode', default='text',
+                        choices=['histogram', 'text'],
+                        help='the type of visualization to generate. "hist" makes a histogram that is output in a pdf and "text" generates a histogram using terminal output.')
 
 def gen_args() -> Namespace:
     parser = ArgumentParser(

@@ -60,9 +60,9 @@ def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
     
     See also
     --------
-    ..preparation.prepare_receptors
-    ..preparation.prepare_ligands
-    ..preparation.prepare_from_*
+    pyscreener.docking.preparation.prepare_receptors
+    pyscreener.docking.preparation.prepare_ligands
+    pyscreener.docking.preparation.prepare_from_*
         for documentation on the ligands and **kwargs arguments
     prepare_receptor
         for documentation on all other arguments
@@ -82,7 +82,7 @@ def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
     # if len(sphs_grids) == 0:
     #     raise RuntimeError('All receptor preparation failed!')
     receptors = prepare_receptors(
-        prepare_receptor, receptors, center, size, 
+        receptors, prepare_receptor, center, size, 
         docked_ligand, use_largest, buffer, enclose_spheres)
     ligands = prepare_ligands(
         ligands, prepare_from_smi, prepare_from_file,
@@ -220,23 +220,22 @@ def prepare_receptor(receptor: str,
     Returns
     -------
     sph_grid : Optional[Tuple[str, str]]
-        None if receptor preparation fails at any stop. Otherwise, a tuple of
-        strings with the first entry being the filepath of the file containing 
-        the selected spheres and the second being entry the prefix of all
-        prepared grid files
+        A tuple of strings with the first entry being the filepath of the file 
+        containing the selected spheres and the second being entry the prefix 
+        of all prepared grid files. None if receptor preparation fails at any point
     """
     rec_mol2 = prepare_mol2(receptor)
     rec_pdb = prepare_pdb(receptor)
     if rec_mol2 is None or rec_pdb is None:
-        return
+        return None
 
     rec_dms = prepare_dms(rec_pdb)
     if rec_dms is None:
-        return
+        return None
 
     rec_sph = prepare_sph(rec_dms)
     if rec_sph is None:
-        return
+        return None
 
     rec_sph = select_spheres(
         rec_sph, center, size,
@@ -245,11 +244,11 @@ def prepare_receptor(receptor: str,
 
     rec_box = prepare_box(rec_sph, center, size, enclose_spheres, buffer)
     if rec_box is None:
-        return
+        return None
 
     grid_prefix = prepare_grid(rec_mol2, rec_box)
     if grid_prefix is None:
-        return
+        return None
 
     return rec_sph, grid_prefix
 

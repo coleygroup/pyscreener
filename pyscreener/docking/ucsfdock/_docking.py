@@ -1,13 +1,9 @@
-from concurrent.futures import Executor
-from functools import partial
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+import subprocess as sp
+from typing import Dict, List, Optional, Tuple, Union
 
-from tqdm import tqdm
-
-from pyscreener.utils import calc_score
-from pyscreener.docking.utils import run_and_parse_docker
+from pyscreener.docking.base import Screener
 
 DOCK6 = Path(os.environ['DOCK6'])
 DOCK6_PARAMS = DOCK6 / 'parameters'
@@ -17,53 +13,74 @@ FLEX_DRIVE_FILE = DOCK6_PARAMS / 'flex_drive.tbl'
 
 DOCK6 = str(DOCK6 / 'bin' / 'dock6')
 
-def dock_inputs(ligands: Tuple[str, List[Tuple[str, str]]],
-                receptors: List[Tuple[str, str]],
-                path: str = '.', repeats: int = 1,
-                score_mode: str = 'best',
-                client: Optional[Executor] = None, 
-                chunksize: int = 32, **kwargs) -> List[List[List[Dict]]]:
-    """Dock the ligands into the ensemble of receptors
+def dock_ligand_(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
+                path: Union[str, os.PathLike] = '.', repeats: int = 1,
+                score_mode: str = 'best') -> List[List[Dict]]:
+    """Dock this ligand into the ensemble of receptors
 
     Parameters
     ----------
-    ligands : List[Tuple[str, str]]
-        A list of tuples corresponding to the ligands that should be docked
+    ligand : Tuple[str, str]
+        a tuple containing the ligand's SMILES string and its prepared
+        .mol2 file that will be docked against each receptor
     receptors : List[Tuple[str, str]]
+        a list of tuples containing the sphere file and grid file prefix
+        corresponding to each receptor in the ensemble.
     path : Union[str, os.PathLike] (Deafult = '.')
+        the path under which to oragnize all inputs and outputs
     repeats : int (Default = 1)
+        the number of times each docking run should be repeated
     score_mode : str (Default = 'best')
-    chunksize : int (Default = 32)
-        the chunksize argument passed to map()
-    client : Optional[Executor] (Default = None)
-        an object that implements the Executor interface. If specified, docking 
-        will be parallelized over client workers. Otherwise, docking will be 
-        peformed sequentially
-
+        the method used to calculate a ligand's overall score from the scores
+        of each of its docked conformers
+    
     Returns
     -------
-    rowsss : List[List[List[Dict]]]
-        a list of ensemble docking results for each ligand. The outermost list 
-        is ligands, the second outermost list is the receptors each ligand was
-        docked against, the innermost list is the repeated docking runs for a
-        single ligand/receptor combo, and the dictionary is a singular row of
-        a dataframe. See also: dock_ligand
+    ensemble_rowss : List[Dataframe]
+        a list of dataframes for this ligand's docking runs into the
+        ensemble of receptor poses, each containing the following columns:
+            smiles  - the ligand's SMILES string
+            name    - the name of the docking run
+            in      - the filename of the input docking file
+            out     - the filename of the output docked ligand file
+            log     - the filename of the output log file
+            score   - the ligand's docking score
     """
-    path = Path(path)
-    
-    dock_ligand_ = partial(
-        dock_ligand, receptors=receptors, path=path,
-        score_mode=score_mode, repeats=repeats,
-    )
+    if repeats <= 0:
+        raise ValueError(f'Repeats must be greater than 0! ({repeats})')
 
-    map_ = client.map if client else map
-    rowsss = list(tqdm(
-        map_(dock_ligand_, ligands, chunksize=chunksize),
-        total=len(ligands), smoothing=0.,
-        desc='Docking ligands', unit='ligand'
-    ))
+    smi, lig_mol2 = ligand
 
-    return rowsss
+    ensemble_rowss = []
+    for sph_file, grid_prefix in receptors:
+        repeat_rows = []
+        for repeat in range(repeats):
+            name = f'{Path(sph_file).stem}_{Path(lig_mol2).stem}_{repeat}'
+
+            infile, outfile_prefix = prepare_input_file(
+                lig_mol2, sph_file, grid_prefix, name, path
+            )
+
+            argv = [DOCK6, '-i', infile, '-o', log]
+
+            out = Path(f'{outfile_prefix}_scored.mol2')
+            score = Screener.run_and_parse(argv, parse_score, out, score_mode)
+
+            log = Path(outfile_prefix).parent / f'{name}.out'
+            if score:
+                repeat_rows.append({
+                    'smiles': smi,
+                    'name': name,
+                    'in': Path(infile.parent.name) / infile.name,
+                    'log': Path(log.parent.name) / log.name,
+                    'out': Path(out.parent.name) / out.name,
+                    'score': score
+                })
+
+        if repeat_rows:
+            ensemble_rowss.append(repeat_rows)
+
+    return ensemble_rowss
 
 def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
                 path: Union[str, os.PathLike] = '.', repeats: int = 1,
@@ -113,29 +130,34 @@ def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
                 lig_mol2, sph_file, grid_prefix, name, path
             )
 
-            log = Path(outfile_prefix).parent / f'{name}.out'
             argv = [DOCK6, '-i', infile, '-o', log]
 
-            out = Path(f'{outfile_prefix}_scored.mol2')
-            score = run_and_parse_docker(argv, parse_out, out, score_mode)
+            try:
+                sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE, check=True)
+            except sp.SubprocessError:
+                print(f'ERROR: docking failed. argv: {argv}', file=sys.stderr)
+                print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+                print('Skipping...', file=sys.stderr, flush=True)
+                continue
 
-            if score:
-                repeat_rows.append({
-                    'smiles': smi,
-                    'name': name,
-                    'in': Path(infile.parent.name) / infile.name,
-                    'log': Path(log.parent.name) / log.name,
-                    'out': Path(out.parent.name) / out.name,
-                    'score': score
-                })
+            out = Path(f'{outfile_prefix}_scored.mol2')
+            log = Path(outfile_prefix).parent / f'{name}.out'
+            repeat_rows.append({
+                'smiles': smi,
+                'name': name,
+                'in': Path(infile.parent.name) / infile.name,
+                'log': Path(log.parent.name) / log.name,
+                'out': Path(out.parent.name) / out.name,
+                'score': None
+            })
 
         if repeat_rows:
             ensemble_rowss.append(repeat_rows)
 
     return ensemble_rowss
 
-def parse_out(outfile: Union[str, os.PathLike],
-              score_mode : str = 'best') -> Optional[float]:
+def parse_score(outfile: Union[str, os.PathLike],
+                score_mode : str = 'best') -> Optional[float]:
     """Parse the log file generated from a run of Vina-type docking software
     and return the appropriate score.
 

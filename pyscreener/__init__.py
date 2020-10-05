@@ -17,10 +17,10 @@ def prepare(mode, **kwargs) -> Dict:
 
     raise ValueError(f'Unrecognized screening mode: "{mode}"')
 
-def screen(mode, **kwargs) -> Tuple[Dict, List]:
+def build_screener(mode, **kwargs) -> Tuple[Dict, List]:
     if mode == 'docking':
         from pyscreener import docking
-        return docking.dock(**kwargs)
+        return docking.screener(**kwargs)
     if mode == 'md':
         from pyscreener import md
         raise NotImplementedError

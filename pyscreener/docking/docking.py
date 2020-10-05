@@ -24,7 +24,8 @@ def dock(docker: str, inputs: Dict,
     docker : str
         the docking program that will be used
     inputs : Input
-        a dictionary docking program inputs
+        a dictionary of docking program inputs generated from
+        pyscreener.docking.preparation.prepare
     path : string (Default = './docking_results_YYYY-MM-DD/')
         the path under which docking outputs should be organized
     score_mode : str (Default = 'best')
@@ -68,6 +69,10 @@ def dock(docker: str, inputs: Dict,
             out     - the filepath of the output docked ligand
             log     - the filepath of the log file
             score   - the ligand's docking score
+    
+    See also
+    --------
+    pyscreener.docking.prepararation.prepare
     """
     begin = timeit.default_timer()
 
@@ -82,10 +87,8 @@ def dock(docker: str, inputs: Dict,
             try:
                 num_workers = len(os.sched_getaffinity(0)) // ncpu
             except AttributeError:
-                num_workers = os.cpu_count()
+                num_workers = os.cpu_count() // ncpu
 
-    # BATCHES_PER_PROCESS = 32
-    # batch_size = ceil(size / (BATCHES_PER_PROCESS*n_workers))
     CHUNKSIZE = 32
 
     if docker in {'vina', 'smina', 'psovina', 'qvina'}:
@@ -120,11 +123,11 @@ def dock(docker: str, inputs: Dict,
     rows = list(chain(*list(chain(*rowsss))))
 
     total = timeit.default_timer() - begin
-    m, s = divmod(int(total), 60)
-    h, m = divmod(m, 60)
+    mins, secs = divmod(int(total), 60)
+    hrs, mins = divmod(mins, 60)
     if verbose > 0 and len(rowsss) > 0:
         print(f'  Time to dock {len(rowsss)} ligands:',
-              f'{h:d}h {m:d}m {s:d}s ({total/len(rowsss):0.3f} s/ligand)', 
-              flush=True)
+              f'{hrs:d}h {mins:d}m {secs:d}s ' +
+              f'({total/len(rowsss):0.3f} s/ligand)', flush=True)
 
     return d_smi_score, rows

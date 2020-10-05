@@ -79,7 +79,7 @@ def gen_fps_h5(smis: Iterable[str], n_mols: int,
     compression = None
 
     with Pool(max_workers=n_workers) as pool, h5py.File(fps_h5, 'w') as h5f:
-        CHUNKSIZE = 1024
+        CHUNKSIZE = min(1024, n_mols)
         fps_dset = h5f.create_dataset(
             'fps', (n_mols, length), compression=compression,
             chunks=(CHUNKSIZE, length), dtype='int8'

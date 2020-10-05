@@ -3,3 +3,5 @@ from pyscreener.docking.ucsfdock.preparation import (
     prepare_from_smi, prepare_from_file
 )
 from pyscreener.docking.ucsfdock.docking import dock_inputs, dock_ligand
+
+from pyscreener.docking.ucsfdock.dock import DOCK

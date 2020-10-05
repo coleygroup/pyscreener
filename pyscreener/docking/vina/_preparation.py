@@ -122,7 +122,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
 
     return smi, pdbqt
     
-def prepare_from_file(filename: str, use_3d: bool = False,
+def prepare_from_file(filepath: str, use_3d: bool = False,
                       name: Optional[str] = None, path: str = '.', 
                       **kwargs) -> Tuple:
     """Convert a single ligand to the appropriate input format

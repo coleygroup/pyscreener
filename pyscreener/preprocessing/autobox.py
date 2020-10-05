@@ -10,12 +10,16 @@ def autobox(receptors: Optional[List[str]] = None,
             buffer: int = 10, **kwargs) -> Tuple[Tuple, Tuple]:
     if residues:
         center, size = from_residues(receptors[0], residues)
+        print('Autoboxing from residues with', end=' ')
     else:
         # allow user to only specify one receptor file
         docked_ligand_file = docked_ligand_file or receptors[0]
         center, size = from_docked_ligand(docked_ligand_file, buffer)
+        print('Autoboxing from docked ligand with', end=' ')
 
-    print(f'Autoboxing with center={center} and size={size}')
+    s_center = f'({center[0]:0.1f}, {center[1]:0.1f}, {center[2]:0.1f})'
+    s_size = f'({size[0]:0.1f}, {size[1]:0.1f}, {size[2]:0.1f})'
+    print(f'center={s_center} and size={s_size}')
 
     return center, size
 

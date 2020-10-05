@@ -304,6 +304,7 @@ def prepare_pdb(receptor: str) -> Optional[str]:
         return None
     
     return rec_pdb
+    
 def prepare_dms(rec_pdb: str, probe_radius: float = 1.4) -> Optional[str]:
     rec_dms = str(Path(rec_pdb).with_suffix('.dms'))
 

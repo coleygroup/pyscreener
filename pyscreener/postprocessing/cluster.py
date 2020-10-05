@@ -1,4 +1,5 @@
 """This module contains functions for clutering a set of molecules"""
+from collections import defaultdict
 import csv
 from itertools import chain
 import os
@@ -19,13 +20,13 @@ def cluster(d_smi_score: Dict[str, Optional[float]],
             name: str = 'clusters', path: str = '.', **kwargs) -> List[Dict]:
     d_smi_cid = cluster_smis(d_smi_score.keys(), len(d_smi_score), **kwargs)
 
-    clusters_csv = (Path(path) / name).with_suffix('.csv')
+    clusters_csv = (Path(path)/name).with_suffix('.csv')
     with open(clusters_csv, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'cluster_id'])
         writer.writerows(d_smi_cid.items())
 
-    d_cluster_smi_score = {}
+    d_cluster_smi_score = defaultdict(dict)
     for smi, score in d_smi_score.items():
         cid = d_smi_cid[smi]
         d_cluster_smi_score[cid][smi] = score
@@ -88,15 +89,14 @@ def cluster_fps_h5(fps_h5: str, n_cluster: int = 10) -> List[int]:
     """
     begin = timeit.default_timer()
 
-    BATCH_SIZE = 1000
-    ITER = 1000
-
-    clusterer = MiniBatchKMeans(n_clusters=n_cluster, batch_size=BATCH_SIZE)
-
     with h5py.File(fps_h5, 'r') as h5f:
         fps = h5f['fps']
         chunk_size = fps.chunks[0]
 
+        ITER = 1000
+        BATCH_SIZE = min(1000, len(fps))
+        clusterer = MiniBatchKMeans(n_clusters=n_cluster, batch_size=BATCH_SIZE)
+        
         for _ in range(ITER):
             rand_idxs = sorted(sample(range(len(fps)), BATCH_SIZE))
             batch_fps = fps[rand_idxs]

@@ -1,15 +1,17 @@
 from typing import Dict
 
+from pyscreener.docking.base import Screener
+from pyscreener.docking.vina import Vina
+from pyscreener.docking.ucsfdock import DOCK
+
 from pyscreener.docking.docking import dock
+from pyscreener.docking.preparation import prepare
 
-def prepare(docker, **kwargs) -> Dict:
-    """Prepare all of the inputs for the specified docking program"""
-    if docker in {'vina', 'smina', 'psovina', 'qvina'}:
-        from pyscreener.docking import vina
-        return vina.prepare_inputs(**kwargs)
-
-    if docker == 'dock':
-        from pyscreener.docking import ucsfdock
-        return ucsfdock.prepare_inputs(**kwargs)
-
-    raise ValueError(f'Unrecognized docking program: "{docker}"')
+def screener(software, **kwargs):
+    if software in ('vina', 'qvina', 'smina', 'psovina'):
+        return Vina(software=software, **kwargs)
+    
+    if software in ('dock', 'ucsfdock', 'DOCK'):
+        return DOCK(**kwargs)
+    
+    raise ValueError(f'Unrecognized docking software: "{software}"')

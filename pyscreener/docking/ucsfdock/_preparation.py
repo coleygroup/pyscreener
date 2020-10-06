@@ -30,68 +30,6 @@ GRID = DOCK6_BIN / 'grid'
 
 VDW_DEFN_FILE = DOCK6_PARAMS / 'vdw_AMBER_parm99.defn'
 
-def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
-                   center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
-                   path: str = '.', docked_ligand: Optional[str] = None,
-                   use_largest: bool = False, buffer: float =10.,
-                   enclose_spheres: bool = True,
-                   **kwargs) -> Dict:
-    """Prepare the inputs dictionary to pass to pyscreener.docking.dock
-
-    Parameters
-    ----------
-    receptors : Iterable[str]
-        the receptor files to prepare for vina-type docking software
-    ligands : Iterable
-        the list of files or SMILES strings containing or corresponding to the
-        molecules that are to be docked against the given receptors
-    center : Tuple[float, float, float]
-        the center of the docking box
-    size : Tuple[int, int, int], (Default = (20, 20, 20))
-        the x-, y-, and z-radii of the docking box
-    path : str (Default '.')
-    docked_ligand : Optional[str] (Default = None)
-    use_largest : bool (Default = False)
-    buffer : float (Default = 10.)
-    enclose_spheres : bool (Default = True)
-    **kwargs
-        keyword arguments passed the appropriate ligand preparation function
-        (E.g., pyscreener.docking.preparation.prepare_from_[smis,csv,supply])
-
-    Returns
-    -------
-    Dict
-        a dictionary containing the keyword arguments used in either
-        pyscreener.docking.dock or pyscreener.docking.ucsfdock.dock_inputs
-    
-    See also
-    --------
-    pyscreener.docking.preparation.prepare_receptors
-    pyscreener.docking.preparation.prepare_ligands
-
-    for documentation of the arguments in **kwargs:
-        pyscreener.docking.preparation.prepare_from_smis
-        pyscreener.docking.preparation.prepare_from_csv
-        pyscreener.docking.preparation.prepare_from_supply
-
-    for documentation of how the output dictionary is utilized:
-        pyscreener.docking.docking.dock
-        pyscreener.docking.ucsfdock.dock_inputs
-        pyscreener.docking.ucsfdock.dock_ligand
-        
-    for documentation on all other arguments:
-        prepare_receptor
-
-    """
-    receptors = prepare_receptors(
-        receptors, prepare_receptor, center, size, 
-        docked_ligand, use_largest, buffer, enclose_spheres)
-    ligands = prepare_ligands(
-        ligands, prepare_from_smi, prepare_from_file,
-        path=f'{path}/inputs', **kwargs)
-
-    return {'ligands': ligands, 'receptors': receptors}
-
 def prepare_from_smi(smi: str, name: str = 'ligand',
                      path: str = '.', **kwargs) -> Optional[Ligand]:
     """Prepare an input ligand file from the ligand's SMILES string
@@ -173,8 +111,8 @@ def prepare_from_file(filename: str, use_3d: bool = False,
     mol2 = f'{path}/{name}_.mol2'
     argv = ['obabel', filename, '-omol2', '-O', mol2, '-m',
             '-h', '--partialcharge', 'gasteiger']
+
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
-    
     try:
         ret.check_returncode()
     except sp.SubprocessError:
@@ -297,10 +235,12 @@ def prepare_pdb(receptor: str) -> Optional[str]:
     rec_pdb = str(p_rec.with_name(f'DOCK_{p_rec.stem}.pdb'))
     args = ['obabel', receptor, '-opdb', '-O', rec_pdb]
 
+    ret = sp.run(args, stderr=sp.PIPE)
     try:
-        sp.run(args, stderr=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to convert receptor: "{receptor}"')
+        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
     
     return rec_pdb
@@ -311,10 +251,12 @@ def prepare_dms(rec_pdb: str, probe_radius: float = 1.4) -> Optional[str]:
     argv = ['chimera', '--nogui', '--script',
             f'{WRITE_DMS} {rec_pdb} {probe_radius} {rec_dms}']
 
+    ret = sp.run(argv, stdout=sp.PIPE)
     try:
-        sp.run(argv, stdout=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to generate surface corresponding to "{rec_pdb}"')
+        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
     return rec_dms
@@ -328,10 +270,12 @@ def prepare_sph(rec_dms: str, steric_clash_dist: float = 0.0,
             '-s', 'R', 'd', 'X', '-l', str(steric_clash_dist),
             'm', str(min_radius), '-x', str(max_radius)]
 
+    ret = sp.run(argv, stdout=sp.PIPE)
     try:
-        sp.run(argv, stdout=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to generate spheres corresponding to "{rec_dms}"')
+        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
     
     return sph_file
@@ -410,11 +354,13 @@ def prepare_box(sph_file: str,
     #         fid.write(f'[{size[0]} {size[1]} {size[2]}]\n')
     #     fid.write(f'{box_file}\n')
     
+    ret = sp.run([SHOWBOX], input=showbox_input, universal_newlines=True,
+                 stdout=sp.PIPE)
     try:
-        sp.run([SHOWBOX], input=showbox_input, universal_newlines=True,
-               stdout=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to generate box corresponding to "{sph_file}"')
+        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
     return box_file
@@ -442,11 +388,14 @@ def prepare_grid(rec_mol2: str, box_file: str) -> Optional[str]:
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
         fid.write(f'score_grid_prefix  {grid_prefix}\n')
 
+    
+    ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'],
+                 stdout=sp.PIPE)
     try:
-        sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'],
-            stdout=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to generate grid corresponding to {rec_mol2}')
+        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
     return grid_prefix

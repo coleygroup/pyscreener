@@ -7,6 +7,7 @@ from os import PathLike
 from math import exp
 from pathlib import Path
 import subprocess as sp
+import sys
 from typing import Dict, List, Optional, Tuple, Union
 
 from tqdm import tqdm
@@ -81,9 +82,9 @@ def dock_ligand_(ligand: Tuple[str, str], software: str, receptors: List[str],
                 repeat_rows.append({
                     'smiles': smi,
                     'name': ligand_name,
-                    'in': Path(p_pdbqt.parent.name) / p_pdbqt.name,
-                    'out': Path(p_out.parent.name) / p_out.name,
-                    'log': Path(p_log.parent.name) / p_log.name,
+                    'in': p_pdbqt, # Path(p_pdbqt.parent.name) / p_pdbqt.name,
+                    'out': p_out, # Path(p_out.parent.name) / p_out.name,
+                    'log': p_log, # Path(p_log.parent.name) / p_log.name,
                     'score': score
                 })
 
@@ -154,8 +155,9 @@ def dock_ligand(ligand: Tuple[str, str], software: str, receptors: List[str],
                 center=center, size=size, ncpu=ncpu, extra=extra, path=path
             )
 
+            ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
             try:
-                sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE, check=True)
+                ret.check_returncode()
             except sp.SubprocessError:
                 print(f'ERROR: docking failed. argv: {argv}', file=sys.stderr)
                 print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
@@ -165,9 +167,9 @@ def dock_ligand(ligand: Tuple[str, str], software: str, receptors: List[str],
             repeat_rows.append({
                 'smiles': smi,
                 'name': ligand_name,
-                'in': Path(p_pdbqt.parent.name) / p_pdbqt.name,
-                'out': Path(p_out.parent.name) / p_out.name,
-                'log': Path(p_log.parent.name) / p_log.name,
+                'in': p_pdbqt, #Path(p_pdbqt.parent.name) / p_pdbqt.name,
+                'out': p_out, #Path(p_out.parent.name) / p_out.name,
+                'log': p_log, #Path(p_log.parent.name) / p_log.name,
                 'score': None
             })
 

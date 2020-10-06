@@ -39,7 +39,8 @@ def main():
 
     print(f'Preparing and screening inputs ...', flush=True)
     screener = pyscreener.build_screener(**params)
-    d_smi_score, rows = screener(*params['ligands'], **params)
+    d_smi_score, rows = screener(*params['ligands'], full_results=True, 
+                                 **params)
     print('Done!')
 
     out_dir = Path(params['root']) / name

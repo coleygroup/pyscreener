@@ -1,4 +1,5 @@
 from functools import partial
+from itertools import takewhile
 from pathlib import Path
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -28,12 +29,13 @@ class Vina(Screener):
         self.ncpu = ncpu
         self.extra = extra or []
 
-        self.score_mode = score_mode
         self.repeats = repeats
 
-        super().__init__(receptor_score_mode=receptor_score_mode,
+        super().__init__(score_mode=score_mode,
+                         receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
-                         distributed=distributed, num_workers=num_workers,
+                         distributed=distributed,
+                         num_workers=num_workers, ncpu=ncpu,
                          path=path, verbose=verbose, **kwargs)
 
     def __call__(self, *args, **kwargs):
@@ -71,7 +73,7 @@ class Vina(Screener):
             center=self.center, size=self.size, ncpu=self.ncpu,
             extra=self.extra, path=self.out_path, repeats=self.repeats
         )
-        CHUNKSIZE = 32
+        CHUNKSIZE = 1
         with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
             ligs_recs_reps = pool.map(dock_ligand, ligands, 
                                       chunksize=CHUNKSIZE)
@@ -106,3 +108,11 @@ class Vina(Screener):
                 except OSError:
                     score = None
                 repeat_result['score'] = score
+
+                p_in = repeat_result['in']
+                repeat_result['in'] = Path(p_in.parent.name) / p_in.name
+                p_out = repeat_result['out']
+                repeat_result['out'] = Path(p_out.parent.name) / p_out.name
+                p_log = repeat_result['log']
+                repeat_result['log'] = Path(p_log.parent.name) / p_log.name
+        return ligand_results

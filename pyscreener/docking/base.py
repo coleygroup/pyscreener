@@ -61,29 +61,34 @@ class Screener(ABC):
     **kwargs
         additional and unused keyword arguments
     """
-    def __init__(self,
+    def __init__(self, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                 distributed: bool = False, num_workers: int = -1,
+                 distributed: bool = False,
+                 num_workers: int = -1, ncpu: int = 1,
                  path: str = '.', verbose: int = 0, **kwargs):
+        self.score_mode = score_mode
         self.receptor_score_mode = receptor_score_mode
         self.ensemble_score_mode = ensemble_score_mode
         
         self.distributed = distributed
         self.num_workers = num_workers
+        self.ncpu = ncpu
 
-        path = Path(path)
-        self.in_path = path / 'inputs'
+        self.path = Path(path)
+        if not self.path.is_dir():
+            self.path.mkdir(parents=True)
+        self.in_path = self.path / 'inputs'
         if not self.in_path.is_dir():
             self.in_path.mkdir(parents=True)
-        self.out_path = path / 'outputs'
+        self.out_path = self.path / 'outputs'
         if not self.out_path.is_dir():
             self.out_path.mkdir(parents=True)
-    
+
         self.verbose = verbose
 
     def __call__(self, *args, **kwargs):
-        self.dock(*args, **kwargs)
+        return self.dock(*args, **kwargs)
     
     def dock(self, *smis_or_files: Iterable,
              full_results: bool = False, **kwargs):
@@ -129,7 +134,7 @@ class Screener(ABC):
         for smi_score in smis_scores:
             smi, score = smi_score
             if smi not in d_smi_score:
-                d_smi_score = ensemble_score
+                d_smi_score[smi] = ensemble_score
             elif ensemble_score is None:
                 continue
             else:
@@ -176,9 +181,10 @@ class Screener(ABC):
         begin = timeit.default_timer()
 
         ligands = self.prepare_ligands(*smis_or_files, **kwargs)
-        ligs_recs_reps = self.run_docking(ligands)
-        ligs_recs_reps = self.parse_docking(ligs_recs_reps)
-
+        ligs_recs_reps_unparsed = self.run_docking(ligands)
+        print(ligs_recs_reps_unparsed)
+        ligs_recs_reps = self.parse_docking(ligs_recs_reps_unparsed)
+        print(ligs_recs_reps)
         total = timeit.default_timer() - begin
 
         mins, secs = divmod(int(total), 60)
@@ -216,7 +222,8 @@ class Screener(ABC):
 
     def parse_docking(self, ligs_recs_reps: List[List[List[Dict]]]
                      ) -> List[List[List[Dict]]]:
-        """Parse the results of the docking simulations for a score
+        """Parse the results of all the docking simulations and update the
+        records accordingly
         
         Parameter
         ----------
@@ -235,13 +242,16 @@ class Screener(ABC):
             record updated to reflect the desired score parsed
             from each docking run
         """
-        parse_ligand_results_ = partial(Screener.parse_ligand_results,
+        parse_ligand_results_ = partial(self.parse_ligand_results,
                                         score_mode=self.score_mode)
         CHUNKSIZE = 128
         with self.Pool(self.distributed,
                        self.num_workers, self.ncpu, True) as client:
-            ligs_recs_reps = client.map(parse_ligand_results, 
-                                        chunksize=CHUNKSIZE)
+            ligs_recs_reps = list(tqdm(
+                client.map(parse_ligand_results_, ligs_recs_reps, 
+                           chunksize=CHUNKSIZE), total = len(ligs_recs_reps),
+                desc='Parsing results', unit='ligand', smoothing=0.
+            ))
         
         return ligs_recs_reps
 
@@ -269,7 +279,7 @@ class Screener(ABC):
         """
 
     @abstractmethod
-    def prepare_receptor(*args, **kwargs):
+    def prepare_receptor(self, *args, **kwargs):
         """Prepare a receptor input file for the docking software"""
 
     @staticmethod
@@ -283,9 +293,6 @@ class Screener(ABC):
         """Prepare a ligand input file from an input file"""
 
     def prepare_ligands(self, *smis_or_files, **kwargs):
-        # if all_smis:
-        #     return self._prepare_ligands(smis_or_files, **kwargs)
-
         return list(chain(*(
             self._prepare_ligands(source, **kwargs) for source in smis_or_files
         )))
@@ -313,7 +320,7 @@ class Screener(ABC):
         if isinstance(source, Sequence):
             return self.prepare_from_smis(source, **kwargs)
         
-        raise TypeError('Argument "source" must be of type str or ', 
+        raise TypeError('Arg "source" must be of type str or ', 
                         f'Sequence[str]. Got: {type(source)}')
 
     def prepare_from_smis(self, smis: Sequence[str],
@@ -354,7 +361,7 @@ class Screener(ABC):
         smis = smis[start:stop]
         paths = (self.in_path for _ in range(len(smis)))
 
-        CHUNKSIZE = 32
+        CHUNKSIZE = 1
         with self.Pool(self.distributed, self.num_workers,
                        self.ncpu, True) as client:
             ligands = client.map(self.prepare_from_smi, smis, names, paths, 
@@ -457,6 +464,15 @@ class Screener(ABC):
             original supply file. Otherwise, they are named:
                 lig0.<suffix>, lig1.<suffix>, ...
         """
+        p_supply = Path(supply)
+        if p_supply.suffix == '.sdf':
+            mols = Chem.SDMolSupplier(supply)
+        elif p_supply.suffix == '.smi':
+            mols = Chem.SmilesMolSupplier(supply)
+        else:
+            raise ValueError(
+                f'input file: "{supply}" does not have .sdf or .smi extension')
+                
         smis = []
         names = None
 

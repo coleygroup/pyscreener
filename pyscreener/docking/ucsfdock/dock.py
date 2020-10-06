@@ -31,10 +31,9 @@ class DOCK(Screener):
         self.receptors = receptors
 
         self.repeats = repeats
-        self.score_mode = score_mode
 
-        self.ncpu = 1
-        super().__init__(receptor_score_mode=receptor_score_mode,
+        super().__init__(score_mode=score_mode, 
+                         receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
                          distributed=distributed, num_workers=num_workers,
                          path=path, verbose=verbose, **kwargs)
@@ -72,10 +71,9 @@ class DOCK(Screener):
                    ) -> List[List[List[Dict]]]:
         dock_ligand = partial(
             ucsfdock_dock.dock_ligand,
-            receptors=self.receptors, path=self.out_path,
-            repeats=self.repeats, score_mode=self.score_mode
+            receptors=self.receptors, path=self.path, repeats=self.repeats
         )
-        CHUNKSIZE = 32
+        CHUNKSIZE = 1
         with self.Pool(self.distributed, self.num_workers) as pool:
             ligs_recs_reps = pool.map(dock_ligand, ligands, 
                                       chunksize=CHUNKSIZE)
@@ -107,3 +105,10 @@ class DOCK(Screener):
                     score = None
 
                 repeat_result['score'] = score
+                p_in = repeat_result['in']
+                repeat_result['in'] = Path(p_in.parent.name) / p_in.name
+                p_out = repeat_result['out']
+                repeat_result['out'] = Path(p_out.parent.name) / p_out.name
+                p_log = repeat_result['log']
+                repeat_result['log'] = Path(p_log.parent.name) / p_log.name
+        return ligand_results

@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess as sp
 import sys
 import timeit
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
 from rdkit import Chem
 from tqdm import tqdm
@@ -124,18 +124,18 @@ class Screener(ABC):
         smis_scores = []
         for ligand_results in ligs_recs_reps:
             smi = ligand_results[0][0]['smiles']
-            ensemble_score = self.calc_ligand_score(
+            score = self.calc_ligand_score(
                 ligand_results, self.receptor_score_mode,
                 self.ensemble_score_mode
             )
-            smis_scores.append((smi, ensemble_score))
+            smis_scores.append((smi, score))
 
         d_smi_score = {}
         for smi_score in smis_scores:
             smi, score = smi_score
             if smi not in d_smi_score:
-                d_smi_score[smi] = ensemble_score
-            elif ensemble_score is None:
+                d_smi_score[smi] = score
+            elif score is None:
                 continue
             else:
                 curr_score = d_smi_score[smi]
@@ -143,13 +143,14 @@ class Screener(ABC):
                     d_smi_score[smi] = score
                 else:
                     d_smi_score[smi] = min(d_smi_score[smi], score)
-
+        print(d_smi_score)
         if full_results:
             return d_smi_score, list(chain(*list(chain(*ligs_recs_reps))))
 
         return d_smi_score
 
-    def dock_ensemble(self, *smis_or_files: Iterable, **kwargs):
+    def dock_ensemble(self, *smis_or_files: Iterable,
+                      **kwargs) -> List[List[List[Dict]]]:
         """Run the docking program with the ligands contained in *smis_or_files
 
         NOTE: the zip operator, *, in the function signature. If intending to
@@ -182,9 +183,8 @@ class Screener(ABC):
 
         ligands = self.prepare_ligands(*smis_or_files, **kwargs)
         ligs_recs_reps_unparsed = self.run_docking(ligands)
-        print(ligs_recs_reps_unparsed)
         ligs_recs_reps = self.parse_docking(ligs_recs_reps_unparsed)
-        print(ligs_recs_reps)
+
         total = timeit.default_timer() - begin
 
         mins, secs = divmod(int(total), 60)
@@ -472,7 +472,7 @@ class Screener(ABC):
         else:
             raise ValueError(
                 f'input file: "{supply}" does not have .sdf or .smi extension')
-                
+
         smis = []
         names = None
 
@@ -577,7 +577,7 @@ class Screener(ABC):
     
     @staticmethod
     def Pool(distributed: bool = False, num_workers: int = -1, ncpu: int = 1,
-             all_cores: bool = False) -> Executor:
+             all_cores: bool = False) -> Type[Executor]:
         """build a process pool to parallelize computation over
 
         Parameters
@@ -595,7 +595,7 @@ class Screener(ABC):
             if distributed is True, then this argument should be the number of 
             cores allocated to each worker. if False, then this should be the
             number of cores that is desired to be allocated to each worker.
-            NOTE: this is an implicit argument because Screener.dock() will \   
+            NOTE: this is an implicit argument because Screener.dock() will   
                   make subprocess calls to progams that themselves can utilize 
                   multiple cores. It will not actually assign <ncpu> cores to 
                   each worker process.

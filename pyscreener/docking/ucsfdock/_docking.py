@@ -115,7 +115,7 @@ def parse_score(outfile: Union[str, os.PathLike],
                 except:
                     continue
 
-    return calc_score(scores, score_mode)
+    return Screener.calc_score(scores, score_mode)
 
 def prepare_input_file(ligand_file: str, sph_file: str, grid_prefix: str,
                        name: Optional[str] = None,

@@ -128,12 +128,13 @@ def prepare_from_file(filename: str, use_3d: bool = False,
 
     return list(zip(smis, mol2s))
 
-def prepare_receptor(receptor: str, 
+def prepare_receptor(receptor: str,
                      center: Tuple[float, float, float],
                      size: Tuple[float, float, float] = (20., 20., 20.), 
                      docked_ligand: Optional[str] = None,
                      use_largest: bool = False, buffer: float = 10.,
-                     enclose_spheres: bool = True) -> Optional[Tuple[str, str]]:
+                     enclose_spheres: bool = True,
+                     path: str = '.') -> Optional[Tuple[str, str]]:
     """Prepare the DOCK input files corresponding to the given receptor
 
     Parameters
@@ -192,7 +193,7 @@ def prepare_receptor(receptor: str,
 
     return rec_sph, grid_prefix
 
-def prepare_mol2(receptor: str) -> Optional[str]:
+def prepare_mol2(receptor: str, path: str = '.') -> Optional[str]:
     """Prepare a receptor mol2 file from its input file
 
     Parameter
@@ -206,9 +207,10 @@ def prepare_mol2(receptor: str) -> Optional[str]:
         the filename of the prepared mol2 file
     """
     p_rec = Path(receptor)
-    rec_mol2 = str(p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
+    p_rec_mol2 = Path(path) / f'{p_rec.stem}_withH.mol2'
+    # (p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
     args = ['chimera', '--nogui', '--script',
-            f'{PREP_REC} {receptor} {rec_mol2}']
+            f'{PREP_REC} {receptor} {p_rec_mol2}']
 
     try:
         sp.run(args, stdout=sp.PIPE, stderr=sp.PIPE, check=True)
@@ -216,9 +218,9 @@ def prepare_mol2(receptor: str) -> Optional[str]:
         print(f'ERROR: failed to convert receptor: "{receptor}"')
         return None
 
-    return rec_mol2
+    return str(p_rec_mol2)
 
-def prepare_pdb(receptor: str) -> Optional[str]:
+def prepare_pdb(receptor: str, path: str = '.') -> Optional[str]:
     """Prepare a receptor PDB file for usage in DOCK runs
 
     Parameter
@@ -232,7 +234,8 @@ def prepare_pdb(receptor: str) -> Optional[str]:
         the filename of the prepared pdb file
     """
     p_rec = Path(receptor)
-    rec_pdb = str(p_rec.with_name(f'DOCK_{p_rec.stem}.pdb'))
+    rec_pdb = str(Path(path) / f'DOCK_{p_rec.stem}.pdb')
+    # rec_pdb = str(p_rec.with_name(f'DOCK_{p_rec.stem}.pdb'))
     args = ['obabel', receptor, '-opdb', '-O', rec_pdb]
 
     ret = sp.run(args, stderr=sp.PIPE)
@@ -245,11 +248,13 @@ def prepare_pdb(receptor: str) -> Optional[str]:
     
     return rec_pdb
     
-def prepare_dms(rec_pdb: str, probe_radius: float = 1.4) -> Optional[str]:
-    rec_dms = str(Path(rec_pdb).with_suffix('.dms'))
-
+def prepare_dms(rec_pdb: str, probe_radius: float = 1.4,
+                path: str = '.') -> Optional[str]:
+    # p_rec_pdb = Path(rec_pdb)
+    # rec_dms = str(Path(rec_pdb).with_suffix('.dms'))
+    p_rec_dms = Path(path) / f'{Path(rec_pdb).stem}.dms'
     argv = ['chimera', '--nogui', '--script',
-            f'{WRITE_DMS} {rec_pdb} {probe_radius} {rec_dms}']
+            f'{WRITE_DMS} {rec_pdb} {probe_radius} {p_rec_dms}']
 
     ret = sp.run(argv, stdout=sp.PIPE)
     try:
@@ -259,13 +264,13 @@ def prepare_dms(rec_pdb: str, probe_radius: float = 1.4) -> Optional[str]:
         print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
-    return rec_dms
+    return str(p_rec_dms)
 
 def prepare_sph(rec_dms: str, steric_clash_dist: float = 0.0,
-                min_radius: float = 1.4,
-                max_radius: float = 4.0) -> Optional[str]:
-    sph_file = str(Path(rec_dms).with_suffix('.sph'))
-    
+                min_radius: float = 1.4, max_radius: float = 4.0,
+                path: str = '.') -> Optional[str]:
+    # sph_file = str(Path(rec_dms).with_suffix('.sph'))
+    sph_file = str(Path(path) / f'{Path(rec_dms).stem}.sph')
     argv = [SPHGEN, '-i', rec_dms, '-o', sph_file, 
             '-s', 'R', 'd', 'X', '-l', str(steric_clash_dist),
             'm', str(min_radius), '-x', str(max_radius)]
@@ -285,9 +290,10 @@ def select_spheres(sph_file: str,
                    size: Tuple[float, float, float],
                    docked_ligand_file: Optional[str] = None,
                    use_largest: bool = False,
-                   buffer: float = 10.0) -> Optional[str]:
+                   buffer: float = 10.0, path: str = '.') -> Optional[str]:
     p_sph = Path(sph_file)
-    selected_sph = str(p_sph.parent / f'{p_sph.stem}_selected{p_sph.suffix}')
+    selected_sph = str(Path(path) / f'{p_sph.stem}_selected.sph')
+    # selected_sph = str(p_sph.parent / f'{p_sph.stem}_selected{p_sph.suffix}')
 
     if docked_ligand_file:
         argv = [SPHERE_SELECTOR, sph_file, docked_ligand_file, buffer]
@@ -328,10 +334,11 @@ def prepare_box(sph_file: str,
                 center: Tuple[float, float, float],
                 size: Tuple[float, float, float],
                 enclose_spheres: bool = True,
-                buffer: float = 10.0) -> Optional[str]:
+                buffer: float = 10.0, path: str = '.') -> Optional[str]:
     p_sph = Path(sph_file)
-    p_box = p_sph.with_name(f'{p_sph.stem}_box.pdb')
-    box_file = str(p_box)
+    # p_box = p_sph.with_name(f'{p_sph.stem}_box.pdb')
+    p_box = Path(path) / f'{p_sph.stem}_box.pdb'
+    # box_file = str(p_box)
 
     if enclose_spheres:
         showbox_input = f'Y\n{buffer}\n{sph_file}\n1\n'
@@ -339,7 +346,7 @@ def prepare_box(sph_file: str,
         x, y, z = center
         r_x, r_y, r_z = size
         showbox_input = f'N\nU\n{x} {y} {z}\n{r_x} {r_y} {r_z}\n'
-    showbox_input += f'{box_file}\n'
+    showbox_input += f'{p_box}\n'
 
     # with open('box.in', 'w') as fid:
     #     if enclose_spheres:
@@ -363,11 +370,12 @@ def prepare_box(sph_file: str,
         print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
-    return box_file
+    return str(p_box)
 
-def prepare_grid(rec_mol2: str, box_file: str) -> Optional[str]:
+def prepare_grid(rec_mol2: str, box_file: str,
+                 path: str = '.') -> Optional[str]:
     p_rec = Path(rec_mol2)
-    grid_prefix = f'{p_rec.stem}_grid'  # probably need to include path prefix
+    p_grid_prefix = Path(path) / f'{p_rec.stem}_grid'
 
     with open('grid.in', 'w') as fid:
         fid.write('compute_grids yes\n')
@@ -386,11 +394,9 @@ def prepare_grid(rec_mol2: str, box_file: str) -> Optional[str]:
         fid.write(f'receptor_file {rec_mol2}\n')
         fid.write(f'box_file {box_file}\n')
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
-        fid.write(f'score_grid_prefix  {grid_prefix}\n')
-
+        fid.write(f'score_grid_prefix  {p_grid_prefix}\n')
     
-    ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'],
-                 stdout=sp.PIPE)
+    ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], stdout=sp.PIPE)
     try:
         ret.check_returncode()
     except sp.SubprocessError:
@@ -398,4 +404,4 @@ def prepare_grid(rec_mol2: str, box_file: str) -> Optional[str]:
         print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
-    return grid_prefix
+    return str(p_grid_prefix)

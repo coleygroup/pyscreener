@@ -20,7 +20,7 @@ def cluster(d_smi_score: Dict[str, Optional[float]],
             name: str = 'clusters', path: str = '.', **kwargs) -> List[Dict]:
     d_smi_cid = cluster_smis(d_smi_score.keys(), len(d_smi_score), **kwargs)
 
-    clusters_csv = (Path(path)/name).with_suffix('.csv')
+    clusters_csv = (Path(path)/f'{name}_clusters').with_suffix('.csv')
     with open(clusters_csv, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'cluster_id'])

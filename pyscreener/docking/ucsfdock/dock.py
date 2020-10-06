@@ -54,7 +54,7 @@ class DOCK(Screener):
     def prepare_receptor(self, receptor: str) -> Optional[Tuple[str, str]]:
         return ucsfdock_prep.prepare_receptor(
             receptor, self.center, self.size, self.docked_ligand,
-            self.use_largest, self.buffer, self.enclose_spheres
+            self.use_largest, self.buffer, self.enclose_spheres, self.in_path
         )
 
     @staticmethod

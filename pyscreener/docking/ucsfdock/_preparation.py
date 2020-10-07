@@ -10,10 +10,6 @@ import subprocess as sp
 import sys
 from typing import Dict, Iterable, Optional, Tuple
 
-from pyscreener.docking.utils import Ligand
-from pyscreener.docking.preparation import prepare_receptors, prepare_ligands
-from pyscreener.utils import Input
-
 with resources.path('pyscreener.docking.ucsfdock', '.') as p_module:
     PREP_REC = p_module / 'scripts' / 'prep_rec.py'
     WRITE_DMS = p_module / 'scripts' / 'write_dms.py'
@@ -31,7 +27,7 @@ GRID = DOCK6_BIN / 'grid'
 VDW_DEFN_FILE = DOCK6_PARAMS / 'vdw_AMBER_parm99.defn'
 
 def prepare_from_smi(smi: str, name: str = 'ligand',
-                     path: str = '.', **kwargs) -> Optional[Ligand]:
+                     path: str = '.', **kwargs) -> Optional[Tuple]:
     """Prepare an input ligand file from the ligand's SMILES string
 
     Parameters
@@ -47,7 +43,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
 
     Returns
     -------
-    Optional[Ligand]
+    Optional[Tuple]
         a tuple of the SMILES string and the corresponding prepared input file.
         None if preparation failed for any reason
     """
@@ -69,7 +65,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
 
 def prepare_from_file(filename: str, use_3d: bool = False,
                       name: Optional[str] = None, path: str = '.', 
-                      **kwargs) -> Ligand:
+                      **kwargs) -> Optional[Tuple]:
     """Convert a single ligand to the appropriate input format
 
     Parameters
@@ -89,7 +85,7 @@ def prepare_from_file(filename: str, use_3d: bool = False,
 
     Returns
     -------
-    List[Ligand]
+    Optional[List[Tuple]]
         a tuple of the SMILES string the prepared input file corresponding
         to the molecule contained in filename
     """
@@ -417,7 +413,7 @@ def prepare_grid(rec_mol2: str, box_file: str,
     ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], stdout=sp.PIPE)
     try:
         ret.check_returncode()
-    except sp.SubprocessError as e:
+    except sp.SubprocessError:
         print(f'ERROR: failed to generate grid from {rec_mol2}',
               file=sys.stderr)
         if ret.stderr:

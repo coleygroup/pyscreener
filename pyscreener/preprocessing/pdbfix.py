@@ -6,12 +6,12 @@ from typing import List, Optional
 from pdbfixer import PDBFixer
 from simtk.openmm.app import PDBFile
 
-def pdbfix(receptors: Optional[List[str]] = None, pdbid: Optional[str] = None, 
+def pdbfix(receptor: Optional[str] = None, pdbid: Optional[str] = None, 
            pH: float = 7.0, path: str = '.', **kwargs) -> str:
     if pdbid:
         fixer = PDBFixer(pdbid=pdbid)
     else:
-        fixer = PDBFixer(filename=receptors[0])
+        fixer = PDBFixer(filename=receptor)
 
     fixer.findMissingResidues()
     fixer.findNonstandardResidues()
@@ -21,8 +21,8 @@ def pdbfix(receptors: Optional[List[str]] = None, pdbid: Optional[str] = None,
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(pH)
 
-    if receptors:
-        outfile = receptors[0]
+    if receptor:
+        outfile = receptor
     else:
         outfile = Path(path)/f'{pdbid}.pdb'
 

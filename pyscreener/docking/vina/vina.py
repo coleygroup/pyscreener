@@ -6,14 +6,18 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from tqdm import tqdm
 
+from pyscreener.preprocessing import autobox
 from pyscreener.docking import Screener
 from pyscreener.docking.vina import _docking as vina_dock
 from pyscreener.docking.vina import _preparation as vina_prep
 
 class Vina(Screener):
-    def __init__(self, software: str, receptors: List[str], 
-                 center: Tuple, size: Tuple = (10., 10., 10.), ncpu: int = 1,
+    def __init__(self, software: str, receptors: Optional[List[str]] = None,
+                 pdbids: Optional[List[str]] = None,
+                 center: Optional[Tuple[float, float, float]] = None,
+                 size: Tuple = (10., 10., 10.), ncpu: int = 1,
                  extra: Optional[List[str]] = None,
+                 docked_ligand_file: Optional[str] = None, buffer: float = 10.,
                  score_mode: str = 'best', repeats: int = 1,
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
@@ -21,9 +25,20 @@ class Vina(Screener):
                  path: str = '.', verbose: int = 0, **kwargs):
         if software not in ('vina', 'qvina', 'smina', 'psovina'):
             raise ValueError(f'Unrecognized docking software: "{software}"')
-        
+        if center is None and docked_ligand_file is None:
+            raise ValueError(
+                'Args "center" and "docked_ligand_file" were None!')
+        if center is None:
+            print('Autoboxing ...', end=' ', flush=True)
+            center, size = autobox.docked_ligand(docked_ligand_file, buffer)
+            print('Done!')
+            s_center = f'({center[0]:0.1f}, {center[1]:0.1f}, {center[2]:0.1f})'
+            s_size = f'({size[0]:0.1f}, {size[1]:0.1f}, {size[2]:0.1f})'
+            print(f'Autoboxed ligand from "{docked_ligand_file}" with', 
+                  f'center={s_center} and size={s_size}', flush=True) 
+
         self.software = software
-        self.receptors = receptors
+        # self.receptors = receptors
         self.center = center
         self.size = size
         self.ncpu = ncpu
@@ -31,7 +46,8 @@ class Vina(Screener):
 
         self.repeats = repeats
 
-        super().__init__(score_mode=score_mode,
+        super().__init__(receptors=receptors, pdbids=pdbids,
+                         score_mode=score_mode,
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
                          distributed=distributed,
@@ -41,15 +57,15 @@ class Vina(Screener):
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
 
-    @property
-    def receptors(self):
-        return self.__receptors
+    # @property
+    # def receptors(self):
+    #     return self.__receptors
 
-    @receptors.setter
-    def receptors(self, receptors):
-        receptors = [self.prepare_receptor(receptor) for receptor in receptors]
-        self.__receptors = [
-            receptor for receptor in receptors if receptor is not None]
+    # @receptors.setter
+    # def receptors(self, receptors):
+    #     receptors = [self.prepare_receptor(receptor) for receptor in receptors]
+    #     self.__receptors = [
+    #         receptor for receptor in receptors if receptor is not None]
 
     def prepare_receptor(self, receptor):
         return vina_prep.prepare_receptor(receptor)
@@ -107,12 +123,12 @@ class Vina(Screener):
                         score = Screener.calc_score(scores, score_mode)
                 except OSError:
                     score = None
-                repeat_result['score'] = score
 
-                p_in = repeat_result['in']
-                repeat_result['in'] = Path(p_in.parent.name) / p_in.name
-                p_out = repeat_result['out']
-                repeat_result['out'] = Path(p_out.parent.name) / p_out.name
-                p_log = repeat_result['log']
-                repeat_result['log'] = Path(p_log.parent.name) / p_log.name
+                repeat_result['score'] = score
+                # p_in = repeat_result['in']
+                # repeat_result['in'] = Path(p_in.parent.name) / p_in.name
+                # p_out = repeat_result['out']
+                # repeat_result['out'] = Path(p_out.parent.name) / p_out.name
+                # p_log = repeat_result['log']
+                # repeat_result['log'] = Path(p_log.parent.name) / p_log.name
         return ligand_results

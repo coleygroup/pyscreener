@@ -15,6 +15,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 from rdkit import Chem
 from tqdm import tqdm
 
+from pyscreener.preprocessing import pdbfix
+
 class Screener(ABC):
     """A Screener conducts virtual screens against an ensemble of receptors.
 
@@ -30,6 +32,9 @@ class Screener(ABC):
 
     Attributes
     ----------
+    score_mode : str
+        the mode used to calculate a score for an individual docking run given
+        multiple output scored conformations
     receptor_score_mode : str
         the mode used to calculate an overall score for a single receptor
         given repeated docking runs against that receptor
@@ -40,8 +45,12 @@ class Screener(ABC):
         True if the computation will parallelized over a distributed setup.
         False if "..." over a local setup
     num_workers : int
-        the number of worker processes to initialize when distributing
-        computation
+        the number of worker processes to initialize when
+        distributing computation
+    ncpu : int
+        the number of cores allocated to each worker process
+    path : os.PathLike
+        the path under which input and output folders will be placed
     in_path : os.PathLike
         the path under which all prepared input files will be placed
     out_path : os.PathLike
@@ -51,30 +60,25 @@ class Screener(ABC):
 
     Parameters
     ----------
+    score_mode : str (Default = 'best')
     receptor_score_mode : str (Default = 'best')
     ensemble_score_mode : str (Default = 'best')
     distributed : bool (Default = False)
     num_workers : int (Default = -1)
+    ncpu : int (Default = 1)
     path : Union[str, os.PathLike] (Default = '.')
-        the base path under which the input and output paths should be placed
     verbose : int (Default = 0)
     **kwargs
         additional and unused keyword arguments
     """
-    def __init__(self, score_mode: str = 'best',
+    def __init__(self, receptors: Optional[Sequence[str]] = None,
+                 pdbids: Optional[Sequence[str]] = None,
+                 score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
                  distributed: bool = False,
                  num_workers: int = -1, ncpu: int = 1,
                  path: str = '.', verbose: int = 0, **kwargs):
-        self.score_mode = score_mode
-        self.receptor_score_mode = receptor_score_mode
-        self.ensemble_score_mode = ensemble_score_mode
-        
-        self.distributed = distributed
-        self.num_workers = num_workers
-        self.ncpu = ncpu
-
         self.path = Path(path)
         if not self.path.is_dir():
             self.path.mkdir(parents=True)
@@ -85,7 +89,30 @@ class Screener(ABC):
         if not self.out_path.is_dir():
             self.out_path.mkdir(parents=True)
 
+        receptors = receptors or []
+        if pdbids:
+            receptors.extend((
+                pdbfix.pdbfix(pdbid=pdbid, path=self.in_path)
+                for pdbid in pdbids
+            ))
+        if len(receptors) == 0:
+            raise ValueError('No receptors or PDBids provided!')
+
+        self.num_docked_ligands = 0
+        self.receptors = receptors
+        self.score_mode = score_mode
+        self.receptor_score_mode = receptor_score_mode
+        self.ensemble_score_mode = ensemble_score_mode
+        
+        self.distributed = distributed
+        self.num_workers = num_workers
+        self.ncpu = ncpu
+
         self.verbose = verbose
+
+    def __len__(self) -> int:
+        """The number of ligands this screener has simulated"""
+        return self.num_docked_ligands
 
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
@@ -185,6 +212,8 @@ class Screener(ABC):
         ligs_recs_reps_unparsed = self.run_docking(ligands)
         ligs_recs_reps = self.parse_docking(ligs_recs_reps_unparsed)
 
+        self.num_docked_ligands += len(ligs_recs_reps)
+
         total = timeit.default_timer() - begin
 
         mins, secs = divmod(int(total), 60)
@@ -278,6 +307,18 @@ class Screener(ABC):
             from each docking run
         """
 
+    @property
+    def receptors(self):
+        return self.__receptors
+
+    @receptors.setter
+    def receptors(self, receptors):
+        receptors = [self.prepare_receptor(receptor) for receptor in receptors]
+        receptors = [receptor for receptor in receptors if receptor is not None]
+        if len(receptors) == 0:
+            raise RuntimeError('Preparation failed for all receptors!')
+        self.__receptors = receptors
+    
     @abstractmethod
     def prepare_receptor(self, *args, **kwargs):
         """Prepare a receptor input file for the docking software"""
@@ -292,17 +333,21 @@ class Screener(ABC):
     def prepare_from_file(*args, **kwargs):
         """Prepare a ligand input file from an input file"""
 
-    def prepare_ligands(self, *smis_or_files, **kwargs):
+    def prepare_ligands(self, *smis_or_files,
+                        path: Optional[str] = None, **kwargs):
+        path = path or self.in_path
         return list(chain(*(
-            self._prepare_ligands(source, **kwargs) for source in smis_or_files
+            self._prepare_ligands(source, i+len(self), path, **kwargs)
+            for i, source in enumerate(smis_or_files)
         )))
 
-    def _prepare_ligands(self, source, **kwargs):
+    def _prepare_ligands(self, source, i: int,
+                         path: Optional[str] = None, **kwargs):
         if isinstance(source, str):
             p_ligand = Path(source)
 
             if not p_ligand.exists():
-                return [self.prepare_from_smi(source, **kwargs)]
+                return [self.prepare_from_smi(source, f'ligand_{i}', path)]
 
             if p_ligand.suffix == '.csv':
                 return self.prepare_from_csv(source, **kwargs)
@@ -310,12 +355,12 @@ class Screener(ABC):
                 return self.prepare_from_supply(source, **kwargs)
             if p_ligand.suffix == '.sdf':
                 if kwargs['use_3d']:
-                    return self.prepare_from_file(source, path=self.in_path,
+                    return self.prepare_from_file(source, path=path,
                                                   **kwargs)
                 else:
                     return self.prepare_from_supply(source, **kwargs)
             
-            return self.prepare_from_file(source, path=self.in_path, **kwargs)
+            return self.prepare_from_file(source, path=path, **kwargs)
 
         if isinstance(source, Sequence):
             return self.prepare_from_smis(source, **kwargs)

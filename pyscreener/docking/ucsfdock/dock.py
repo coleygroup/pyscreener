@@ -10,8 +10,9 @@ from pyscreener.docking.ucsfdock import _docking as ucsfdock_dock
 from pyscreener.docking.ucsfdock import _preparation as ucsfdock_prep
 
 class DOCK(Screener):
-    def __init__(self, receptors: List[str], 
-                 center: Tuple[float, float, float],
+    def __init__(self, receptors: Optional[List[str]] = None,
+                 pdbids: Optional[List[str]] = None,
+                 center: Optional[Tuple[float, float, float]] = None,
                  size: Tuple[float, float, float] = (20., 20., 20.), 
                  docked_ligand_file: Optional[str] = None,
                  use_largest: bool = False, buffer: float = 10.,
@@ -21,36 +22,44 @@ class DOCK(Screener):
                  ensemble_score_mode: str = 'best',
                  distributed: bool = False, num_workers: int = -1,
                  path: str = '.', verbose: int = 0, **kwargs):
-        
-        super().__init__(score_mode=score_mode, 
-                         receptor_score_mode=receptor_score_mode,
-                         ensemble_score_mode=ensemble_score_mode,
-                         distributed=distributed, num_workers=num_workers,
-                         path=path, verbose=verbose, **kwargs)
-    
+        if center is None and docked_ligand_file is None:
+            raise ValueError(
+                'Args "center" and "docked_ligand_file" were None!')
+        if center is None and not enclose_spheres:
+            print('WARNING: Arg "center" was None but arg "enclose_spheres"',
+                  'was False. Overriding to True.')
+            enclose_spheres = True
+
         self.center = center
         self.size = size
         self.docked_ligand_file = docked_ligand_file
         self.use_largest = use_largest
         self.buffer = buffer
         self.enclose_spheres = enclose_spheres
-        self.receptors = receptors
+        # self.receptors = receptors
         self.repeats = repeats
+
+        super().__init__(receptors=receptors, pdbids=pdbids,
+                         score_mode=score_mode, 
+                         receptor_score_mode=receptor_score_mode,
+                         ensemble_score_mode=ensemble_score_mode,
+                         distributed=distributed, num_workers=num_workers,
+                         path=path, verbose=verbose, **kwargs)
 
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
 
-    @property
-    def receptors(self):
-        return self.__receptors
+    # @property
+    # def receptors(self):
+    #     return self.__receptors
 
-    @receptors.setter
-    def receptors(self, receptors):
-        receptors = [self.prepare_receptor(receptor) for receptor in receptors]
-        receptors = [receptor for receptor in receptors if receptor is not None]
-        if len(receptors) == 0:
-            raise RuntimeError('Preparation failed for all receptors!')
-        self.__receptors = receptors
+    # @receptors.setter
+    # def receptors(self, receptors):
+    #     receptors = [self.prepare_receptor(receptor) for receptor in receptors]
+    #     receptors = [receptor for receptor in receptors if receptor is not None]
+    #     if len(receptors) == 0:
+    #         raise RuntimeError('Preparation failed for all receptors!')
+    #     self.__receptors = receptors
         
     def prepare_receptor(self, receptor: str) -> Optional[Tuple[str, str]]:
         return ucsfdock_prep.prepare_receptor(
@@ -108,10 +117,10 @@ class DOCK(Screener):
                     score = None
 
                 repeat_result['score'] = score
-                p_in = repeat_result['in']
-                repeat_result['in'] = Path(p_in.parent.name) / p_in.name
-                p_out = repeat_result['out']
-                repeat_result['out'] = Path(p_out.parent.name) / p_out.name
-                p_log = repeat_result['log']
-                repeat_result['log'] = Path(p_log.parent.name) / p_log.name
+                # p_in = repeat_result['in']
+                # repeat_result['in'] = Path(p_in.parent.name) / p_in.name
+                # p_out = repeat_result['out']
+                # repeat_result['out'] = Path(p_out.parent.name) / p_out.name
+                # p_log = repeat_result['log']
+                # repeat_result['log'] = Path(p_log.parent.name) / p_log.name
         return ligand_results

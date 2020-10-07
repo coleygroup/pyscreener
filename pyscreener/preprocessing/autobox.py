@@ -9,12 +9,12 @@ def autobox(receptors: Optional[List[str]] = None,
             docked_ligand_file: Optional[str] = None,
             buffer: int = 10, **kwargs) -> Tuple[Tuple, Tuple]:
     if residues:
-        center, size = from_residues(receptors[0], residues)
+        center, size = residues(receptors[0], residues)
         print('Autoboxing from residues with', end=' ')
     else:
         # allow user to only specify one receptor file
         docked_ligand_file = docked_ligand_file or receptors[0]
-        center, size = from_docked_ligand(docked_ligand_file, buffer)
+        center, size = docked_ligand(docked_ligand_file, buffer)
         print('Autoboxing from docked ligand with', end=' ')
 
     s_center = f'({center[0]:0.1f}, {center[1]:0.1f}, {center[2]:0.1f})'
@@ -23,7 +23,7 @@ def autobox(receptors: Optional[List[str]] = None,
 
     return center, size
 
-def from_residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
+def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a list of protein residues
 
     The ligand autobox is the minimum bounding box of the alpha carbons of the
@@ -61,8 +61,8 @@ def from_residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     
     return minimum_bounding_box(residue_coords)
 
-def from_docked_ligand(docked_ligand: str,
-                       buffer: int = 10) -> Tuple[Tuple, Tuple]:
+def docked_ligand(docked_ligand_file: str,
+                  buffer: int = 10) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a PDB file containing a docked ligand
 
     The ligand autobox is the minimum bounding box of the docked ligand with
@@ -72,7 +72,7 @@ def from_docked_ligand(docked_ligand: str,
 
     Parameters
     ----------
-    docked_ligand : str
+    docked_ligand_file : str
         a PDB-format file containing the coordinates of a docked ligand
     buffer : int (Default = 10)
         the buffer to add around the ligand autobox, in Angstroms
@@ -84,7 +84,7 @@ def from_docked_ligand(docked_ligand: str,
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    with open(docked_ligand) as fid:
+    with open(docked_ligand_file) as fid:
         for line in fid:
             if 'HETATM' in line:
                 break

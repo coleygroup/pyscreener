@@ -6,60 +6,6 @@ import subprocess as sp
 import sys
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from pyscreener.docking.preparation import prepare_receptors, prepare_ligands
-
-def prepare_inputs(receptors: Iterable[str], ligands: Iterable,
-                   center: Tuple, size: Tuple[int, int, int] = (20, 20, 20), 
-                   ncpu: int = 1, path: str = '.', **kwargs) -> Dict:
-    """Prepare the inputs dictionary to pass to pyscreener.docking.dock
-
-    Parameters
-    ----------
-    receptors : Iterable[str]
-        the receptor files to prepare for vina-type docking software
-    ligands : Iterable
-        the list of files or SMILES strings containing or corresponding to the
-        molecules that are to be docked against the given receptors
-    center : Tuple[float, float, float]
-        the center of the docking box
-    size : Tuple[int, int, int], (Default = (20, 20, 20))
-        the x-, y-, and z-radii of the docking box
-    ncpu : int (Default = 1)
-        the number of CPU cores to allocate to each vina run
-    path : str (Default = '.')
-        the path under which all inputs be written to
-    **kwargs
-        keyword arguments passed the appropriate ligand preparation function
-        (E.g., pyscreener.docking.preparation.prepare_from_[smis,csv,supply])
-
-    Returns
-    -------
-    Dict
-        a dictionary containing the keyword arguments used in either
-        pyscreener.docking.dock or pyscreener.docking.vina.dock_inputs
-    
-    See also
-    --------
-    pyscreener.docking.preparation.prepare_receptors
-    pyscreener.docking.preparation.prepare_ligands
-
-    for documentation of the arguments in **kwargs:
-        pyscreener.docking.preparation.prepare_from_smis
-        pyscreener.docking.preparation.prepare_from_csv
-        pyscreener.docking.preparation.prepare_from_supply
-
-    for documentation of how the output dictionary is utilized:
-        pyscreener.docking.docking.dock
-        pyscreener.docking.ucsfdock.dock_inputs
-        pyscreener.docking.ucsfdock.dock_ligand
-    """
-    receptors = prepare_receptors(receptors, prepare_receptor)
-    ligands = prepare_ligands(ligands, prepare_from_smi, prepare_from_file, 
-                              path=f'{path}/inputs', **kwargs)
-                              
-    return {'receptors': receptors, 'ligands': ligands, 
-            'center': center, 'size': size, 'ncpu': ncpu}
-
 def prepare_receptor(receptor: str) -> Optional[str]:
     """Prepare a receptor PDBQT file from its input file
 
@@ -84,7 +30,7 @@ def prepare_receptor(receptor: str) -> Optional[str]:
 
     return receptor_pdbqt
 
-def prepare_from_smi(smi: str, name: str = 'ligand',
+def prepare_from_smi(smi: str, name: Optional[str] = None,
                      path: str = '.', **kwargs) -> Optional[Tuple]:
     """Prepare an input ligand file from the ligand's SMILES string
 
@@ -109,6 +55,7 @@ def prepare_from_smi(smi: str, name: str = 'ligand',
     if not path.is_dir():
         path.mkdir()
     
+    name = name or 'ligand'
     pdbqt = str(path / f'{name}.pdbqt')
 
     argv = ['obabel', f'-:{smi}', '-O', pdbqt,

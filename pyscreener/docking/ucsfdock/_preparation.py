@@ -128,10 +128,12 @@ def prepare_from_file(filename: str, use_3d: bool = False,
 
     return list(zip(smis, mol2s))
 
-def prepare_receptor(receptor: str,
-                     center: Tuple[float, float, float],
+def prepare_receptor(receptor: str, probe_radius: float = 1.4,
+                     steric_clash_dist: float = 0.0,
+                     min_radius: float = 1.4, max_radius: float = 4.0,
+                     center: Optional[Tuple[float, float, float]] = None,
                      size: Tuple[float, float, float] = (20., 20., 20.), 
-                     docked_ligand: Optional[str] = None,
+                     docked_ligand_file: Optional[str] = None,
                      use_largest: bool = False, buffer: float = 10.,
                      enclose_spheres: bool = True,
                      path: str = '.') -> Optional[Tuple[str, str]]:
@@ -146,7 +148,7 @@ def prepare_receptor(receptor: str,
         the x-, y-, and z-coordinates of the center of the docking box
     size : Tuple[float, float, float] (Default = (20, 20, 20))
         the x-, y-, and z-radii of the docking box
-    docked_ligand : Optional[str] (Default = None)
+    docked_ligand_file : Optional[str] (Default = None)
         the filepath of a file containing the coordinates of a docked ligand
     use_largest : bool (Default = False)
         whether to use the largest cluster of spheres when selecting spheres
@@ -163,31 +165,33 @@ def prepare_receptor(receptor: str,
     sph_grid : Optional[Tuple[str, str]]
         A tuple of strings with the first entry being the filepath of the file 
         containing the selected spheres and the second being entry the prefix 
-        of all prepared grid files. None if receptor preparation fails at any point
+        of all prepared grid files. None if receptor preparation fails at any 
+        point
     """
-    rec_mol2 = prepare_mol2(receptor)
-    rec_pdb = prepare_pdb(receptor)
+    rec_mol2 = prepare_mol2(receptor, path)
+    rec_pdb = prepare_pdb(receptor, path)
     if rec_mol2 is None or rec_pdb is None:
         return None
 
-    rec_dms = prepare_dms(rec_pdb)
-    if rec_dms is None:
-        return None
+    rec_dms = prepare_dms(rec_pdb, probe_radius, path)
+    # if rec_dms is None:
+    #     return None
 
-    rec_sph = prepare_sph(rec_dms)
+    rec_sph = prepare_sph(rec_dms, steric_clash_dist,
+                          min_radius, max_radius, path)
     if rec_sph is None:
         return None
 
     rec_sph = select_spheres(
         rec_sph, center, size,
-        docked_ligand, use_largest, buffer
+        docked_ligand_file, use_largest, buffer, path
     )
 
-    rec_box = prepare_box(rec_sph, center, size, enclose_spheres, buffer)
+    rec_box = prepare_box(rec_sph, center, size, enclose_spheres, buffer, path)
     if rec_box is None:
         return None
 
-    grid_prefix = prepare_grid(rec_mol2, rec_box)
+    grid_prefix = prepare_grid(rec_mol2, rec_box, path)
     if grid_prefix is None:
         return None
 
@@ -212,10 +216,13 @@ def prepare_mol2(receptor: str, path: str = '.') -> Optional[str]:
     args = ['chimera', '--nogui', '--script',
             f'{PREP_REC} {receptor} {p_rec_mol2}']
 
+    ret = sp.run(args, stdout=sp.PIPE, stderr=sp.PIPE)
     try:
-        sp.run(args, stdout=sp.PIPE, stderr=sp.PIPE, check=True)
+        ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to convert receptor: "{receptor}"')
+        if ret.stderr:
+            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
     return str(p_rec_mol2)
@@ -243,7 +250,8 @@ def prepare_pdb(receptor: str, path: str = '.') -> Optional[str]:
         ret.check_returncode()
     except sp.SubprocessError:
         print(f'ERROR: failed to convert receptor: "{receptor}"')
-        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+        if ret.stderr:
+            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
     
     return rec_pdb
@@ -254,15 +262,17 @@ def prepare_dms(rec_pdb: str, probe_radius: float = 1.4,
     # rec_dms = str(Path(rec_pdb).with_suffix('.dms'))
     p_rec_dms = Path(path) / f'{Path(rec_pdb).stem}.dms'
     argv = ['chimera', '--nogui', '--script',
-            f'{WRITE_DMS} {rec_pdb} {probe_radius} {p_rec_dms}']
+            f'{WRITE_DMS} {rec_pdb} {probe_radius} {str(p_rec_dms)}']
 
     ret = sp.run(argv, stdout=sp.PIPE)
     try:
         ret.check_returncode()
     except sp.SubprocessError:
-        print(f'ERROR: failed to generate surface corresponding to "{rec_pdb}"')
-        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
-        return None
+        print(f'ERROR: failed to generate surface from "{rec_pdb}"',
+              file=sys.stderr)
+        if ret.stderr:
+            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+        # return None
 
     return str(p_rec_dms)
 
@@ -279,8 +289,10 @@ def prepare_sph(rec_dms: str, steric_clash_dist: float = 0.0,
     try:
         ret.check_returncode()
     except sp.SubprocessError:
-        print(f'ERROR: failed to generate spheres corresponding to "{rec_dms}"')
-        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+        print(f'ERROR: failed to generate spheres for "{rec_dms}"',
+              file=sys.stderr)
+        if ret.stderr:
+            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
     
     return sph_file
@@ -292,7 +304,7 @@ def select_spheres(sph_file: str,
                    use_largest: bool = False,
                    buffer: float = 10.0, path: str = '.') -> Optional[str]:
     p_sph = Path(sph_file)
-    selected_sph = str(Path(path) / f'{p_sph.stem}_selected.sph')
+    selected_sph = str(Path(path) / f'{p_sph.stem}_selected_spheres.sph')
     # selected_sph = str(p_sph.parent / f'{p_sph.stem}_selected{p_sph.suffix}')
 
     if docked_ligand_file:
@@ -336,17 +348,18 @@ def prepare_box(sph_file: str,
                 enclose_spheres: bool = True,
                 buffer: float = 10.0, path: str = '.') -> Optional[str]:
     p_sph = Path(sph_file)
+    shutil.copyfile(sph_file, 'tmp_spheres.sph')
     # p_box = p_sph.with_name(f'{p_sph.stem}_box.pdb')
-    p_box = Path(path) / f'{p_sph.stem}_box.pdb'
+    box_file = str(Path(path) / f'{p_sph.stem}_box.pdb')
     # box_file = str(p_box)
 
     if enclose_spheres:
-        showbox_input = f'Y\n{buffer}\n{sph_file}\n1\n'
+        showbox_input = f'Y\n{buffer}\ntmp_spheres.sph\n1\n'
     else:
         x, y, z = center
         r_x, r_y, r_z = size
         showbox_input = f'N\nU\n{x} {y} {z}\n{r_x} {r_y} {r_z}\n'
-    showbox_input += f'{p_box}\n'
+    showbox_input += 'tmp_box.pdb\n'
 
     # with open('box.in', 'w') as fid:
     #     if enclose_spheres:
@@ -366,17 +379,22 @@ def prepare_box(sph_file: str,
     try:
         ret.check_returncode()
     except sp.SubprocessError:
-        print(f'ERROR: failed to generate box corresponding to "{sph_file}"')
-        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+        print(f'ERROR: failed to generate box corresponding to "{sph_file}"',
+              file=sys.stderr)
+        if ret.stderr:
+            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
-    return str(p_box)
+    os.unlink('tmp_spheres.sph')
+    shutil.move('tmp_box.pdb', box_file)
+    return box_file
 
 def prepare_grid(rec_mol2: str, box_file: str,
                  path: str = '.') -> Optional[str]:
     p_rec = Path(rec_mol2)
     p_grid_prefix = Path(path) / f'{p_rec.stem}_grid'
 
+    shutil.copy(box_file, 'tmp_box.pdb')
     with open('grid.in', 'w') as fid:
         fid.write('compute_grids yes\n')
         fid.write('grid_spacing 0.4\n')
@@ -392,16 +410,19 @@ def prepare_grid(rec_mol2: str, box_file: str,
         fid.write('bump_filter yes\n')
         fid.write('bump_overlap 0.75\n')
         fid.write(f'receptor_file {rec_mol2}\n')
-        fid.write(f'box_file {box_file}\n')
+        fid.write('box_file tmp_box.pdb\n')
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
         fid.write(f'score_grid_prefix  {p_grid_prefix}\n')
     
     ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], stdout=sp.PIPE)
     try:
         ret.check_returncode()
-    except sp.SubprocessError:
-        print(f'ERROR: failed to generate grid corresponding to {rec_mol2}')
-        print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+    except sp.SubprocessError as e:
+        print(f'ERROR: failed to generate grid from {rec_mol2}',
+              file=sys.stderr)
+        if ret.stderr:
+            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
+    os.unlink('tmp_box.pdb')
     return str(p_grid_prefix)

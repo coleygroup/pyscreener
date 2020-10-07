@@ -69,8 +69,8 @@ def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
             except sp.SubprocessError:
                 print(f'ERROR: docking failed. argv: {argv}', file=sys.stderr)
                 print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
-                print('Skipping...', file=sys.stderr, flush=True)
-                continue
+                # print('Skipping...', file=sys.stderr, flush=True)
+                # continue
 
             repeat_rows.append({
                 'smiles': smi,

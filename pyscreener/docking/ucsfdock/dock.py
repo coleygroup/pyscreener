@@ -13,7 +13,7 @@ class DOCK(Screener):
     def __init__(self, receptors: List[str], 
                  center: Tuple[float, float, float],
                  size: Tuple[float, float, float] = (20., 20., 20.), 
-                 docked_ligand: Optional[str] = None,
+                 docked_ligand_file: Optional[str] = None,
                  use_largest: bool = False, buffer: float = 10.,
                  enclose_spheres: bool = True,
                  repeats: int = 1, score_mode: str = 'best',
@@ -22,21 +22,20 @@ class DOCK(Screener):
                  distributed: bool = False, num_workers: int = -1,
                  path: str = '.', verbose: int = 0, **kwargs):
         
-        self.center = center
-        self.size = size
-        self.docked_ligand = docked_ligand
-        self.use_largest = use_largest
-        self.buffer = buffer
-        self.enclose_spheres = enclose_spheres
-        self.receptors = receptors
-
-        self.repeats = repeats
-
         super().__init__(score_mode=score_mode, 
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
                          distributed=distributed, num_workers=num_workers,
                          path=path, verbose=verbose, **kwargs)
+    
+        self.center = center
+        self.size = size
+        self.docked_ligand_file = docked_ligand_file
+        self.use_largest = use_largest
+        self.buffer = buffer
+        self.enclose_spheres = enclose_spheres
+        self.receptors = receptors
+        self.repeats = repeats
 
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
@@ -48,13 +47,17 @@ class DOCK(Screener):
     @receptors.setter
     def receptors(self, receptors):
         receptors = [self.prepare_receptor(receptor) for receptor in receptors]
-        self.__receptors = [
-            receptor for receptor in receptors if receptor is not None]
-
+        receptors = [receptor for receptor in receptors if receptor is not None]
+        if len(receptors) == 0:
+            raise RuntimeError('Preparation failed for all receptors!')
+        self.__receptors = receptors
+        
     def prepare_receptor(self, receptor: str) -> Optional[Tuple[str, str]]:
         return ucsfdock_prep.prepare_receptor(
-            receptor, self.center, self.size, self.docked_ligand,
-            self.use_largest, self.buffer, self.enclose_spheres, self.in_path
+            receptor, center=self.center, size=self.size,
+            docked_ligand_file=self.docked_ligand_file,
+            use_largest=self.use_largest, buffer=self.buffer,
+            enclose_spheres=self.enclose_spheres, path=self.in_path
         )
 
     @staticmethod

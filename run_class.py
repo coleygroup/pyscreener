@@ -9,13 +9,13 @@ from pyscreener import args, preprocess, postprocess
 
 def main():
     print('''\
-*****************************************************************
-*      ____  __  ____________________  ___  ____  ___  _____    *
-*     / __ \/ / / / ___/ ___/ ___/ _ \/ _ \/ __ \/ _ \/ ___/    *
-*    / /_/ / /_/ (__  ) /__/ /  /  __/  __/ / / /  __/ /        *
-*   / .___/\__, /____/\___/_/   \___/\___/_/ /_/\___/_/         *
-*  /_/    /____/                                                *
-*****************************************************************''')
+***************************************************************
+*      ____  __  ____________________  ___  ____  ___  _____  *
+*     / __ \/ / / / ___/ ___/ ___/ _ \/ _ \/ __ \/ _ \/ ___/  *
+*    / /_/ / /_/ (__  ) /__/ /  /  __/  __/ / / /  __/ /      *
+*   / .___/\__, /____/\___/_/   \___/\___/_/ /_/\___/_/       *
+*  /_/    /____/                                              *
+***************************************************************''')
     print('Welcome to Pyscreener!\n')
 
     params = vars(args.gen_args())
@@ -60,7 +60,9 @@ def main():
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
-        writer.writerows(sorted(d_smi_score.items(), key=itemgetter(1)))
+        writer.writerows(
+            sorted(d_smi_score.items(), key=lambda k_v: k_v[1] or float('inf'))
+        )
     
     rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
     with open(extended_filename, 'w') as fid:

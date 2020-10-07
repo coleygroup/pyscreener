@@ -50,7 +50,7 @@ def make_hist(ys: Iterable[float], name: str):
     return fig.write_image(f'{name}_clusters_scores_histogram.pdf')
 
 def make_text_hist(ys: Iterable[float]):
-    counts = Counter(round(y, 1) for y in ys)
+    counts = Counter(round(y, 1) for y in ys if y is not None)
 
     base_width = max(len(str(y)) for y in counts)
     try:

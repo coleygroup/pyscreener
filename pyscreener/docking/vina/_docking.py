@@ -18,7 +18,7 @@ def dock_ligand(ligand: Tuple[str, str], software: str, receptors: List[str],
                 center: Tuple[float, float, float],
                 size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 1, 
                 path: str = '.', extra: Optional[List[str]] = None,
-                repeats: int = 1, score_mode: str = 'best') -> List[List[Dict]]:
+                repeats: int = 1) -> List[List[Dict]]:
     """Dock the given ligand using the specified vina-type docking program and 
     parameters into the ensemble of receptors repeatedly
     
@@ -39,9 +39,6 @@ def dock_ligand(ligand: Tuple[str, str], software: str, receptors: List[str],
         the path under which both the log and out files should be written to
     ncpu : int (Default = 1)
         the number of cores to allocate to the docking program
-    score_mode : str (Default = 'best')
-        the method used to calculate the docking score of an individual
-        docking run
     repeats : int (Default = 1)
         the number of times to repeat a docking run
 
@@ -82,20 +79,18 @@ def dock_ligand(ligand: Tuple[str, str], software: str, receptors: List[str],
             except sp.SubprocessError:
                 print(f'ERROR: docking failed. argv: {argv}', file=sys.stderr)
                 print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
-                print('Skipping...', file=sys.stderr, flush=True)
-                continue
+                # print('Skipping...', file=sys.stderr, flush=True)
 
             repeat_rows.append({
                 'smiles': smi,
                 'name': ligand_name,
-                'in': p_pdbqt, #Path(p_pdbqt.parent.name) / p_pdbqt.name,
-                'out': p_out, #Path(p_out.parent.name) / p_out.name,
-                'log': p_log, #Path(p_log.parent.name) / p_log.name,
+                'in': p_pdbqt,
+                'out': p_out,
+                'log': p_log,
                 'score': None
             })
 
-        if repeat_rows:
-            ensemble_rowss.append(repeat_rows)
+        ensemble_rowss.append(repeat_rows)
 
     return ensemble_rowss
 

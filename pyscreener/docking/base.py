@@ -143,7 +143,7 @@ class Screener(ABC):
                     d_smi_score[smi] = score
                 else:
                     d_smi_score[smi] = min(d_smi_score[smi], score)
-        print(d_smi_score)
+
         if full_results:
             return d_smi_score, list(chain(*list(chain(*ligs_recs_reps))))
 

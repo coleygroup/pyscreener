@@ -1,6 +1,8 @@
 from functools import partial
 from itertools import takewhile
 from pathlib import Path
+import subprocess as sp
+import sys
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -168,14 +170,14 @@ class Vina(Screener):
             a tuple of the SMILES string the prepared input file corresponding
             to the molecule contained in filename
         """
-        name = name or Path(filename).stem
+        name = name or Path(filepath).stem
 
-        ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
+        ret = sp.run(['obabel', filepath, '-osmi'], stdout=sp.PIPE, check=True)
         lines = ret.stdout.decode('utf-8').splitlines()
         smis = [line.split()[0] for line in lines]
 
         if not use_3d:
-            ligands = [prepare_from_smi(smi, f'{name}_{i}', path) 
+            ligands = [Vina.prepare_from_smi(smi, f'{name}_{i}', path) 
                     for i, smi in enumerate(smis)]
             return [lig for lig in ligands if lig]
         
@@ -184,7 +186,7 @@ class Vina(Screener):
             path.mkdir()
 
         pdbqt = f'{path}/{name}_.pdbqt'
-        argv = ['obabel', filename, '-opdbqt', '-O', pdbqt, '-m']
+        argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']
         ret = sp.run(argv, check=False, stderr=sp.PIPE)
         
         try:
@@ -206,12 +208,13 @@ class Vina(Screener):
     def run_docking(self, ligands: Sequence[Tuple[str, str]]
                    ) -> List[List[List[Dict]]]:
         dock_ligand = partial(
-            vina_dock.dock_ligand,
+            Vina.dock_ligand,
             software=self.software, receptors=self.receptors,
             center=self.center, size=self.size, ncpu=self.ncpu,
-            extra=self.extra, path=self.out_path, repeats=self.repeats
+            extra=self.extra, path=self.out_path,
+            repeats=self.repeats, score_mode=self.score_mode
         )
-        CHUNKSIZE = 1
+        CHUNKSIZE = 16
         with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
             ligs_recs_reps = pool.map(dock_ligand, ligands, 
                                       chunksize=CHUNKSIZE)
@@ -226,7 +229,8 @@ class Vina(Screener):
                     center: Tuple[float, float, float],
                     size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 1, 
                     path: str = '.', extra: Optional[List[str]] = None,
-                    repeats: int = 1) -> List[List[Dict]]:
+                    repeats: int = 1, score_mode: str = 'best'
+                    ) -> List[List[Dict]]:
         """Dock the given ligand using the specified vina-type docking program 
         and parameters into the ensemble of receptors repeatedly
         
@@ -251,18 +255,24 @@ class Vina(Screener):
             the number of cores to allocate to the docking program
         repeats : int (Default = 1)
             the number of times to repeat a docking run
+        score_mode : str
+            the mode used to calculate a score for an individual docking run 
+            given multiple output scored conformations
 
-        Return
-        ------
-        ensemble_rowss : List[Dataframe]
-            a list of dataframes for this ligand's docking runs into the
-            ensemble of receptor poses, each containing the following columns:
-                smiles  - the ligand's SMILES string
-                name    - the name of the ligand
-                in      - the filename of the input ligand file
-                out     - the filename of the output docked ligand file
-                log     - the filename of the output log file
-                score   - the ligand's docking score
+        Returns
+        -------
+        ensemble_rowss : List[List[Dict]]
+            an MxO list of dictionaries where each dictionary is a record of an 
+            individual docking run and:
+            - M is the number of receptors each ligand is docked against
+            - O is the number of times each docking run is repeated.
+            Each dictionary contains the following keys:
+            - smiles: the ligand's SMILES string
+            - name: the name of the ligand
+            - in: the filename of the input ligand file
+            - out: the filename of the output docked ligand file
+            - log: the filename of the output log file
+            - score: the ligand's docking score
         """
         if repeats <= 0:
             raise ValueError(f'Repeats must be greater than 0! ({repeats})')
@@ -278,9 +288,10 @@ class Vina(Screener):
             for repeat in range(repeats):
                 name = f'{Path(receptor).stem}_{ligand_name}_{repeat}'
 
-                argv, p_out, p_log = build_argv(
-                    software=software, receptor=receptor, ligand=pdbqt, name=name,
-                    center=center, size=size, ncpu=ncpu, extra=extra, path=path
+                argv, p_out, p_log = Vina.build_argv(
+                    software=software, receptor=receptor, ligand=pdbqt, 
+                    name=name, center=center, size=size, ncpu=ncpu, 
+                    extra=extra, path=path
                 )
 
                 ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -298,7 +309,7 @@ class Vina(Screener):
                     'in': p_pdbqt,
                     'out': p_out,
                     'log': p_log,
-                    'score': None
+                    'score': Vina.parse_log_file(p_log, score_mode)
                 })
 
             ensemble_rowss.append(repeat_rows)
@@ -370,32 +381,72 @@ class Vina(Screener):
         return argv, out, log
 
     @staticmethod
+    def parse_log_file(log_file: str,
+                       score_mode: str = 'best') -> Optional[float]:
+        """parse a Vina-type log file to calculate the overall ligand score
+        from a single docking run
+
+        Returns
+        -------
+        log_file : str
+            the path to a Vina-type log file
+        score_mode : str (Default = 'best')
+            the method by which to calculate a score from multiple scored
+            conformations. Choices include: 'best', 'average', and 'boltzmann'.
+            See Screener.calc_score for further explanation of these choices.
+        """
+        # vina-type log files have scoring information between this 
+        # table border and the line: "Writing output ... done."
+        TABLE_BORDER = '-----+------------+----------+----------'
+        try:
+            with open(log_file) as fid:
+                for line in fid:
+                    if TABLE_BORDER in line:
+                        break
+
+                score_lines = takewhile(
+                    lambda line: 'Writing' not in line, fid)
+                scores = [float(line.split()[1])
+                            for line in score_lines]
+
+            if len(scores) == 0:
+                score = None
+            else:
+                score = Screener.calc_score(scores, score_mode)
+        except OSError:
+            score = None
+        
+        return score
+
+    @staticmethod
     def parse_ligand_results(ligand_results: List[List[Dict]],
                              score_mode: str = 'best'):
         for receptor_results in ligand_results:
             for repeat_result in receptor_results:
+                score = Vina.parse_log_file(repeat_result['log'], score_mode)
+                repeat_result['score'] = score
                 # vina-type log files have scoring information between this 
                 # table border and the line: "Writing output ... done."
-                TABLE_BORDER = '-----+------------+----------+----------'
-                try:
-                    with open(repeat_result['log']) as fid:
-                        for line in fid:
-                            if TABLE_BORDER in line:
-                                break
+                # TABLE_BORDER = '-----+------------+----------+----------'
+                # try:
+                #     with open(repeat_result['log']) as fid:
+                #         for line in fid:
+                #             if TABLE_BORDER in line:
+                #                 break
 
-                        score_lines = takewhile(
-                            lambda line: 'Writing' not in line, fid)
-                        scores = [float(line.split()[1])
-                                  for line in score_lines]
+                #         score_lines = takewhile(
+                #             lambda line: 'Writing' not in line, fid)
+                #         scores = [float(line.split()[1])
+                #                   for line in score_lines]
 
-                    if len(scores) == 0:
-                        score = None
-                    else:
-                        score = Screener.calc_score(scores, score_mode)
-                except OSError:
-                    score = None
+                #     if len(scores) == 0:
+                #         score = None
+                #     else:
+                #         score = Screener.calc_score(scores, score_mode)
+                # except OSError:
+                #     score = None
 
-                repeat_result['score'] = score
+                # repeat_result['score'] = score
                 # p_in = repeat_result['in']
                 # repeat_result['in'] = Path(p_in.parent.name) / p_in.name
                 # p_out = repeat_result['out']

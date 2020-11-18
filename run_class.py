@@ -31,7 +31,6 @@ def main():
     if not tmp_dir.exists():
         tmp_dir.mkdir(parents=True)
     params['path'] = tmp_dir
-
     
     print('Preprocessing ...', flush=True)
     params = pyscreener.preprocess(**params)

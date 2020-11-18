@@ -42,8 +42,6 @@ def add_preprocessing_args(parser: ArgumentParser):
                         help='the name of a file containing the coordinates of a docked/bound ligand. If using Vina-type software, this file must be a PDB format file. If using Dock, do not select this preprocessing option as autoboxing occurs during input preparation.')
     parser.add_argument('--buffer', type=float, default=10.,
                         help='the amount of buffer space to add around the docked ligand when calculating the docking box.')
-    parser.add_argument('--pdbid',
-                        help='the PDB ID of the crystal structure to dock against')
     parser.add_argument('--pH', type=float, default=7.,
                         help='the pH for which to calculate protonation state for protein and ligand residues')
 
@@ -61,6 +59,8 @@ def add_docking_args(parser: ArgumentParser):
                         help='the name of the docking program to use')
     parser.add_argument('-r', '--receptors', nargs='+',
                         help='the filenames of the receptors')
+    parser.add_argument('--pdbids', nargs='+',
+                        help='the PDB IDs of the crystal structure to dock against')
     parser.add_argument('-l', '--ligands', required=True, nargs='+',
                         help='the filenames containing the ligands to dock')
     parser.add_argument('--use-3d', action='store_true', default='False',
@@ -69,7 +69,7 @@ def add_docking_args(parser: ArgumentParser):
                         metavar=('CENTER_X', 'CENTER_Y', 'CENTER_Z'),
                         help='the x-, y-, and z-coordinates of the center of the docking box')
     parser.add_argument('-s', '--size', type=float, nargs=3,
-                        default=(10., 10., 10.)
+                        default=(10., 10., 10.),
                         metavar=('SIZE_X', 'SIZE_Y', 'SIZE_Z'),
                         help='the x-, y-, and z-dimensions of the docking box')
     

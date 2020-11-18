@@ -37,15 +37,18 @@ def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
     
     Returns
     -------
-    ensemble_rowss : List[Dataframe]
-        a list of dataframes for this ligand's docking runs into the
-        ensemble of receptor poses, each containing the following columns:
-            smiles  - the ligand's SMILES string
-            name    - the name of the docking run
-            in      - the filename of the input docking file
-            out     - the filename of the output docked ligand file
-            log     - the filename of the output log file
-            score   - the ligand's docking score
+    ensemble_rowss : List[List[Dict]]
+        an MxO list of dictionaries where each dictionary is a record of an 
+        individual docking run and:
+        - M is the number of receptors each ligand is docked against
+        - O is the number of times each docking run is repeated.
+        Each dictionary contains the following keys:
+        - smiles: the ligand's SMILES string
+        - name: the name of the ligand
+        - in: the filename of the input ligand file
+        - out: the filename of the output docked ligand file
+        - log: the filename of the output log file
+        - score: the ligand's docking score
     """
     if repeats <= 0:
         raise ValueError(f'Repeats must be greater than 0! ({repeats})')

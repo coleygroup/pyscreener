@@ -80,8 +80,8 @@ class Screener(ABC):
                  num_workers: int = -1, ncpu: int = 1,
                  path: str = '.', verbose: int = 0, **kwargs):
         self.path = Path(path)
-        self.in_path = self.path / 'inputs'
-        self.out_path = self.path / 'outputs'
+        # self.in_path = self.path / 'inputs'
+        # self.out_path = self.path / 'outputs'
 
         receptors = receptors or []
         if pdbids:
@@ -92,7 +92,6 @@ class Screener(ABC):
         if len(receptors) == 0:
             raise ValueError('No receptors or PDBids provided!')
 
-        self.num_docked_ligands = 0
         self.receptors = receptors
         self.score_mode = score_mode
         self.receptor_score_mode = receptor_score_mode
@@ -104,6 +103,8 @@ class Screener(ABC):
 
         self.verbose = verbose
 
+        self.num_docked_ligands = 0
+        
     def __len__(self) -> int:
         """The number of ligands this screener has simulated"""
         return self.num_docked_ligands
@@ -174,11 +175,20 @@ class Screener(ABC):
             a dictionary mapping SMILES string to the best score among the
             corresponding ligands. (None if all corresponding ligands
             failed failed to dock)
+        records : List[Dict]
+            a list of dictionaries containing the record of every single
+            docking run performed. Each dictionary contains the following keys:
+            - smiles: the ligand's SMILES string
+            - name: the name of the ligand
+            - in: the filename of the input ligand file
+            - out: the filename of the output docked ligand file
+            - log: the filename of the output log file
+            - score: the ligand's docking score
         """
-        ligs_recs_reps = self.dock_ensemble(*smis_or_files, **kwargs)
+        recordsss = self.dock_ensemble(*smis_or_files, **kwargs)
 
         smis_scores = []
-        for ligand_results in ligs_recs_reps:
+        for ligand_results in recordsss:
             smi = ligand_results[0][0]['smiles']
             score = self.calc_ligand_score(
                 ligand_results, self.receptor_score_mode,
@@ -201,7 +211,7 @@ class Screener(ABC):
                     d_smi_score[smi] = min(d_smi_score[smi], score)
 
         if full_results:
-            return d_smi_score, list(chain(*list(chain(*ligs_recs_reps))))
+            return d_smi_score, list(chain(*list(chain(*recordsss))))
 
         return d_smi_score
 
@@ -227,32 +237,38 @@ class Screener(ABC):
 
         Returns
         -------
-        rowsss : List[List[List[Dict]]]
-            an NxMxO list of dictionaries where each individual dictionary is a 
-            record of an individual docking run and
-            N is the number of ligands contained in the ligand sources
-            M is the number of receptors in the ensemble against which each 
-                ligand should be docked
-            O is the number of times each docking run should be repeated
+        recordsss : List[List[List[Dict]]]
+            an NxMxO list of dictionaries where each dictionary is a record of an individual docking run and:
+            - N is the number of total ligands that will be docked
+            - M is the number of receptors each ligand is docked against
+            - O is the number of times each docking run is repeated.
+            Each dictionary contains the following keys:
+            - smiles: the ligand's SMILES string
+            - name: the name of the ligand
+            - in: the filename of the input ligand file
+            - out: the filename of the output docked ligand file
+            - log: the filename of the output log file
+            - score: the ligand's docking score
+
         """
         begin = timeit.default_timer()
 
         ligands = self.prepare_ligands(*smis_or_files, **kwargs)
-        ligs_recs_reps_unparsed = self.run_docking(ligands)
-        ligs_recs_reps = self.parse_docking(ligs_recs_reps_unparsed)
+        recordsss = self.run_docking(ligands)
+        # recordsss = self.parse_docking(recordsss_unparsed)
 
-        self.num_docked_ligands += len(ligs_recs_reps)
+        self.num_docked_ligands += len(recordsss)
 
         total = timeit.default_timer() - begin
 
         mins, secs = divmod(int(total), 60)
         hrs, mins = divmod(mins, 60)
-        if self.verbose > 0 and len(ligs_recs_reps) > 0:
-            print(f'  Time to dock {len(ligs_recs_reps)} ligands:',
+        if self.verbose > 0 and len(recordsss) > 0:
+            print(f'  Time to dock {len(recordsss)} ligands:',
                 f'{hrs:d}h {mins:d}m {secs:d}s ' +
-                f'({total/len(ligs_recs_reps):0.3f} s/ligand)', flush=True)
+                f'({total/len(recordsss):0.3f} s/ligand)', flush=True)
 
-        return ligs_recs_reps
+        return recordsss
 
     @abstractmethod
     def run_docking(self, ligands: Sequence[Tuple[str, str]]

@@ -20,8 +20,7 @@ def prepare_receptor(receptor: str) -> Optional[str]:
         the filename of the resulting PDBQT file. None if preparation failed
     """
     receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
-    args = ['obabel', receptor, '-O', receptor_pdbqt,
-            '-xh', '-xr', '--partialcharge', 'gasteiger']
+    args = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
     try:
         sp.run(args, stderr=sp.PIPE, check=True)
     except sp.SubprocessError:

@@ -6,10 +6,25 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from tqdm import tqdm
 
 from pyscreener.docking import Screener
-from pyscreener.docking.ucsfdock import _docking as ucsfdock_dock
+from pyscreener.docking.ucsfdock import _docking as ucsfdock_docking
 from pyscreener.docking.ucsfdock import _preparation as ucsfdock_prep
 
 class DOCK(Screener):
+    """A wrapper around the DOCK6 software suite to performing computaional
+    DOCKing via python calls.
+
+    NOTE: there are several steps in the receptor preparation process, each
+          with their own set of options. Two important steps are:
+          (1) selecting spheres to represent the binding site in the dockign 
+              simulations
+          (2) calculating the grid box for the scoring function
+          Both of these steps can rely on some prior information about the
+          binding site or do their best to calculate one.  In (1), if both a 
+          docked ligand is provided and center is specified, the docked ligand 
+          will take precedence. Either of these will take precedence over the 
+          use_largest flag. In (2), if a docking box center is specified, it 
+          will be used only if enclose_spheres is set to False (default = True.)
+    """
     def __init__(self, receptors: Optional[List[str]] = None,
                  pdbids: Optional[List[str]] = None,
                  center: Optional[Tuple[float, float, float]] = None,
@@ -22,14 +37,15 @@ class DOCK(Screener):
                  ensemble_score_mode: str = 'best',
                  distributed: bool = False, num_workers: int = -1,
                  path: str = '.', verbose: int = 0, **kwargs):
-        if center is None and docked_ligand_file is None:
-            raise ValueError(
-                'Args "center" and "docked_ligand_file" were None!')
+        if docked_ligand_file is None and center is None and not use_largest:
+            print('WARNING: Args "docked_ligand_file" and "center" were both ',
+                  'None and use_largest was False. Overriding to True.')
+            use_largest = True
         if center is None and not enclose_spheres:
             print('WARNING: Arg "center" was None but arg "enclose_spheres"',
                   'was False. Overriding to True.')
             enclose_spheres = True
-
+        
         self.center = center
         self.size = size
         self.docked_ligand_file = docked_ligand_file
@@ -82,8 +98,9 @@ class DOCK(Screener):
     def run_docking(self, ligands: Sequence[Tuple[str, str]]
                    ) -> List[List[List[Dict]]]:
         dock_ligand = partial(
-            ucsfdock_dock.dock_ligand,
-            receptors=self.receptors, path=self.path, repeats=self.repeats
+            ucsfdock_docking.dock_ligand,
+            receptors=self.receptors, in_path=self.in_path, 
+            out_path=self.out_path, repeats=self.repeats
         )
         CHUNKSIZE = 1
         with self.Pool(self.distributed, self.num_workers) as pool:

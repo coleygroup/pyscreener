@@ -153,7 +153,7 @@ def prepare_receptor(receptor: str, probe_radius: float = 1.4,
         selecting spheres and when constructing the docking box if 
         enclose_spheres is True
     enclose_spheres : bool (Default = True)
-        whether to calculate the dockign box by enclosing the selected spheres
+        whether to calculate the docking box by enclosing the selected spheres
         or to use an input center and radii
 
     Returns

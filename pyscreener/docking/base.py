@@ -43,7 +43,7 @@ class Screener(ABC):
         given multiple receptors in an ensemble
     distributed : bool
         True if the computation will parallelized over a distributed setup.
-        False if "..." over a local setup
+        False if the computation will parallelized over a local setup
     num_workers : int
         the number of worker processes to initialize when
         distributing computation
@@ -80,14 +80,8 @@ class Screener(ABC):
                  num_workers: int = -1, ncpu: int = 1,
                  path: str = '.', verbose: int = 0, **kwargs):
         self.path = Path(path)
-        if not self.path.is_dir():
-            self.path.mkdir(parents=True)
         self.in_path = self.path / 'inputs'
-        if not self.in_path.is_dir():
-            self.in_path.mkdir(parents=True)
         self.out_path = self.path / 'outputs'
-        if not self.out_path.is_dir():
-            self.out_path.mkdir(parents=True)
 
         receptors = receptors or []
         if pdbids:
@@ -114,11 +108,46 @@ class Screener(ABC):
         """The number of ligands this screener has simulated"""
         return self.num_docked_ligands
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Dict[str, Optional[float]]:
         return self.dock(*args, **kwargs)
     
+    @property
+    def path(self) -> Tuple[os.PathLike, os.PathLike]:
+        """return the Screener's in_path and out_path"""
+        return self.__in_path, self.__out_path
+        
+    @path.setter
+    def path(self, path: str):
+        """set both the in_path and out_path under the input path"""
+        path = Path(path)
+        self.in_path = path / 'inputs'
+        self.out_path = path / 'outputs'
+
+    @property
+    def in_path(self) -> os.PathLike:
+        return self.__in_path
+
+    @in_path.setter
+    def in_path(self, path: str):
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir(parents=True)
+        self.__in_path = path
+
+    @property
+    def out_path(self) -> os.PathLike:
+        return self.__out_path
+
+    @out_path.setter
+    def out_path(self, path: str):
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir(parents=True)
+        self.__out_path = path
+
     def dock(self, *smis_or_files: Iterable,
-             full_results: bool = False, **kwargs):
+             full_results: bool = False,
+             **kwargs) -> Dict[str, Optional[float]]:
         """dock the ligands contained in sources
 
         NOTE: the star operator, *, in the function signature.

@@ -79,7 +79,6 @@ def dock_ligand(ligand: Tuple[str, str], software: str, receptors: List[str],
             except sp.SubprocessError:
                 print(f'ERROR: docking failed. argv: {argv}', file=sys.stderr)
                 print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
-                # print('Skipping...', file=sys.stderr, flush=True)
 
             repeat_rows.append({
                 'smiles': smi,
@@ -156,10 +155,6 @@ def build_argv(software: str, receptor: str, ligand: str,
     ]
 
     return argv, out, log
-
-def parse_docking(ligs_recs_reps: List[List[List[Dict]]],
-                  score_mode: str = 'best') -> List[List[List[Dict]]]:
-    pass
 
 def parse_score(log: Union[str, PathLike],
                 score_mode : str = 'best') -> Optional[float]:

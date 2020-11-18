@@ -15,7 +15,8 @@ FLEX_DRIVE_FILE = DOCK6_PARAMS / 'flex_drive.tbl'
 DOCK6 = str(DOCK6 / 'bin' / 'dock6')
 
 def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
-                path: Union[str, os.PathLike] = '.',
+                in_path: Union[str, os.PathLike] = 'inputs',
+                out_path: Union[str, os.PathLike] = 'outputs',
                 repeats: int = 1) -> List[List[Dict]]:
     """Dock this ligand into the ensemble of receptors
 
@@ -27,8 +28,10 @@ def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
     receptors : List[Tuple[str, str]]
         a list of tuples containing the sphere file and grid file prefix
         corresponding to each receptor in the ensemble.
-    path : Union[str, os.PathLike] (Deafult = '.')
-        the path under which to oragnize all inputs and outputs
+    in_path : Union[str, os.PathLike] (Default = 'inputs')
+        the path under which to write the input files
+    out_path : Union[str, os.PathLike] (Default = 'outputs')
+        the path under which to write the output files
     repeats : int (Default = 1)
         the number of times each docking run should be repeated
     
@@ -56,7 +59,7 @@ def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
             name = f'{Path(sph_file).stem}_{Path(lig_mol2).stem}_{repeat}'
 
             infile, outfile_prefix = prepare_input_file(
-                lig_mol2, sph_file, grid_prefix, name, path
+                lig_mol2, sph_file, grid_prefix, name, in_path, out_path
             )
 
             out = Path(f'{outfile_prefix}_scored.mol2')
@@ -119,7 +122,9 @@ def parse_score(outfile: Union[str, os.PathLike],
 
 def prepare_input_file(ligand_file: str, sph_file: str, grid_prefix: str,
                        name: Optional[str] = None,
-                       path: str = '.') -> Tuple[str, str]:
+                       in_path: Union[str, os.PathLike] = 'inputs',
+                       out_path: Union[str, os.PathLike] = 'outputs'
+                       ) -> Tuple[str, str]:
     """Prepare the input file with which to run DOCK
 
     Parameters
@@ -133,10 +138,11 @@ def prepare_input_file(ligand_file: str, sph_file: str, grid_prefix: str,
         the grid program)
     name : Optional[str] (Default = None)
         the name to use for the input file and output file
-    path : str (Default = '.')
-        the root path under which to organize both the input file and output
-        file. The input file will be placed under <path>/inputs/ and
-        the output file will be placed under <path>/outputs/
+    in_path : Union[str, os.PathLike] (Default = 'inputs')
+        the path under which to write the input files
+        both the input file and output
+    out_path : Union[str, os.PathLike] (Default = 'outputs')
+        the path under which to write the output files
 
     Returns
     -------
@@ -146,15 +152,16 @@ def prepare_input_file(ligand_file: str, sph_file: str, grid_prefix: str,
         the prefix of the outfile name. DOCK will automatically name outfiles
         as <outfile_prefix>_scored.mol2
     """
-    path = Path(path)
-    
-    name = name or f'{Path(sph_file).stem}_{Path(ligand_file).stem}'
-    infile = path / 'inputs' / f'{name}.in'
+    in_path = Path(in_path)
+    if not in_path.is_dir():
+        in_path.mkdir(parents=True)
+    out_path = Path(out_path)
+    if not out_path.is_dir():
+        out_path.mkdir(parents=True)
 
-    out_dir = path / 'outputs'
-    if not out_dir.is_dir():
-        out_dir.mkdir(parents=True)
-    outfile_prefix = out_dir / name
+    name = name or f'{Path(sph_file).stem}_{Path(ligand_file).stem}'
+    infile = in_path / f'{name}.in'
+    outfile_prefix = out_path / name
 
     with open(infile, 'w') as fid:
         fid.write('conformer_search_type flex\n')

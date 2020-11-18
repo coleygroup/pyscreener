@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import shlex
+from typing import Optional
 
 from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
@@ -64,10 +65,11 @@ def add_docking_args(parser: ArgumentParser):
                         help='the filenames containing the ligands to dock')
     parser.add_argument('--use-3d', action='store_true', default='False',
                         help='how to treat the preparation of ligands from files containing three-dimensional information. If False, use only the 2D graph of each molecule in the SDF file when preparing inputs. Faster, but will result in the loss of conformational/tautomeric information. If True, use the 3D information contained in the file when preparing an input. Slower, but will preserve conformational/tautomeric information.')
-    parser.add_argument('-c', '--center', required=True, type=float, nargs=3,
+    parser.add_argument('-c', '--center', type=float, nargs=3,
                         metavar=('CENTER_X', 'CENTER_Y', 'CENTER_Z'),
                         help='the x-, y-, and z-coordinates of the center of the docking box')
-    parser.add_argument('-s', '--size', required=True, type=int, nargs=3,
+    parser.add_argument('-s', '--size', type=float, nargs=3,
+                        default=(10., 10., 10.)
                         metavar=('SIZE_X', 'SIZE_Y', 'SIZE_Z'),
                         help='the x-, y-, and z-dimensions of the docking box')
     
@@ -107,7 +109,7 @@ def add_postprocessing_args(parser: ArgumentParser):
                         choices=['histogram', 'text'],
                         help='the type of visualization to generate. "hist" makes a histogram that is output in a pdf and "text" generates a histogram using terminal output.')
 
-def gen_args() -> Namespace:
+def gen_args(argv: Optional[str] = None) -> Namespace:
     parser = ArgumentParser(
         description='Automate virtual screening of compound libraries.')
 
@@ -118,7 +120,7 @@ def gen_args() -> Namespace:
     add_docking_args(parser)
     add_postprocessing_args(parser)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.name is None:
         args.name = f'{Path(args.receptor).stem}_{Path(args.ligands).stem}'

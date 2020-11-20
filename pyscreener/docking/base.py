@@ -5,10 +5,7 @@ from functools import partial
 from itertools import chain
 from math import ceil, exp, log10
 import os
-from os import PathLike
 from pathlib import Path
-import subprocess as sp
-import sys
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
@@ -32,6 +29,8 @@ class Screener(ABC):
 
     Attributes
     ----------
+    repeats : int
+        the number of times each docking run will be repeated
     score_mode : str
         the mode used to calculate a score for an individual docking run given
         multiple output scored conformations
@@ -60,6 +59,7 @@ class Screener(ABC):
 
     Parameters
     ----------
+    repeats : int (Default = 1)
     score_mode : str (Default = 'best')
     receptor_score_mode : str (Default = 'best')
     ensemble_score_mode : str (Default = 'best')
@@ -73,7 +73,7 @@ class Screener(ABC):
     """
     def __init__(self, receptors: Optional[Sequence[str]] = None,
                  pdbids: Optional[Sequence[str]] = None,
-                 score_mode: str = 'best',
+                 repeats: int = 1, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
                  distributed: bool = False,
@@ -93,6 +93,7 @@ class Screener(ABC):
             raise ValueError('No receptors or PDBids provided!')
 
         self.receptors = receptors
+        self.repeats = repeats
         self.score_mode = score_mode
         self.receptor_score_mode = receptor_score_mode
         self.ensemble_score_mode = ensemble_score_mode

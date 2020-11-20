@@ -10,7 +10,7 @@ import subprocess as sp
 import sys
 from typing import Dict, Iterable, Optional, Tuple
 
-with resources.path('pyscreener.docking.ucsfdock', '.') as p_module:
+with resources.path('pyscreener.docking.dock_utils', '.') as p_module:
     PREP_REC = p_module / 'scripts' / 'prep_rec.py'
     WRITE_DMS = p_module / 'scripts' / 'write_dms.py'
 
@@ -170,8 +170,8 @@ def prepare_receptor(receptor: str, probe_radius: float = 1.4,
         return None
 
     rec_dms = prepare_dms(rec_pdb, probe_radius, path)
-    # if rec_dms is None:
-    #     return None
+    if rec_dms is None:
+        return None
 
     rec_sph = prepare_sph(rec_dms, steric_clash_dist,
                           min_radius, max_radius, path)

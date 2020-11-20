@@ -94,9 +94,9 @@ def prepare_from_file(filepath: str, use_3d: bool = False,
         a tuple of the SMILES string the prepared input file corresponding
         to the molecule contained in filename
     """
-    name = name or Path(filename).stem
+    name = name or Path(filepath).stem
 
-    ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
+    ret = sp.run(['obabel', filepath, '-osmi'], stdout=sp.PIPE, check=True)
     lines = ret.stdout.decode('utf-8').splitlines()
     smis = [line.split()[0] for line in lines]
 
@@ -110,7 +110,7 @@ def prepare_from_file(filepath: str, use_3d: bool = False,
         path.mkdir()
 
     pdbqt = f'{path}/{name}_.pdbqt'
-    argv = ['obabel', filename, '-opdbqt', '-O', pdbqt, '-m']
+    argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']
     ret = sp.run(argv, check=False, stderr=sp.PIPE)
     
     try:

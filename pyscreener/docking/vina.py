@@ -10,8 +10,6 @@ from tqdm import tqdm
 
 from pyscreener.preprocessing import autobox
 from pyscreener.docking import Screener
-from pyscreener.docking.vina import _docking as vina_dock
-from pyscreener.docking.vina import _preparation as vina_prep
 
 class Vina(Screener):
     def __init__(self, software: str, receptors: Optional[List[str]] = None,
@@ -40,16 +38,13 @@ class Vina(Screener):
                   f'center={s_center} and size={s_size}', flush=True) 
 
         self.software = software
-        # self.receptors = receptors
         self.center = center
         self.size = size
         self.ncpu = ncpu
         self.extra = extra or []
 
-        self.repeats = repeats
-
         super().__init__(receptors=receptors, pdbids=pdbids,
-                         score_mode=score_mode,
+                         repeats=repeats, score_mode=score_mode,
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
                          distributed=distributed,
@@ -58,16 +53,6 @@ class Vina(Screener):
 
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
-
-    # @property
-    # def receptors(self):
-    #     return self.__receptors
-
-    # @receptors.setter
-    # def receptors(self, receptors):
-    #     receptors = [self.prepare_receptor(receptor) for receptor in receptors]
-    #     self.__receptors = [
-    #         receptor for receptor in receptors if receptor is not None]
 
     def prepare_receptor(self, receptor: str):
         """Prepare a receptor PDBQT file from its input file
@@ -91,11 +76,6 @@ class Vina(Screener):
             return None
 
         return receptor_pdbqt
-
-    # @staticmethod
-    # def prepare_from_smi(smi: str, name: Optional[str] = None,
-    #                      path: str = '.') -> Tuple[str, str]:
-    #     return vina_prep.prepare_from_smi(smi, name, path)
 
     @staticmethod
     def prepare_from_smi(smi: str, name: Optional[str] = None,
@@ -136,12 +116,6 @@ class Vina(Screener):
             return None
 
         return smi, pdbqt
-        
-    # @staticmethod
-    # def prepare_from_file(filepath: str, use_3d: bool = False,
-    #                       name: Optional[str] = None,
-    #                       path: str = '.') -> Tuple[str, str]:
-    #     return vina_prep.prepare_from_file(filepath, use_3d, name, path)
     
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
@@ -200,7 +174,8 @@ class Vina(Screener):
                 continue
             n_mols = int(line.split()[0])
 
-        # have to think about some molecules failing and how that affects numbering
+        # have to think about some molecules failing and
+        # how that affects numbering
         pdbqts = [f'{path}/{name}_{i}.pdbqt' for i in range(1, n_mols)]
 
         return list(zip(smis, pdbqts))
@@ -425,26 +400,6 @@ class Vina(Screener):
             for repeat_result in receptor_results:
                 score = Vina.parse_log_file(repeat_result['log'], score_mode)
                 repeat_result['score'] = score
-                # vina-type log files have scoring information between this 
-                # table border and the line: "Writing output ... done."
-                # TABLE_BORDER = '-----+------------+----------+----------'
-                # try:
-                #     with open(repeat_result['log']) as fid:
-                #         for line in fid:
-                #             if TABLE_BORDER in line:
-                #                 break
-
-                #         score_lines = takewhile(
-                #             lambda line: 'Writing' not in line, fid)
-                #         scores = [float(line.split()[1])
-                #                   for line in score_lines]
-
-                #     if len(scores) == 0:
-                #         score = None
-                #     else:
-                #         score = Screener.calc_score(scores, score_mode)
-                # except OSError:
-                #     score = None
 
                 # repeat_result['score'] = score
                 # p_in = repeat_result['in']

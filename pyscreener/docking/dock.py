@@ -9,8 +9,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from tqdm import tqdm
 
 from pyscreener.docking import Screener
-from pyscreener.docking.ucsfdock import _docking as ucsfdock_docking
-from pyscreener.docking.ucsfdock import _preparation as ucsfdock_prep
+from pyscreener.docking.dock_utils import preparation as ucsfdock_prep
 
 DOCK6 = Path(os.environ['DOCK6'])
 DOCK6_PARAMS = DOCK6 / 'parameters'
@@ -35,14 +34,65 @@ class DOCK(Screener):
           will take precedence. Either of these will take precedence over the 
           use_largest flag. In (2), if a docking box center is specified, it 
           will be used only if enclose_spheres is set to False (default = True.)
+    
+    Properties
+    ----------
+    receptors : List[Tuple[str, str]]
+
+    Attributes
+    ----------
+    probe_radius : float
+        the probe radius of the "water" molecule that is used to calculate
+        the molecular surface of the receptor
+    steric_clash_dist : float
+        minimum distance between generated spheres
+    min_radius : float
+        minimum radius of generated spheres
+    max_radius : float
+        maximum radius of generated spheres
+    center : Optional[Tuple[float, float, float]]
+        the center of the docking box (if known)
+    size : Tuple[float, float, float]
+        the x-, y-, and z-radii of the docking box
+    docked_ligand_file : Optional[str]
+        the filepath of a PDB file containing the coordinates of a docked ligand
+    use_largest : bool
+        whether to use the largest cluster of spheres when selecting spheres
+    enclose_spheres : bool
+        whether to calculate the docking box by enclosing the selected spheres
+        or to use an input center and radii
+    buffer : float
+        the amount of buffer space to be added around the docked ligand when
+        selecting spheres and when constructing the docking box if 
+        enclose_spheres is True
+
+    Parameters
+    ----------
+    receptors : Optional[List[str]] (Default = None)
+        the filepath(s) of receptors to prepare for DOCKing. Must be in a
+        format that is readable by Chimera
+    pdbids : Optiona[List[str]] (Default = None)
+        a list of PDB IDs corresponding to receptors to prepare for DOCKing.
+    probe_radius : float (Defualt = 1.4)
+    steric_clash_dist : float (Default = 0.0)
+    min_radius : float (Default = 1.4)
+    max_radius : float (Default = 4.0)
+    center : Optional[Tuple[float, float, float]]
+    size : Tuple[float, float, float] (Default = (10., 10., 10.))
+    docked_ligand_file : Optional[str] (Default = None)
+    use_largest : bool (Default = False)
+    enclose_spehres : bool (Default = False)
+    buffer : float (Default = 10.)
     """
     def __init__(self, receptors: Optional[List[str]] = None,
                  pdbids: Optional[List[str]] = None,
+                 probe_radius: float = 1.4, steric_clash_dist: float = 0.0,
+                 min_radius: float = 1.4, max_radius: float = 4.0,
                  center: Optional[Tuple[float, float, float]] = None,
-                 size: Tuple[float, float, float] = (20., 20., 20.), 
+                 size: Tuple[float, float, float] = (10., 10., 10.), 
                  docked_ligand_file: Optional[str] = None,
-                 use_largest: bool = False, buffer: float = 10.,
-                 enclose_spheres: bool = True,
+                 use_largest: bool = False,
+                 enclose_spheres: bool = True, buffer: float = 10.,
                  repeats: int = 1, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
@@ -53,10 +103,14 @@ class DOCK(Screener):
                   'None and use_largest was False. Overriding to True.')
             use_largest = True
         if center is None and not enclose_spheres:
-            print('WARNING: Arg "center" was None but arg "enclose_spheres"',
+            print('WARNING: Arg "center" wass None but arg "enclose_spheres"',
                   'was False. Overriding to True.')
             enclose_spheres = True
         
+        self.probe_radius = probe_radius
+        self.steric_clash_dist = steric_clash_dist
+        self.min_radius = min_radius
+        self.max_radius = max_radius
         self.center = center
         self.size = size
         self.docked_ligand_file = docked_ligand_file
@@ -64,10 +118,9 @@ class DOCK(Screener):
         self.buffer = buffer
         self.enclose_spheres = enclose_spheres
         # self.receptors = receptors
-        self.repeats = repeats
 
         super().__init__(receptors=receptors, pdbids=pdbids,
-                         score_mode=score_mode, 
+                         repeats=repeats, score_mode=score_mode, 
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
                          distributed=distributed, num_workers=num_workers,
@@ -75,36 +128,159 @@ class DOCK(Screener):
 
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
-
-    # @property
-    # def receptors(self):
-    #     return self.__receptors
-
-    # @receptors.setter
-    # def receptors(self, receptors):
-    #     receptors = [self.prepare_receptor(receptor) for receptor in receptors]
-    #     receptors = [receptor for receptor in receptors if receptor is not None]
-    #     if len(receptors) == 0:
-    #         raise RuntimeError('Preparation failed for all receptors!')
-    #     self.__receptors = receptors
         
     def prepare_receptor(self, receptor: str) -> Optional[Tuple[str, str]]:
-        return ucsfdock_prep.prepare_receptor(
-            receptor, center=self.center, size=self.size,
-            docked_ligand_file=self.docked_ligand_file,
-            use_largest=self.use_largest, buffer=self.buffer,
-            enclose_spheres=self.enclose_spheres, path=self.in_path
+        """Prepare the files necessary to dock ligands against the input
+        receptor using this Screener's parameters
+        
+        Parameter
+        ---------
+        receptor : str
+            the filepath of a file containing a receptor. Must be in a format
+            that is readable by Chimera
+        """
+        rec_mol2 = ucsfdock_prep.prepare_mol2(receptor, self.in_path)
+        rec_pdb = ucsfdock_prep.prepare_pdb(receptor, self.in_path)
+        if rec_mol2 is None or rec_pdb is None:
+            return None
+
+        rec_dms = ucsfdock_prep.prepare_dms(
+            rec_pdb, self.probe_radius, self.in_path
         )
+        if rec_dms is None:
+            return None
+
+        rec_sph = ucsfdock_prep.prepare_sph(
+            rec_dms, self.steric_clash_dist,
+            self.min_radius, self.max_radius, self.in_path
+        )
+        if rec_sph is None:
+            return None
+
+        rec_sph = ucsfdock_prep.select_spheres(
+            rec_sph, self.center, self.size, self.docked_ligand_file,
+            self.use_largest, self.buffer, self.in_path
+        )
+
+        rec_box = ucsfdock_prep.prepare_box(
+            rec_sph, self.center, self.size,
+            self.enclose_spheres, self.buffer, self.in_path
+        )
+        if rec_box is None:
+            return None
+
+        grid_prefix = ucsfdock_prep.prepare_grid(
+            rec_mol2, rec_box, self.in_path
+        )
+        if grid_prefix is None:
+            return None
+
+        return rec_sph, grid_prefix
+        # return ucsfdock_prep.prepare_receptor(
+        #     receptor, center=self.center, size=self.size,
+        #     docked_ligand_file=self.docked_ligand_file,
+        #     use_largest=self.use_largest, buffer=self.buffer,
+        #     enclose_spheres=self.enclose_spheres, path=self.in_path
+        # )
 
     @staticmethod
     def prepare_from_smi(smi: str, name: str = 'ligand',
                          path: str = '.') -> Tuple[str, str]:
-        return ucsfdock_prep.prepare_from_smi(smi, name, path)
+        """Prepare an input ligand file from the ligand's SMILES string
+
+        Parameters
+        ----------
+        smi : str
+            the SMILES string of the ligand
+        name : Optional[str] (Default = None)
+            the name of the ligand.
+        path : str (Default = '.')
+            the path under which the output PDBQT file should be written
+        **kwargs
+            additional and unused keyword arguments
+
+        Returns
+        -------
+        Optional[Tuple]
+            a tuple of the SMILES string and the corresponding prepared input file.
+            None if preparation failed for any reason
+        """
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir()
+        
+        mol2 = str(path / f'{name}.mol2')
+
+        argv = ['obabel', f'-:{smi}', '-omol2', '-O', mol2,
+                '-h', '--gen3d', '--partialcharge', 'gasteiger']
+        ret = sp.run(argv, check=False, stderr=sp.PIPE)
+
+        try:
+            ret.check_returncode()
+            return smi, mol2
+        except sp.SubprocessError:
+            return None
 
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
                           name: Optional[str] = None, path: str = '.'):
-        return ucsfdock_prep.prepare_from_file(filepath, use_3d, name, path)
+        """Convert a single ligand to the appropriate input format
+
+        Parameters
+        ----------
+        filepath : str
+            the name of the file containing the ligand
+        use_3d : bool (Default = False)
+            whether to use the 3D information in the input file (if possible)
+        prepare_from_smi: Callable[..., Tuple[str, str]]
+            a function that prepares an input ligand file from a SMILES string
+        name : Optional[str] (Default = None)
+            the name of the ligand. If None, use the stem of the input file
+        path : str (Default = '.')
+            the path under which the output .pdbqt file should be written
+        **kwargs
+            additional and unused keyword arguments
+
+        Returns
+        -------
+        Optional[List[Tuple]]
+            a tuple of the SMILES string the prepared input file corresponding
+            to the molecule contained in filename
+        """
+        name = name or Path(filepath).stem
+
+        ret = sp.run(['obabel', filepath, '-osmi'], stdout=sp.PIPE, check=True)
+        lines = ret.stdout.decode('utf-8').splitlines()
+        smis = [line.split()[0] for line in lines]
+
+        if not use_3d:
+            ligands = [DOCK.prepare_from_smi(smi, f'{name}_{i}', path) 
+                       for i, smi in enumerate(smis)]
+            return [lig for lig in ligands if lig]
+        
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir()
+
+        mol2 = f'{path}/{name}_.mol2'
+        argv = ['obabel', filepath, '-omol2', '-O', mol2, '-m',
+                '-h', '--partialcharge', 'gasteiger']
+
+        ret = sp.run(argv, check=False, stderr=sp.PIPE)
+        try:
+            ret.check_returncode()
+        except sp.SubprocessError:
+            return None
+
+        stderr = ret.stderr.decode('utf-8')
+        for line in stderr.splitlines():
+            if 'converted' not in line:
+                continue
+            n_mols = int(line.split()[0])
+
+        mol2s = [f'{path}/{name}_{i}.mol2' for i in range(1, n_mols)]
+
+        return list(zip(smis, mol2s))
 
     def run_docking(self, ligands: Sequence[Tuple[str, str]]
                    ) -> List[List[List[Dict]]]:
@@ -189,8 +365,6 @@ class DOCK(Screener):
                           file=sys.stderr)
                     print(f'Message: {ret.stderr.decode("utf-8")}',
                           file=sys.stderr)
-                    # print('Skipping...', file=sys.stderr, flush=True)
-                    # continue
 
                 repeat_rows.append({
                     'smiles': smi,
@@ -262,10 +436,10 @@ class DOCK(Screener):
     
     @staticmethod
     def prepare_input_file(ligand_file: str, sph_file: str, grid_prefix: str,
-                        name: Optional[str] = None,
-                        in_path: Union[str, os.PathLike] = 'inputs',
-                        out_path: Union[str, os.PathLike] = 'outputs'
-                        ) -> Tuple[str, str]:
+                           name: Optional[str] = None,
+                           in_path: Union[str, os.PathLike] = 'inputs',
+                           out_path: Union[str, os.PathLike] = 'outputs'
+                           ) -> Tuple[str, str]:
         """Prepare the input file with which to run DOCK
 
         Parameters

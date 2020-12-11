@@ -22,7 +22,7 @@ def add_general_args(parser: ArgumentParser):
 
     parser.add_argument('--distributed', action='store_true', default=False,
                         help='whether to parallelize computation using a distributed setup')
-    parser.add_argument('-nw', '-nj', '-np', '--num-workers', '--njobs'
+    parser.add_argument('-nw', '-nj', '-np', '--num-workers', '--njobs',
                         type=int, default=-1,
                         metavar='N_WORKERS',
                         help='the number of workers to use. (Only used when distributed=False.)')

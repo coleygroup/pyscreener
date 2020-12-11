@@ -9,12 +9,6 @@ This repository contains the source of pyscreener, both a library and software f
 - [Table of Contents](#table-of-contents)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Object Model](#object-model)
-- [Running MolPAL](#running-molpal)
-  * [Required Settings](#required-settings)
-  * [Optional Settings](#optional-settings)
-- [Future Directions](#future-directions)
-- [Reproducing Experimental Results](#reproducing-experimental-results)
 
 ## Requirements
 - Python (>= 3.6)

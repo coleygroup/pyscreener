@@ -1,0 +1,22 @@
+name: pyscreener
+
+channels:
+  - omnia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - hdf5
+  - importlib_resources
+  - mpi4py
+  - openmm
+  - pandas
+  - pdbfixer
+  - pip
+  - plotly
+  - python
+  - rdkit
+  - retrying
+  - scikit-learn
+  - scipy
+  - tqdm

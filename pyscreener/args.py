@@ -22,7 +22,8 @@ def add_general_args(parser: ArgumentParser):
 
     parser.add_argument('--distributed', action='store_true', default=False,
                         help='whether to parallelize computation using a distributed setup')
-    parser.add_argument('-nw', '--num-workers', type=int, default=-1,
+    parser.add_argument('-nw', '-nj', '-np', '--num-workers', '--njobs'
+                        type=int, default=-1,
                         metavar='N_WORKERS',
                         help='the number of workers to use. (Only used when distributed=False.)')
     
@@ -65,10 +66,10 @@ def add_docking_args(parser: ArgumentParser):
                         help='the filenames containing the ligands to dock')
     parser.add_argument('--use-3d', action='store_true', default='False',
                         help='how to treat the preparation of ligands from files containing three-dimensional information. If False, use only the 2D graph of each molecule in the SDF file when preparing inputs. Faster, but will result in the loss of conformational/tautomeric information. If True, use the 3D information contained in the file when preparing an input. Slower, but will preserve conformational/tautomeric information.')
-    parser.add_argument('-c', '--center', type=float, nargs=3,
+    parser.add_argument('--center', type=float, nargs=3,
                         metavar=('CENTER_X', 'CENTER_Y', 'CENTER_Z'),
                         help='the x-, y-, and z-coordinates of the center of the docking box')
-    parser.add_argument('-s', '--size', type=float, nargs=3,
+    parser.add_argument('--size', type=float, nargs=3,
                         default=(10., 10., 10.),
                         metavar=('SIZE_X', 'SIZE_Y', 'SIZE_Z'),
                         help='the x-, y-, and z-dimensions of the docking box')
@@ -81,7 +82,7 @@ def add_docking_args(parser: ArgumentParser):
                         help='whether to not enclose the selected spheres during DOCK docking box construction. Using this flag will manually construct the docking box using the input center and size arguments. Enclosing selected spheres is the typical way in which docking boxes are constructed for DOCK.')
                         
 def add_screening_args(parser: ArgumentParser):
-    parser.add_argument('--ncpu', type=int, default=1, metavar='N_CPU',
+    parser.add_argument('-nc', '--ncpu', type=int, default=1, metavar='N_CPU',
                         help='the number of cores available to each worker process')
     parser.add_argument('--extra', type=shlex.split,
                         help='extra command line arguments to pass to screening software. E.g., "--exhaustiveness=16"')

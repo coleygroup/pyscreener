@@ -9,7 +9,6 @@ dependencies:
   - hdf5
   - importlib_resources
   - mpi4py
-  - openmm
   - pandas
   - pdbfixer
   - pip

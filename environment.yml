@@ -1,7 +1,6 @@
 name: pyscreener
 
 channels:
-  - omnia
   - conda-forge
   - defaults
 
@@ -9,12 +8,13 @@ dependencies:
   - hdf5
   - importlib_resources
   - mpi4py
+  - openbabel
   - pandas
-  - pdbfixer
+  - omnia::pdbfixer
   - pip
   - plotly
-  - python
-  - rdkit
+  - python=3.6
+  - rdkit=2020.3.05
   - retrying
   - scikit-learn
   - scipy

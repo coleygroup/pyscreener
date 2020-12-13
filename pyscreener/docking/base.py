@@ -416,7 +416,7 @@ class Screener(ABC):
         smis = smis[start:stop]
         paths = (self.in_path for _ in range(len(smis)))
 
-        CHUNKSIZE = 1
+        CHUNKSIZE = 4
         with self.Pool(self.distributed, self.num_workers,
                        self.ncpu, True) as client:
             ligands = client.map(self.prepare_from_smi, smis, names, paths, 

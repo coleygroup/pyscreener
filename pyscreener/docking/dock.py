@@ -117,7 +117,6 @@ class DOCK(Screener):
         self.use_largest = use_largest
         self.buffer = buffer
         self.enclose_spheres = enclose_spheres
-        # self.receptors = receptors
 
         super().__init__(receptors=receptors, pdbids=pdbids,
                          repeats=repeats, score_mode=score_mode, 

@@ -14,7 +14,7 @@ dependencies:
   - pip
   - plotly
   - python=3.6
-  - rdkit=2020.3.05
+  - rdkit
   - retrying
   - scikit-learn
   - scipy

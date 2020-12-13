@@ -9,9 +9,11 @@ This repository contains the source of pyscreener, both a library and software f
 - [Table of Contents](#table-of-contents)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Running pyscreener](#running-pyscreener-as-a-software)
+- [Using pyscreener](#using-pyscreener-as-a-library)
 
 ## Requirements
-- Python (>= 3.6)
+- python>=3.6
 - all virtual screening software and openbabel located on your PATH
 - (if using DOCK6-based HTVS) the location of the DOCK6 parent directory in your environment variables
 
@@ -53,3 +55,16 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
   - [smina](https://sourceforge.net/projects/smina/)
   - [psovina](https://cbbio.online/software/psovina/index.html)
 * [DOCK6](http://dock.compbio.ucsf.edu/)
+
+## Running pyscreener as a software
+pyscreener was designed to have a minimal interface under the principal that a high-throughput virtual screen is intended to be a broad strokes technique to gauge ligand favorability. With that in mind, all one really needs to get going are the following:
+- the PDB id of your receptor of interest or a PDB format file of the specific structure
+- a file containing the ligands you would like to dock, in SDF, SMI, or CSV format
+- the coordinates of your docking box (center + size), a PDB format file containing the coordinates of a previously bound ligand, or a numbered list of residues from which to construct the docking box (e.g., [42, 64, 117, 169, 191])
+
+There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
+
+All of these options may be specified on the command line, but they may also be placed in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [test_configs](test_configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config test_configs/<config>`
+
+## Using pyscreener as a library
+At the core of the pyscreener software is the `pyscreener` library that enables the running of docking software from input preparation all the way to output file parsing. The workhorse class is the [`Screener`](pyscreener/docking/screener.py) ABC, which handles all of this for a user. To actually initialize a screener object, either of the derived classes: [`Vina`](pyscreener/docking/vina.py) or [`DOCK`](pyscreener/docking/dock.py). `Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina. `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.

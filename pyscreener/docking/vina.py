@@ -107,14 +107,20 @@ class Vina(Screener):
         name = name or 'ligand'
         pdbqt = str(path / f'{name}.pdbqt')
 
-        argv = ['obabel', f'-:{smi}', '-O', pdbqt,
-                '-xh', '--gen3d', '--partialcharge', 'gasteiger']
-        ret = sp.run(argv, check=False, stderr=sp.PIPE)
+        mol = pybel.readstring(format='smi', string=smi)
+        mol.addh()
+        mol.make3D()
+        mol.calccharges(model='gasteiger')
+        mol.write(format='pdbqt', filename=pdbqt,
+                  overwrite=True, opt={'h': None})
+        # argv = ['obabel', f'-:{smi}', '-O', pdbqt,
+        #         '-xh', '--gen3d', '--partialcharge', 'gasteiger']
+        # ret = sp.run(argv, check=False, stderr=sp.PIPE)
 
-        try:
-            ret.check_returncode()
-        except sp.SubprocessError:
-            return None
+        # try:
+        #     ret.check_returncode()
+        # except sp.SubprocessError:
+        #     return None
 
         return smi, pdbqt
     

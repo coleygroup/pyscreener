@@ -68,3 +68,4 @@ def make_text_hist(ys: Iterable[float]):
         bar = '*'*int(width*counts.get(y, 0))
         print(f'{y: >{base_width}}: {bar}')
     print()
+    

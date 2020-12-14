@@ -47,7 +47,6 @@ The easiest way to install all dependencies is to use conda along with the suppl
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener`
 
 ### external software
-* [openbabel](https://github.com/openbabel/openbabel) _Note_: `pyscreener` currently relies on subprocess calls to the `obabel` executable. However, this will be replaced by internal calls to the `pybel` library in a future release. This shouldn't affect your installation if you used the `environment.yml` file with conda.
 * vina-type software
   - [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation
   - [vina](http://vina.scripps.edu/)

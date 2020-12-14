@@ -6,6 +6,7 @@ import sys
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from openbabel import pybel
 from tqdm import tqdm
 
 from pyscreener.preprocessing import autobox

@@ -1,5 +1,5 @@
 from functools import partial
-from itertools import takewhile
+from itertools import chain, takewhile
 from pathlib import Path
 import subprocess as sp
 import sys
@@ -79,7 +79,7 @@ class Vina(Screener):
         return receptor_pdbqt
 
     @staticmethod
-    def prepare_from_smi(smi: str, name: Optional[str] = None,
+    def prepare_from_smi(smi: str, name: str = 'ligand',
                          path: str = '.', **kwargs) -> Optional[Tuple]:
         """Prepare an input ligand file from the ligand's SMILES string
 
@@ -96,15 +96,14 @@ class Vina(Screener):
 
         Returns
         -------
-        Optional[Tuple]
-            a tuple of the SMILES string and the corresponding prepared input file.
-            None if preparation failed for any reason
+        smi : str
+            the ligand's SMILES string
+        pdbqt : str
+            the prepared input file corresponding to the ligand
         """
         path = Path(path)
         if not path.is_dir():
             path.mkdir()
-        
-        name = name or 'ligand'
         pdbqt = str(path / f'{name}.pdbqt')
 
         mol = pybel.readstring(format='smi', string=smi)
@@ -113,14 +112,6 @@ class Vina(Screener):
         mol.calccharges(model='gasteiger')
         mol.write(format='pdbqt', filename=pdbqt,
                   overwrite=True, opt={'h': None})
-        # argv = ['obabel', f'-:{smi}', '-O', pdbqt,
-        #         '-xh', '--gen3d', '--partialcharge', 'gasteiger']
-        # ret = sp.run(argv, check=False, stderr=sp.PIPE)
-
-        # try:
-        #     ret.check_returncode()
-        # except sp.SubprocessError:
-        #     return None
 
         return smi, pdbqt
     
@@ -196,12 +187,17 @@ class Vina(Screener):
             extra=self.extra, path=self.out_path,
             repeats=self.repeats, score_mode=self.score_mode
         )
-        CHUNKSIZE = 2
+
         with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
+            # jobs_per_worker = len(ligands) // self.num_workers
+            # ligs_recs_reps_0 = map(dock_ligand, ligands[jobs_per_worker:])
             ligs_recs_reps = pool.map(dock_ligand, ligands, 
-                                      chunksize=CHUNKSIZE)
-            ligs_recs_reps = list(tqdm(ligs_recs_reps, total=len(ligands),
-                                       desc='Docking', unit='ligand'))
+                                        chunksize=2)
+            # ligs_recs_reps = (ligs_recs_reps_0, ligs_recs_reps_1)
+            ligs_recs_reps = list(tqdm(
+                ligs_recs_reps, total=len(ligands),
+                desc='Docking', unit='ligand')
+            )
 
         return ligs_recs_reps
 

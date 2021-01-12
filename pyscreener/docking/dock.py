@@ -6,6 +6,7 @@ import sys
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
+from openbabel import pybel
 from tqdm import tqdm
 
 from pyscreener.docking import Screener
@@ -28,12 +29,13 @@ class DOCK(Screener):
           (1) selecting spheres to represent the binding site in the dockign 
               simulations
           (2) calculating the grid box for the scoring function
-          Both of these steps can rely on some prior information about the
-          binding site or do their best to calculate one.  In (1), if both a 
-          docked ligand is provided and center is specified, the docked ligand 
-          will take precedence. Either of these will take precedence over the 
-          use_largest flag. In (2), if a docking box center is specified, it 
-          will be used only if enclose_spheres is set to False (default = True.)
+              Both of these steps can rely on some prior information about the
+              binding site or do their best to calculate one.  In (1), if both 
+              a docked ligand is provided and center is specified, the docked 
+              ligand will take precedence. Either of these will take precedence 
+              over the use_largest flag. In (2), if a docking box center is 
+              specified, it will be used only if enclose_spheres is set to 
+              False (default = True.)
     
     Properties
     ----------
@@ -200,25 +202,32 @@ class DOCK(Screener):
 
         Returns
         -------
-        Optional[Tuple]
-            a tuple of the SMILES string and the corresponding prepared input file.
-            None if preparation failed for any reason
+        smi : str
+            the ligand's SMILES string
+        mol2 : str
+            the prepared input file corresponding to the ligand
         """
         path = Path(path)
         if not path.is_dir():
             path.mkdir()
-        
         mol2 = str(path / f'{name}.mol2')
 
-        argv = ['obabel', f'-:{smi}', '-omol2', '-O', mol2,
-                '-h', '--gen3d', '--partialcharge', 'gasteiger']
-        ret = sp.run(argv, check=False, stderr=sp.PIPE)
+        mol = pybel.readstring(format='smi', string=smi)
+        mol.addh()
+        mol.make3D()
+        mol.calccharges(model='gasteiger')
+        mol.write(format='mol2', filename=mol2,
+                  overwrite=True, opt={'h': None})
+        return smi, mol2
+        # argv = ['obabel', f'-:{smi}', '-omol2', '-O', mol2,
+        #         '-h', '--gen3d', '--partialcharge', 'gasteiger']
+        # ret = sp.run(argv, check=False, stderr=sp.PIPE)
 
-        try:
-            ret.check_returncode()
-            return smi, mol2
-        except sp.SubprocessError:
-            return None
+        # try:
+        #     ret.check_returncode()
+        #     return smi, mol2
+        # except sp.SubprocessError:
+        #     return None
 
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
@@ -288,7 +297,7 @@ class DOCK(Screener):
             in_path=self.in_path, out_path=self.out_path,
             repeats=self.repeats, score_mode=self.score_mode
         )
-        CHUNKSIZE = 1
+        CHUNKSIZE = 2
         with self.Pool(self.distributed, self.num_workers) as pool:
             ligs_recs_reps = pool.map(dock_ligand, ligands, 
                                       chunksize=CHUNKSIZE)

@@ -77,7 +77,7 @@ def make_hist(ys: Iterable[float], name: str = 'distribution', path: str = '.'):
     plt.xlabel('Score')
 
     plt.tight_layout()
-    plt.savefig(str(Path(path)/f'{name}_scores_histogram_clusters.pdf'))
+    plt.savefig(str(Path(path)/f'{name}_scores_histogram_full.pdf'))
     plt.clf()
 
 def make_text_hist(ys: Iterable[float]):

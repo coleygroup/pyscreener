@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor
+from concurrent.futures import Executor, ProcessPoolExecutor as Pool
 import csv
 from functools import partial
 from itertools import chain
@@ -343,27 +343,27 @@ class Screener(ABC):
     def prepare_from_file(*args, **kwargs):
         """Prepare a ligand input file from an input file"""
 
-    def prepare_ligands(self, *smis_or_files,
+    def prepare_ligands(self, *sources,
                         path: Optional[str] = None, **kwargs):
         path = path or self.in_path
         return list(chain(*(
             self._prepare_ligands(source, i+len(self), path, **kwargs)
-            for i, source in enumerate(smis_or_files)
+            for i, source in enumerate(sources)
         )))
 
     def _prepare_ligands(self, source, i: int,
                          path: Optional[str] = None, **kwargs):
         if isinstance(source, str):
-            p_ligand = Path(source)
+            p_source = Path(source)
 
-            if not p_ligand.exists():
+            if not p_source.exists():
                 return [self.prepare_from_smi(source, f'ligand_{i}', path)]
 
-            if p_ligand.suffix == '.csv':
+            if p_source.suffix == '.csv':
                 return self.prepare_from_csv(source, **kwargs)
-            if p_ligand.suffix == '.smi':
+            if p_source.suffix == '.smi':
                 return self.prepare_from_supply(source, **kwargs)
-            if p_ligand.suffix == '.sdf':
+            if p_source.suffix == '.sdf':
                 if kwargs['use_3d']:
                     return self.prepare_from_file(source, path=path,
                                                   **kwargs)
@@ -419,8 +419,15 @@ class Screener(ABC):
         CHUNKSIZE = 4
         with self.Pool(self.distributed, self.num_workers,
                        self.ncpu, True) as client:
+            # if self.distributed:
+                # p_prepare_from_smi = partial(
+                #     self.pmap, f=self.prepare_from_smi, ncpu=self.ncpu
+                # )
+            #     ligands = client.map(p_prepare_from_smi, smis, names, paths,
+            #                          chunksize=len(smis)/self.num_workers/4)
+            # else:
             ligands = client.map(self.prepare_from_smi, smis, names, paths, 
-                                 chunksize=CHUNKSIZE)
+                                    chunksize=CHUNKSIZE)
             ligands = [
                 ligand for ligand in tqdm(
                     ligands, total=len(smis), desc='Preparing ligands', 
@@ -429,15 +436,20 @@ class Screener(ABC):
             ]
         
         total = timeit.default_timer() - begin
-        if self.verbose > 1:
+        if self.verbose > 1 and len(ligands) > 0:
             m, s = divmod(int(total), 60)
             h, m = divmod(m, 60)
-            if len(ligands) > 0:
-                print(f'    Time to prepare {len(ligands)} ligands: ',
-                      f'{h}h {m}m {s}s ({total/len(ligands):0.4f} s/ligand)', 
-                      flush=True)
+            print(f'    Time to prepare {len(ligands)} ligands: ',
+                    f'{h}h {m}m {s}s ({total/len(ligands):0.4f} s/ligand)', 
+                    flush=True)
             
         return ligands
+
+    @staticmethod
+    def pmap(f, *args, ncpu=1, chunksize=4):
+        with Pool(max_workers=ncpu) as client:
+            xs = [x for x in client.map(f, *args, chunksize=chunksize) if x]
+        return xs
 
     def prepare_from_csv(self, csv_filename: str, title_line: bool = True,
                          smiles_col: int = 0, name_col: Optional[int] = None,
@@ -703,14 +715,14 @@ class Screener(ABC):
 
             num_workers = MPI.COMM_WORLD.size
         else:
-            from concurrent.futures import ProcessPoolExecutor as Pool
             if num_workers == -1:
                 try:
                     num_workers = len(os.sched_getaffinity(0))
                 except AttributeError:
                     num_workers = os.cpu_count()
+                ncpu = 1
 
-        if all_cores:
+        if all_cores and not distributed:
             num_workers *= ncpu
 
         return Pool(max_workers=num_workers)

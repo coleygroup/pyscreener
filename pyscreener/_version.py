@@ -1,3 +1,12 @@
+__all__ = ['__version__']
+
+major = 0
+minor = 1
+patch = 0
+
+# Nice string for the version
+__version__ = f'{major}.{minor}.{patch}'
+
 
 # This file helps to compute a version number in source trees obtained from
 # git-archive tarball (such as those provided by githubs download-from-tag
@@ -43,7 +52,7 @@ def get_config():
     cfg.style = "pep440"
     cfg.tag_prefix = ""
     cfg.parentdir_prefix = "None"
-    cfg.versionfile_source = "pyscreener/_version.py"
+    cfg.versionfile_source = "molecool/_version.py"
     cfg.verbose = False
     return cfg
 

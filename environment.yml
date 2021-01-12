@@ -13,6 +13,7 @@ dependencies:
   - pandas
   - omnia::pdbfixer
   - pip
+  - pytest
   - python=3.6
   - rdkit
   - retrying

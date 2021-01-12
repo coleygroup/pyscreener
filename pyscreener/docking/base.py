@@ -59,15 +59,15 @@ class Screener(ABC):
 
     Parameters
     ----------
-    repeats : int (Default = 1)
-    score_mode : str (Default = 'best')
-    receptor_score_mode : str (Default = 'best')
-    ensemble_score_mode : str (Default = 'best')
-    distributed : bool (Default = False)
-    num_workers : int (Default = -1)
-    ncpu : int (Default = 1)
-    path : Union[str, os.PathLike] (Default = '.')
-    verbose : int (Default = 0)
+    repeats : int, default=1
+    score_mode : str, default ='best'
+    receptor_score_mode : str, default='best'
+    ensemble_score_mode : str, default='best'
+    distributed : bool, default=False
+    num_workers : int, default= -1
+    ncpu : int, default=1
+    path : Union[str, os.PathLike], default='.'
+    verbose : int, default=0
     **kwargs
         additional and unused keyword arguments
     """
@@ -80,8 +80,6 @@ class Screener(ABC):
                  num_workers: int = -1, ncpu: int = 1,
                  path: str = '.', verbose: int = 0, **kwargs):
         self.path = Path(path)
-        # self.in_path = self.path / 'inputs'
-        # self.out_path = self.path / 'outputs'
 
         receptors = receptors or []
         if pdbids:
@@ -388,11 +386,11 @@ class Screener(ABC):
         ----------
         smis : Sequence[str]
             a sequence of SMILES strings
-        names : Optional[Sequence[str]] (Default = None)
+        names : Optional[Sequence[str]], default=None
             a parallel sequence of names for each ligand
-        start : int (Default = 0)
+        start : int, default=0
             the index at which to start ligand preparation
-        nconvert : Optional[int] (Default = None)
+        nconvert : Optional[int], default=None
             the number of ligands to convert. If None, convert all ligands
         **kwargs
             additional and unused keyword arguments
@@ -462,15 +460,15 @@ class Screener(ABC):
         ----------
         csv_filename : str
             the filename of the CSV file containing the ligands to convert
-        title_line : bool (Default = True)
+        title_line : bool, default=True
             does the CSV file contain a title line?
-        smiles_col : int (Default = 0)
+        smiles_col : int, default=0
             the column containing the SMILES strings
-        name_col : Optional[int] (Default = None)
+        name_col : Optional[int], default=None
             the column containing the molecule name
-        start : int (Default = 0)
+        start : int, default=0
             the index at which to start conversion
-        nconvert : Optional[int] (Default = None)
+        nconvert : Optional[int], default=None
             the number of ligands to convert. If None, convert all molecules
         **kwargs
             additional and unused keyword arguments
@@ -515,9 +513,9 @@ class Screener(ABC):
         id_prop_name : Optional[str]
             the name of the property containing the ID, if one exists
             (e.g., "CatalogID", "Chemspace_ID", "Name", etc...)
-        start : int (Default = 0)
+        start : int, default=0
             the index at which to start ligand conversion
-        nconvert : Optional[int] (Default = None)
+        nconvert : Optional[int], default=None
             the number of ligands to convert. If None, convert all molecules
         **kwargs
             additional and unused keyword arguments
@@ -574,10 +572,10 @@ class Screener(ABC):
             an MxO list of list of dictionaries where each individual dictionary is a record of an individual docking run and
             M is the number of receptors the ligand was docked against
             O is the number of times each docking run was repeated
-        receptor_score_mode : str (Default = 'best')
+        receptor_score_mode : str, default='best'
             the mode used to calculate the overall score for a given receptor
             pose with multiple, repeated runs
-        ensemble_score_mode : str (Default = 'best')
+        ensemble_score_mode : str, default='best'
             the mode used to calculate the overall score for a given ensemble
             of receptors
 
@@ -620,7 +618,7 @@ class Screener(ABC):
         Parameters
         ----------
         scores : Sequence[float]
-        score_mode : str (Default = 'best')
+        score_mode : str, default='best'
             the method used to calculate the overall score
             Choices:
                 'best' - return the top score
@@ -649,16 +647,16 @@ class Screener(ABC):
 
         Parameters
         ----------
-        distributed : bool (Default = False)
+        distributed : bool, default=False
             whether to return a distributed or a local process pool
-        num_workers : int (Default = -1)
+        num_workers : int, default=-1
             if distributed is True, then this argument is ignored. If False,
             then it should be equal to the total number of worker processes
             desired. Using a value of -1 will spawn as many worker processes
             as cores available on this machine.
             NOTE: this is usually not a good idea and it's much better to
                   specify the number of processes explicitly.
-        ncpu : int (Default = 1)
+        ncpu : int, default=1
             if distributed is True, then this argument should be the number of 
             cores allocated to each worker. if False, then this should be the
             number of cores that is desired to be allocated to each worker.

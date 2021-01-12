@@ -87,9 +87,9 @@ class Vina(Screener):
         ----------
         smi : str
             the SMILES string of the ligand
-        name : Optional[str] (Default = None)
+        name : Optional[str], default=None
             the name of the ligand.
-        path : str (Default = '.')
+        path : str, default='.'
             the path under which the output PDBQT file should be written
         **kwargs
             additional and unused keyword arguments
@@ -125,13 +125,11 @@ class Vina(Screener):
         ----------
         filename : str
             the name of the file containing the ligand
-        use_3d : bool (Default = False)
+        use_3d : bool, default=False
             whether to use the 3D information in the input file (if possible)
-        prepare_from_smi: Callable[..., Tuple[str, str]]
-            a function that prepares an input ligand file from a SMILES string
-        name : Optional[str] (Default = None)
+        name : Optional[str], default=None
             the name of the ligand. If None, use the stem of the input file
-        path : str (Default = '.')
+        path : str, default='.'
             the path under which the output .pdbqt file should be written
         **kwargs
             additional and unused keyword arguments
@@ -222,13 +220,13 @@ class Vina(Screener):
         center : Tuple[float, float, float]
             the x-, y-, and z-coordinates, respectively, of the search box 
             center
-        size : Tuple[int, int, int] (Default = (10, 10, 10))
+        size : Tuple[int, int, int], default=(10, 10, 10)
             the x, y, and z-radii, respectively, of the search box
-        path : string (Default = '.')
+        path : string, default='.'
             the path under which both the log and out files should be written to
-        ncpu : int (Default = 1)
+        ncpu : int, default=1
             the number of cores to allocate to the docking program
-        repeats : int (Default = 1)
+        repeats : int, default=1
             the number of times to repeat a docking run
         score_mode : str
             the mode used to calculate a score for an individual docking run 
@@ -295,8 +293,9 @@ class Vina(Screener):
     def build_argv(software: str, receptor: str, ligand: str,
                    center: Tuple[float, float, float],
                    size: Tuple[int, int, int] = (10, 10, 10),
-                   ncpu: int = 1, name: Optional[str] = None, path: str = '.',
-                   extra = Optional[List[str]]) -> Tuple[List[str], str, str]:
+                   ncpu: int = 1, name: Optional[str] = None,
+                   path: str = '.', extra: Optional[List[str]] = None
+                   ) -> Tuple[List[str], str, str]:
         """Builds the argument vector to run a vina-type docking program
 
         Parameters
@@ -309,16 +308,16 @@ class Vina(Screener):
             the filename of the input ligand file
         center : Tuple[float, float, float]
             the coordinates (x,y,z) of the center of the vina search box
-        size : Tuple[int, int, int] (Default = (10, 10, 10))
+        size : Tuple[int, int, int], default=(10, 10, 10)
             the size of the vina search box in angstroms for the x, y, and z-
             dimensions, respectively
-        ncpu : int (Default = 1)
+        ncpu : int, default=1
             the number of cores to allocate to the docking program
-        name : string (Default = <receptor>_<ligand>)
+        name : string, default=<receptor>_<ligand>)
             the base name to use for both the log and out files
-        path : string (Default = '.')
+        path : string, default='.'
             the path under which both the log and out files should be written
-        extra : Optional[List[str]]
+        extra : Optional[List[str]], default=None
             additional command line arguments to pass to each run
 
         Returns

@@ -189,11 +189,8 @@ class Vina(Screener):
         )
 
         with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
-            # jobs_per_worker = len(ligands) // self.num_workers
-            # ligs_recs_reps_0 = map(dock_ligand, ligands[jobs_per_worker:])
             ligs_recs_reps = pool.map(dock_ligand, ligands, 
                                         chunksize=2)
-            # ligs_recs_reps = (ligs_recs_reps_0, ligs_recs_reps_1)
             ligs_recs_reps = list(tqdm(
                 ligs_recs_reps, total=len(ligands),
                 desc='Docking', unit='ligand')

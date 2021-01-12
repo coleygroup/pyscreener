@@ -1,21 +1,8 @@
 pyscreener
 [//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/pyscreener/workflows/CI/badge.svg)](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/pyscreener/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/pyscreener/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/pyscreener/branch/master)
+[![GitHub Actions Build Status](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg)](https://github.com/coleygroup/pyscreener/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/master/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/master)
 
-
-pythonic interface to virtual screening software
-
-### Copyright
-
-Copyright (c) 2021, david graff
-
-
-#### Acknowledgements
- 
-Project based on the 
-[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.5.
-=======
 # pyscreener
 # A pythonic interface to high-throughput virtual screening software
 
@@ -85,3 +72,10 @@ All of these options may be specified on the command line, but they may also be 
 
 ## Using pyscreener as a library
 At the core of the pyscreener software is the `pyscreener` library that enables the running of docking software from input preparation all the way to output file parsing. The workhorse class is the [`Screener`](pyscreener/docking/screener.py) ABC, which handles all of this for a user. To actually initialize a screener object, either of the derived classes: [`Vina`](pyscreener/docking/vina.py) or [`DOCK`](pyscreener/docking/dock.py). `Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina. `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.
+
+## Copyright
+Copyright (c) 2020, david graff
+
+## Acknowledgements 
+Project based on the 
+[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.5.

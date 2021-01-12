@@ -60,7 +60,7 @@ class Screener(ABC):
     Parameters
     ----------
     repeats : int, default=1
-    score_mode : str, default ='best'
+    score_mode : str, default='best'
     receptor_score_mode : str, default='best'
     ensemble_score_mode : str, default='best'
     distributed : bool, default=False

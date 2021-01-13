@@ -1,6 +1,7 @@
 [//]: # (Badges)
 [![GitHub Actions Build Status](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg)](https://github.com/coleygroup/pyscreener/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/master/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/master)
+![CI](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg)
 
 # pyscreener
 # A pythonic interface to high-throughput virtual screening software

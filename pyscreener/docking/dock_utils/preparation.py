@@ -18,7 +18,6 @@ DOCK6 = Path(os.environ['DOCK6'])
 DOCK6_BIN = DOCK6 / 'bin'
 DOCK6_PARAMS = DOCK6 / 'parameters'
 
-DMS = DOCK6_BIN / 'dms'
 SPHGEN = DOCK6_BIN / 'sphgen_cpp'
 SPHERE_SELECTOR = DOCK6_BIN / 'sphere_selector'
 SHOWBOX = DOCK6_BIN / 'showbox'

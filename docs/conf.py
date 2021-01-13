@@ -28,7 +28,7 @@ copyright = ("2021, david graff. Project structure based on the "
 author = 'david graff'
 
 # The short X.Y version
-version = ''
+version = '0.1'
 # The full version, including alpha/beta/rc tags
 release = ''
 

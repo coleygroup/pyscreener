@@ -4,4 +4,4 @@ API Documentation
 .. autosummary::
    :toctree: autosummary
 
-   pyscreener.canvas
+   pyscreener.docking.base

@@ -1,20 +1,29 @@
 name: test
 channels:
-
   - conda-forge
-
   - defaults
+
 dependencies:
-    # Base depends
-  - python
+  - python=3.6
   - pip
 
-    # Testing
   - pytest
   - pytest-cov
   - codecov
 
-    # Pip-only installs
-  #- pip:
-  #  - codecov
+  - hdf5
+  - importlib_resources
+  - matplotlib
+  - mpi4py
+  - openbabel
+  - pandas
+  - omnia::pdbfixer
+  - pytest
+  - python=3.6
+  - rdkit
+  - retrying
+  - scikit-learn
+  - scipy
+  - seaborn
+  - tqdm
 

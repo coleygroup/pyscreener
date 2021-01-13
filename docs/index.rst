@@ -5,6 +5,8 @@
 
 Welcome to pyscreener's documentation!
 =========================================================
+pyscreener is a python package to provide a pythonic interface to common
+virtual screening software
 
 .. toctree::
    :maxdepth: 2

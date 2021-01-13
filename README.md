@@ -52,11 +52,12 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 
 ### external software
 * vina-type software
-  - [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation
-  - [vina](http://vina.scripps.edu/)
-  - [qvina2](https://qvina.github.io/)
-  - [smina](https://sourceforge.net/projects/smina/)
-  - [psovina](https://cbbio.online/software/psovina/index.html)
+  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation
+  1. install any of the below docking software
+    - [vina](http://vina.scripps.edu/)
+    - [qvina2](https://qvina.github.io/)
+    - [smina](https://sourceforge.net/projects/smina/)
+    - [psovina](https://cbbio.online/software/psovina/index.html)
 * [DOCK6](http://dock.compbio.ucsf.edu/)
 
 ## Running pyscreener as a software

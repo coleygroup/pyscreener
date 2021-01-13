@@ -31,7 +31,7 @@ After you have downloaded the appropriate software relevant to preparing inputs 
 2. alternatively, and perhaps easier, is to copy the software to a directory that is already on your path. Typically this will be either `~/bin` or `~/.local/bin`. To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory ($HOME on most *nix-based systems)
 
 ### specifying an environment variable
-Due to some wonkiness with getting DOCK6 to work with `pyscreener`, it requires that the DOCK6 environment variable be set with the location of the DOCK6 parent folder (the folder that is unpacked after downloading the original zip file and contains both the bin/ and parameters/ subfolders.) To set the environment variable, enter the following command: `export DOCK6=<path/to/dock6>`.
+Due to some wonkiness with getting DOCK6 to work with `pyscreener`, it requires that the DOCK6 environment variable be set with the location of the DOCK6 parent folder (the folder that is unpacked after downloading the original zip file and contains both the `bin` and `parameters` subdirectories.) To set the environment variable, enter the following command: `export DOCK6=<path/to/dock6>`. (_note_: this environment vairable must always be set before running pyscreener, so it's probably best to place this inside your `.bashrc` or `.bash_profile`)
 
 
 __Note: both of the above steps must be satisifed before using `pyscreener`__
@@ -53,12 +53,12 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 ### external software
 * vina-type software
   1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation
-  1. install any of the below docking software
-    - [vina](http://vina.scripps.edu/)
-    - [qvina2](https://qvina.github.io/)
-    - [smina](https://sourceforge.net/projects/smina/)
-    - [psovina](https://cbbio.online/software/psovina/index.html)
+  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and ensure the desired software is located on your path
 * [DOCK6](http://dock.compbio.ucsf.edu/)
+  1. install [DOCK6](http://dock.compbio.ucsf.edu/) and specify the DOCK6 environment variable as the path of the parent folder (the one containing `bin`, `install`, etc.) as detailed [above](###specifying-an-environment-variable)
+  1. install [sphgen_cpp](http://dock.compbio.ucsf.edu/Contributed_Code/sphgen_cpp.htm) and place the executable inside the `bin` subdirectory of the DOCK6 parent directory
+  1. install [chimera](https://www.cgl.ucsf.edu/chimera/) and place the executable on your PATH (either by moving the exectuable to a folder already on your PATH or adding the folder containing the exectuable to your PATH)
+
 
 ## Running pyscreener as a software
 pyscreener was designed to have a minimal interface under the principal that a high-throughput virtual screen is intended to be a broad strokes technique to gauge ligand favorability. With that in mind, all one really needs to get going are the following:

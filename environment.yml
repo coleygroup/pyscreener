@@ -5,7 +5,7 @@ channels:
   - defaults
 
 dependencies:
-  - hdf5
+  - h5py
   - importlib_resources
   - matplotlib
   - mpi4py
@@ -13,10 +13,8 @@ dependencies:
   - pandas
   - omnia::pdbfixer
   - pip
-  - pytest
   - python=3.6
   - rdkit
-  - retrying
   - scikit-learn
   - scipy
   - seaborn

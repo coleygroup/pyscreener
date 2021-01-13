@@ -1,7 +1,6 @@
 [//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg)](https://github.com/coleygroup/pyscreener/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/master/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/master)
-<> (![CI](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg))
+![CI](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/pyscreener/badge/?version=latest)](https://pyscreener.readthedocs.io/en/latest/?badge=latest)
 
 # pyscreener

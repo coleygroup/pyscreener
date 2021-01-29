@@ -5,6 +5,7 @@ channels:
   - defaults
 
 dependencies:
+  - configargparse
   - h5py
   - importlib_resources
   - matplotlib
@@ -19,4 +20,3 @@ dependencies:
   - scipy
   - seaborn
   - tqdm
-  - configargparse

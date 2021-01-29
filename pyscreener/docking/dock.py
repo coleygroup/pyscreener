@@ -21,70 +21,89 @@ FLEX_DRIVE_FILE = DOCK6_PARAMS / 'flex_drive.tbl'
 DOCK6 = str(DOCK6 / 'bin' / 'dock6')
 
 class DOCK(Screener):
-    """A wrapper around the DOCK6 software suite to performing computaional
+    """A wrapper around the DOCK6 software suite to performing computational
     DOCKing via python calls.
 
     NOTE: there are several steps in the receptor preparation process, each
-          with their own set of options. Two important steps are:
-          (1) selecting spheres to represent the binding site in the dockign 
-              simulations
-          (2) calculating the grid box for the scoring function
-              Both of these steps can rely on some prior information about the
-              binding site or do their best to calculate one.  In (1), if both 
-              a docked ligand is provided and center is specified, the docked 
-              ligand will take precedence. Either of these will take precedence 
-              over the use_largest flag. In (2), if a docking box center is 
-              specified, it will be used only if enclose_spheres is set to 
-              False (default = True.)
+    with their own set of options. Two important steps are:
+
+    1. selecting spheres to represent the binding site in the \
+        docking simulations
+    2. calculating the grid box for the scoring function
     
-    Properties
+    Both of these steps can rely on some prior information about the
+    binding site or do their best to calculate one.  In (1), if both 
+    a docked ligand is provided and center is specified, the docked 
+    ligand will take precedence. Either of these will take precedence 
+    over the use_largest flag. In (2), if a docking box center is 
+    specified, it will be used only if enclose_spheres is set to 
+    False (default = True).
+
+    Parameters
     ----------
-    receptors : List[Tuple[str, str]]
+    receptors : Optional[List[str]], default=None
+        the filepath(s) of receptors to prepare for DOCKing. Must be in a
+        format that is readable by Chimera
+    pdbids : Optiona[List[str]], default=None
+        a list of PDB IDs corresponding to receptors to prepare for DOCKing.
+    probe_radius : float, default=1.4
+        the probe radius of the "water" molecule that is used to calculate
+        the molecular surface of the receptor
+    steric_clash_dist : float, default=0.
+        minimum distance between generated spheres
+    min_radius : float, default=1.4
+        minimum radius of generated spheres
+    max_radius : float, default=4.0
+        maximum radius of generated spheres
+    center : Optional[Tuple[float, float, float]], default=None
+        the center of the docking box (if known)
+    size : Tuple[float, float, float], default=(10., 10., 10.)
+        the x-, y-, and z-radii of the docking box
+    docked_ligand_file : Optional[str], default=None
+        the filepath of a PDB file containing the coordinates of a docked ligand
+    use_largest : bool, default=False
+        whether to use the largest cluster of spheres when selecting spheres
+    enclose_spheres : bool, default=True
+        whether to calculate the docking box by enclosing the selected spheres
+        or to use an input center and radii
+    buffer : float, default=10.
+        the amount of buffer space to be added around the docked ligand when
+        selecting spheres and when constructing the docking box if 
+        enclose_spheres is True
+    score_mode : str, default='best'
+        the mode used to calculate a score for an individual docking run given
+        multiple output scored conformations
+    repeats : int, default=1
+        the number of times each docking run should be repeated
+    receptor_score_mode : str, default='best'
+        the mode used to calculate an overall score for a single receptor
+        given repeated docking runs against that receptor
+    ensemble_score_mode : str, default='best'
+        the mode used to calculate an overall score for an ensemble of receptors
+        given multiple receptors in an ensemble
+    distributed : bool, default=False
+        True if the computation will parallelized over a distributed setup.
+        False if the computation will parallelized over a local setup
+    num_workers : int, default=-1
+        the number of worker processes to initialize when
+        distributing computation
+    path : os.PathLike, default='.'
+        the path under which input and output folders will be placed
+    verbose : int, default=0.
+        the level of output this Screener should output
 
     Attributes
     ----------
     probe_radius : float
-        the probe radius of the "water" molecule that is used to calculate
-        the molecular surface of the receptor
     steric_clash_dist : float
-        minimum distance between generated spheres
     min_radius : float
-        minimum radius of generated spheres
     max_radius : float
-        maximum radius of generated spheres
     center : Optional[Tuple[float, float, float]]
-        the center of the docking box (if known)
     size : Tuple[float, float, float]
-        the x-, y-, and z-radii of the docking box
     docked_ligand_file : Optional[str]
-        the filepath of a PDB file containing the coordinates of a docked ligand
     use_largest : bool
-        whether to use the largest cluster of spheres when selecting spheres
-    enclose_spheres : bool
-        whether to calculate the docking box by enclosing the selected spheres
-        or to use an input center and radii
+    enclose_spehres : bool
     buffer : float
-        the amount of buffer space to be added around the docked ligand when
-        selecting spheres and when constructing the docking box if 
-        enclose_spheres is True
-
-    Parameters
-    ----------
-    receptors : Optional[List[str]] (Default = None)
-        the filepath(s) of receptors to prepare for DOCKing. Must be in a
-        format that is readable by Chimera
-    pdbids : Optiona[List[str]] (Default = None)
-        a list of PDB IDs corresponding to receptors to prepare for DOCKing.
-    probe_radius : float (Defualt = 1.4)
-    steric_clash_dist : float (Default = 0.0)
-    min_radius : float (Default = 1.4)
-    max_radius : float (Default = 4.0)
-    center : Optional[Tuple[float, float, float]]
-    size : Tuple[float, float, float] (Default = (10., 10., 10.))
-    docked_ligand_file : Optional[str] (Default = None)
-    use_largest : bool (Default = False)
-    enclose_spehres : bool (Default = False)
-    buffer : float (Default = 10.)
     """
     def __init__(self, receptors: Optional[List[str]] = None,
                  pdbids: Optional[List[str]] = None,
@@ -315,7 +334,8 @@ class DOCK(Screener):
         repeats : int, default=1
             the number of times each docking run should be repeated
         score_mode : str, default='best'
-            The method used to calculate the docking score from the outfile file. See also Screener.calc_score for more details
+            The method used to calculate the docking score from the outfile 
+            file. See also Screener.calc_score for more details
         
         Returns
         -------

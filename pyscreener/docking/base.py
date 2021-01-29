@@ -19,54 +19,54 @@ class Screener(ABC):
 
     Classes that implement the Screener interface are responsible for
     defining the following methods:
-        prepare_receptor
-        prepare_from_smi
-        prepare_from_file
-        run_docking
-        parse_ligand_results
 
-    This is an abstract base class and cannot be instantiated.
+    * prepare_receptor
+    * prepare_from_smi
+    * prepare_from_file
+    * run_docking
+    * parse_ligand_results
 
-    Attributes
+    NOTE: This is an abstract base class and cannot be instantiated.
+
+    Parameters
     ----------
-    repeats : int
+    receptors : List[str]
+        the filepath(s) of receptors to prepare for docking
+    pdbids : List[str]
+        a list of PDB IDs corresponding to receptors to prepare for DOCKing.
+    repeats : int, default=1
         the number of times each docking run will be repeated
-    score_mode : str
+    score_mode : str, default='best'
         the mode used to calculate a score for an individual docking run given
         multiple output scored conformations
-    receptor_score_mode : str
+    receptor_score_mode : str, default='best'
         the mode used to calculate an overall score for a single receptor
         given repeated docking runs against that receptor
-    ensemble_score_mode : str
+    ensemble_score_mode : str, default='best'
         the mode used to calculate an overall score for an ensemble of receptors
         given multiple receptors in an ensemble
-    distributed : bool
+    distributed : bool, default=False
         True if the computation will parallelized over a distributed setup.
         False if the computation will parallelized over a local setup
-    num_workers : int
+    num_workers : int, default=-1
         the number of worker processes to initialize when
         distributing computation
-    ncpu : int
+    ncpu : int, default=1
         the number of cores allocated to each worker process
-    path : os.PathLike
+    path : os.PathLike, default='.'
         the path under which input and output folders will be placed
-    in_path : os.PathLike
-        the path under which all prepared input files will be placed
-    out_path : os.PathLike
-        the path under which all generated output will be placed
     verbose : int
         the level of output this Screener should output
 
     Parameters
     ----------
-    repeats : int, default=1
-    score_mode : str, default='best'
-    receptor_score_mode : str, default='best'
-    ensemble_score_mode : str, default='best'
-    distributed : bool, default=False
+    repeats : int
+    score_mode : str
+    receptor_score_mode : str
+    ensemble_score_mode : str
+    distributed : bool
     num_workers : int, default= -1
     ncpu : int, default=1
-    path : Union[str, os.PathLike], default='.'
     verbose : int, default=0
     **kwargs
         additional and unused keyword arguments
@@ -151,10 +151,10 @@ class Screener(ABC):
         """dock the ligands contained in sources
 
         NOTE: the star operator, *, in the function signature.
-              If intending to pass multiple filepaths as an iterable, first 
-              unpack the iterable in the function call by prepending a *.
-              If passing multiple SMILES strings, either option is acceptable,
-              but it is much more efficient to NOT unpack the iterable.
+            If intending to pass multiple filepaths as an iterable, first 
+            unpack the iterable in the function call by prepending a *.
+            If passing multiple SMILES strings, either option is acceptable,
+            but it is much more efficient to NOT unpack the iterable.
 
         Parameters
         ----------
@@ -218,18 +218,20 @@ class Screener(ABC):
                       **kwargs) -> List[List[List[Dict]]]:
         """Run the docking program with the ligands contained in *smis_or_files
 
-        NOTE: the zip operator, *, in the function signature. If intending to
-              pass multiple filepaths as an iterable, first unpack the iterable
-              in the function call by prepending a *
+        NOTE: the star operator, *, in the function signature
+            If intending to pass multiple filepaths as an iterable, first 
+            unpack the iterable in the function call by prepending a *
 
         Parameters
         ----------
         smis_or_files: Iterable
             an iterable of ligand sources, where each ligand source may be
             one of the following:
-            - a ligand supply file
-            - a list of SMILES strings
-            - a single SMILES string
+
+            * a ligand supply file
+            * a list of SMILES strings
+            * a single SMILES string
+
         **kwargs
             keyword arguments to pass to the appropriate prepare_from_*
             function(s)
@@ -237,17 +239,21 @@ class Screener(ABC):
         Returns
         -------
         recordsss : List[List[List[Dict]]]
-            an NxMxO list of dictionaries where each dictionary is a record of an individual docking run and:
-            - N is the number of total ligands that will be docked
-            - M is the number of receptors each ligand is docked against
-            - O is the number of times each docking run is repeated.
+            an NxMxO list of dictionaries where each dictionary is a record of 
+            an individual docking run and:
+
+            * N is the number of total ligands that will be docked
+            * M is the number of receptors each ligand is docked against
+            * O is the number of times each docking run is repeated.
+            
             Each dictionary contains the following keys:
-            - smiles: the ligand's SMILES string
-            - name: the name of the ligand
-            - in: the filename of the input ligand file
-            - out: the filename of the output docked ligand file
-            - log: the filename of the output log file
-            - score: the ligand's docking score
+
+            * smiles: the ligand's SMILES string
+            * name: the name of the ligand
+            * in: the filename of the input ligand file
+            * out: the filename of the output docked ligand file
+            * log: the filename of the output log file
+            * score: the ligand's docking score
 
         """
         begin = timeit.default_timer()
@@ -273,7 +279,7 @@ class Screener(ABC):
                    ) -> List[List[List[Dict]]]:
         """Run the docking simulations for the input ligands
         
-        Parameter
+        Parameters
         ----------
         ligands : Sequence[Tuple[str, str]]
             a sequence of tuples containing a ligand's SMILES string and the 
@@ -284,12 +290,14 @@ class Screener(ABC):
         List[List[List[Dict]]]
             an NxMxO list of dictionaries where each individual dictionary is a 
             record of an individual docking run and
-            N is the number of ligands contained in the ligand sources
-            M is the number of receptors in the ensemble against which each 
+            
+            * N is the number of ligands contained in the ligand sources
+            * M is the number of receptors in the ensemble against which each \
                 ligand should be docked
-            O is the number of times each docking run should be repeated
+            * O is the number of times each docking run should be repeated
+            
             NOTE: the records contain a 'score' that is None for each entry
-                  as the log/out files must first be parsed to obtain the value
+            as the log/out files must first be parsed to obtain the value
         """
 
     @staticmethod
@@ -298,21 +306,22 @@ class Screener(ABC):
                              score_mode: str = 'best') -> List[List[Dict]]:
         """Parse the results of the docking simulations for a single ligand
         
-        Parameter
+        Parameters
         ----------
         recs_reps : List[List[Dict]]
             an MxO list of list of dictionaries where each individual 
             dictionary is a record of an individual docking run and
-            M is the number of receptors in the ensemble against which each 
-                ligand should be docked
-            O is the number of times each docking run should be repeated
+            
+            * M is the number of receptors in the ensemble against which each ligand should be docked
+            * O is the number of times each docking run should be repeated
         
+
         Returns
         -------
         recs_reps : List[List[Dict]]
-            the same List as the input argument, but with the 'score' key of
-            record updated to reflect the desired score parsed
-            from each docking run
+            the same List as the input argument, but with the 
+            'score' key of record updated to reflect the desired 
+            score parsed from each docking run
         """
 
     @property
@@ -480,6 +489,7 @@ class Screener(ABC):
             filepath of the corresponding input file. Files are named 
             <compound_id>.<suffix> if compound_id property exists in the 
             original supply file. Otherwise, they are named:
+                
                 lig0.<suffix>, lig1.<suffix>, ...
         """
         with open(csv_filename) as fid:
@@ -527,6 +537,7 @@ class Screener(ABC):
             filepath of the corresponding input file. Files are named 
             <compound_id>.<suffix> if compound_id property exists in the 
             original supply file. Otherwise, they are named:
+                
                 lig0.<suffix>, lig1.<suffix>, ...
         """
         p_supply = Path(supply)
@@ -569,9 +580,11 @@ class Screener(ABC):
         Parameters
         ----------
         ligand_results : List[List[Dict]]
-            an MxO list of list of dictionaries where each individual dictionary is a record of an individual docking run and
-            M is the number of receptors the ligand was docked against
-            O is the number of times each docking run was repeated
+            an MxO list of list of dictionaries where each individual 
+            dictionary is a record of an individual docking run and
+            
+            * M is the number of receptors the ligand was docked against
+            * O is the number of times each docking run was repeated
         receptor_score_mode : str, default='best'
             the mode used to calculate the overall score for a given receptor
             pose with multiple, repeated runs
@@ -620,10 +633,12 @@ class Screener(ABC):
         scores : Sequence[float]
         score_mode : str, default='best'
             the method used to calculate the overall score
+
             Choices:
-                'best' - return the top score
-                'avg' - return the average of the scores
-                'boltzmann' - return the boltzmann average of the scores
+
+            * 'best' - return the top score
+            * 'avg' - return the average of the scores
+            * 'boltzmann' - return the boltzmann average of the scores
 
         Returns
         -------
@@ -654,16 +669,18 @@ class Screener(ABC):
             then it should be equal to the total number of worker processes
             desired. Using a value of -1 will spawn as many worker processes
             as cores available on this machine.
+
             NOTE: this is usually not a good idea and it's much better to
-                  specify the number of processes explicitly.
+            specify the number of processes explicitly.
         ncpu : int, default=1
             if distributed is True, then this argument should be the number of 
             cores allocated to each worker. if False, then this should be the
             number of cores that is desired to be allocated to each worker.
+
             NOTE: this is an implicit argument because Screener.dock() will   
-                  make subprocess calls to progams that themselves can utilize 
-                  multiple cores. It will not actually assign <ncpu> cores to 
-                  each worker process.
+            make subprocess calls to progams that themselves can utilize 
+            multiple cores. It will not actually assign <ncpu> cores to 
+            each worker process.
         all_cores : bool (Default = False)
             whether to initialize as many processes as cores available
             (= num_workers * ncpu).
@@ -674,34 +691,37 @@ class Screener(ABC):
             the initialized process pool
         
         Notes
-        -----
+        ------
         in some cases, as shown in the examples below, the values specified for
         num_workers and ncpu will be inconsequential. Regardless, it is good
         practice for this function to always be called the same way, with only
         all_cores changing, depending on the context in which the initialized Executor will be used
 
-        Ex. 1
-        -----
-        Given: a single machine with 16 cores, screening using vina-type
-               docking software (via the docking.Vina class)
+        **Ex. 1**
+
+        *Given:* a single machine with 16 cores, screening using vina-type
+        docking software (via the docking.Vina class)
+        
         the function should be called with distributed=False, all_cores=False, 
         and both num_workers and ncpu should be specified such that the product 
         of the two is equal to 16.
         Choices: (1, 16), (2, 8), (4, 4), (8, 2), and (16, 1). You will often have to determine the optimal values empirically.
 
-        Ex. 2
-        -----
-        Given: a cluster of machines where you've requested resources for 8
-               tasks with 2 cores each. The software was then initialized with
-               8 separate MPI processes and screening using vina-type docking
-               software is to be performed.
+        **Ex. 2**
+
+        *Given:* a cluster of machines where you've requested resources for 8
+        tasks with 2 cores each. The software was then initialized with
+        8 separate MPI processes and screening using vina-type docking
+        software is to be performed.
+        
         the function should be called with distributed=True and all_cores=False
         (neither num_workers or ncpu needs to be specified)
 
-        Ex. 3
-        -----
-        Given: a single machine with 16 cores, and pure python code is to be
-               executed in parallel
+        **Ex. 3**
+
+        *Given:* a single machine with 16 cores, and pure python code is to be
+        executed in parallel
+        
         the function should be called with distributed=False, all_cores=True,
         and both num_workers and ncpu should be specified such that the product 
         of the two is equal to 16.

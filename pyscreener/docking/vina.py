@@ -13,6 +13,60 @@ from pyscreener.preprocessing import autobox
 from pyscreener.docking import Screener
 
 class Vina(Screener):
+    """A wrapper around Vina-type docking software to perform docking runs via
+    python function calls
+
+    Parameters
+    ----------
+    receptors : Optional[List[str]], default=None
+        the filepath(s) of receptors to prepare for docking
+    pdbids : Optiona[List[str]], default=None
+        a list of PDB IDs corresponding to receptors to prepare for DOCKing.
+    center : Optional[Tuple[float, float, float]], default=None
+        the center of the docking box (if known)
+    size : Tuple[float, float, float], default=(10., 10., 10.)
+        the x-, y-, and z-radii of the docking box
+    ncpu : int, default=1
+        the number of cpu cores over which to parallelize the docking run
+    extra : Optional[List[str]], default=None
+        additional command line arguments that will be passed to each docking
+        run
+    docked_ligand_file : Optional[str], default=None
+        the filepath of a PDB file containing the coordinates of a docked ligand
+    buffer : float, default=10.
+        the amount of buffer space to be added around the docked ligand when
+        selecting spheres and when constructing the docking box if 
+        enclose_spheres is True
+    score_mode : str, default='best'
+        the mode used to calculate a score for an individual docking run given
+        multiple output scored conformations
+    repeats : int, default=1
+        the number of times each docking run should be repeated
+    receptor_score_mode : str
+        the mode used to calculate an overall score for a single receptor
+        given repeated docking runs against that receptor
+    ensemble_score_mode : str
+        the mode used to calculate an overall score for an ensemble of receptors
+        given multiple receptors in an ensemble
+    distributed : bool
+        True if the computation will parallelized over a distributed setup.
+        False if the computation will parallelized over a local setup
+    num_workers : int
+        the number of worker processes to initialize when
+        distributing computation
+    path : os.PathLike
+        the path under which input and output folders will be placed
+    verbose : int
+        the level of output this Screener should output
+    
+    Attributes
+    ----------
+    software : str
+    center : Optional[Tuple[float, float, float]]
+    size : Tuple[float, float, float]
+    ncpu : int
+    extra : Optional[List[str]]
+    """
     def __init__(self, software: str, receptors: Optional[List[str]] = None,
                  pdbids: Optional[List[str]] = None,
                  center: Optional[Tuple[float, float, float]] = None,
@@ -58,8 +112,8 @@ class Vina(Screener):
     def prepare_receptor(self, receptor: str):
         """Prepare a receptor PDBQT file from its input file
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         receptor : str
             the filename of a file containing a receptor
 
@@ -164,6 +218,7 @@ class Vina(Screener):
         except sp.SubprocessError:
             return None
 
+        n_mols = 0
         stderr = ret.stderr.decode('utf-8')
         for line in stderr.splitlines():
             if 'converted' not in line:
@@ -237,15 +292,18 @@ class Vina(Screener):
         ensemble_rowss : List[List[Dict]]
             an MxO list of dictionaries where each dictionary is a record of an 
             individual docking run and:
-            - M is the number of receptors each ligand is docked against
-            - O is the number of times each docking run is repeated.
+
+            * M is the number of receptors each ligand is docked against
+            * O is the number of times each docking run is repeated.
+
             Each dictionary contains the following keys:
-            - smiles: the ligand's SMILES string
-            - name: the name of the ligand
-            - in: the filename of the input ligand file
-            - out: the filename of the output docked ligand file
-            - log: the filename of the output log file
-            - score: the ligand's docking score
+
+            * smiles: the ligand's SMILES string
+            * name: the name of the ligand
+            * in: the filename of the input ligand file
+            * out: the filename of the output docked ligand file
+            * log: the filename of the output log file
+            * score: the ligand's docking score
         """
         if repeats <= 0:
             raise ValueError(f'Repeats must be greater than 0! ({repeats})')

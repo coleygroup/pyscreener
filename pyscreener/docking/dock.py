@@ -285,6 +285,7 @@ class DOCK(Screener):
         except sp.SubprocessError:
             return None
 
+        n_mols = 0
         stderr = ret.stderr.decode('utf-8')
         for line in stderr.splitlines():
             if 'converted' not in line:

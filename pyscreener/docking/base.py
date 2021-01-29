@@ -652,7 +652,9 @@ class Screener(ABC):
         elif score_mode == 'boltzmann':
             Z = sum(exp(-score) for score in scores)
             score = sum(score * exp(-score) / Z for score in scores)
-        
+        else:
+            score = scores[0]
+            
         return score
     
     @staticmethod

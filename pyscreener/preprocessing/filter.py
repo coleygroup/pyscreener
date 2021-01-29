@@ -113,7 +113,6 @@ def filter_csv(csvfile: str, title_line: bool = True,
 
     return filter_mols(mols, names, **kwargs)
 
-
 def filter_supply(supplyfile: str, id_prop_name: Optional[str],
                   **kwargs) -> Tuple[List[str], Optional[List[str]]]:
     p_supply = Path(supplyfile)

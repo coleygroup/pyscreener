@@ -7,6 +7,7 @@ import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from openbabel import pybel
+import ray
 from tqdm import tqdm
 
 from pyscreener.preprocessing import autobox
@@ -233,21 +234,34 @@ class Vina(Screener):
 
     def run_docking(self, ligands: Sequence[Tuple[str, str]]
                    ) -> List[List[List[Dict]]]:
-        dock_ligand = partial(
-            Vina.dock_ligand,
-            software=self.software, receptors=self.receptors,
-            center=self.center, size=self.size, ncpu=self.ncpu,
-            extra=self.extra, path=self.out_path,
-            repeats=self.repeats, score_mode=self.score_mode
-        )
+        # dock_ligand = partial(
+        #     Vina.dock_ligand,
+        #     software=self.software, receptors=self.receptors,
+        #     center=self.center, size=self.size, ncpu=self.ncpu,
+        #     extra=self.extra, path=self.out_path,
+        #     repeats=self.repeats, score_mode=self.score_mode
+        # )
 
-        with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
-            ligs_recs_reps = pool.map(dock_ligand, ligands, 
-                                        chunksize=2)
-            ligs_recs_reps = list(tqdm(
-                ligs_recs_reps, total=len(ligands),
-                desc='Docking', unit='ligand')
+        @ray.remote(num_cpus=self.ncpu)
+        def dock_ligand_(ligand):
+            return Vina.dock_ligand(
+                ligand, software=self.software, receptors=self.receptors,
+                center=self.center, size=self.size, ncpu=self.ncpu,
+                extra=self.extra, path=self.out_path,
+                repeats=self.repeats, score_mode=self.score_mode
             )
+
+        refs = list(map(dock_ligand_.remote, ligands))
+        ligs_recs_reps = [
+            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
+        ]
+        # with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
+        #     ligs_recs_reps = pool.map(dock_ligand, ligands, 
+        #                                 chunksize=2)
+        #     ligs_recs_reps = list(tqdm(
+        #         ligs_recs_reps, total=len(ligands),
+        #         desc='Docking', unit='ligand')
+        #     )
 
         return ligs_recs_reps
 
@@ -315,6 +329,8 @@ class Vina(Screener):
 
         ensemble_rowss = []
         for receptor in receptors:
+            with open(receptor) as _:
+                pass
             repeat_rows = []
             for repeat in range(repeats):
                 name = f'{Path(receptor).stem}_{ligand_name}_{repeat}'

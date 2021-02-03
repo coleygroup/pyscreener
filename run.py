@@ -1,11 +1,12 @@
 import csv
 from distutils.dir_util import copy_tree
-from operator import itemgetter
+import os
 from pathlib import Path
-import tempfile
+
+import ray
 
 import pyscreener
-from pyscreener import args, preprocess, postprocess
+from pyscreener import args
 
 def main():
     print('''\
@@ -18,6 +19,17 @@ def main():
 ***************************************************************''')
     print('Welcome to Pyscreener!\n')
 
+    try:
+        if 'redis_password' in os.environ:
+            ray.init(address='auto',
+                #_node_ip_address=os.environ["ip_head"].split(":")[0], 
+                _redis_password=os.environ['redis_password'])
+        else:
+            ray.init(address='auto')
+    except ConnectionError:
+        ray.init()
+    print(ray.cluster_resources())
+
     params = vars(args.gen_args())
 
     print('Pyscreener will be run with the following arguments:')
@@ -27,7 +39,7 @@ def main():
 
     name = params['name']
 
-    tmp_dir = Path(tempfile.gettempdir()) / name
+    tmp_dir = Path(params['tmp']) / name
     if not tmp_dir.exists():
         tmp_dir.mkdir(parents=True)
     params['path'] = tmp_dir
@@ -38,8 +50,9 @@ def main():
 
     print(f'Preparing and screening inputs ...', flush=True)
     screener = pyscreener.build_screener(**params)
-    d_smi_score, rows = screener(*params['ligands'], full_results=True, 
-                                 **params)
+    d_smi_score, rows = screener(
+        *params['ligands'], full_results=True, **params
+    )
     print('Done!')
 
     out_dir = Path(params['root']) / name
@@ -67,7 +80,8 @@ def main():
     with open(extended_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(
-            ['smiles', 'name', 'input_file', 'out_file', 'log_file', 'score'])
+            ['smiles', 'name', 'input_file', 'out_file', 'log_file', 'score']
+        )
         writer.writerows(row.values() for row in rows)
 
     print(f'Scoring data has been saved to: "{scores_filename}"')

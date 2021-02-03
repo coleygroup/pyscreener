@@ -9,10 +9,17 @@ from pathlib import Path
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
+import ray
 from rdkit import Chem
 from tqdm import tqdm
 
 from pyscreener.preprocessing import pdbfix
+
+if not ray.is_initialized():
+    try:
+        ray.init(address='auto')
+    except ConnectionError:
+        ray.init()
 
 class Screener(ABC):
     """A Screener conducts virtual screens against an ensemble of receptors.
@@ -423,24 +430,34 @@ class Screener(ABC):
         smis = smis[start:stop]
         paths = (self.in_path for _ in range(len(smis)))
 
-        CHUNKSIZE = 4
-        with self.Pool(self.distributed, self.num_workers,
-                       self.ncpu, True) as client:
-            # if self.distributed:
-                # p_prepare_from_smi = partial(
-                #     self.pmap, f=self.prepare_from_smi, ncpu=self.ncpu
-                # )
-            #     ligands = client.map(p_prepare_from_smi, smis, names, paths,
-            #                          chunksize=len(smis)/self.num_workers/4)
-            # else:
-            ligands = client.map(self.prepare_from_smi, smis, names, paths, 
-                                    chunksize=CHUNKSIZE)
-            ligands = [
-                ligand for ligand in tqdm(
-                    ligands, total=len(smis), desc='Preparing ligands', 
-                    unit='ligand', smoothing=0.
-                ) if ligand
-            ]
+
+        # print(self.in_path)
+        @ray.remote
+        def prepare_from_smi_(smi, name, path):
+            return self.prepare_from_smi(smi, name, path)
+        
+        refs = list(tqdm(map(prepare_from_smi_.remote, smis, names, paths), 
+                         desc='Submitting ligands'))
+        ligands = [ray.get(r) for r in tqdm(refs, desc='Preparing ligands')]
+
+        # CHUNKSIZE = 4
+        # with self.Pool(self.distributed, self.num_workers,
+        #                self.ncpu, True) as client:
+        #     # if self.distributed:
+        #         # p_prepare_from_smi = partial(
+        #         #     self.pmap, f=self.prepare_from_smi, ncpu=self.ncpu
+        #         # )
+        #     #     ligands = client.map(p_prepare_from_smi, smis, names, paths,
+        #     #                          chunksize=len(smis)/self.num_workers/4)
+        #     # else:
+        #     ligands = client.map(self.prepare_from_smi, smis, names, paths, 
+        #                             chunksize=CHUNKSIZE)
+        #     ligands = [
+        #         ligand for ligand in tqdm(
+        #             ligands, total=len(smis), desc='Preparing ligands', 
+        #             unit='ligand', smoothing=0.
+        #         ) if ligand
+        #     ]
         
         total = timeit.default_timer() - begin
         if self.verbose > 1 and len(ligands) > 0:
@@ -715,7 +732,7 @@ class Screener(ABC):
         tasks with 2 cores each. The software was then initialized with
         8 separate MPI processes and screening using vina-type docking
         software is to be performed.
-        
+
         the function should be called with distributed=True and all_cores=False
         (neither num_workers or ncpu needs to be specified)
 
@@ -723,7 +740,7 @@ class Screener(ABC):
 
         *Given:* a single machine with 16 cores, and pure python code is to be
         executed in parallel
-        
+
         the function should be called with distributed=False, all_cores=True,
         and both num_workers and ncpu should be specified such that the product 
         of the two is equal to 16.

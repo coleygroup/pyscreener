@@ -37,24 +37,24 @@ Due to some wonkiness with getting DOCK6 to work with `pyscreener`, it requires 
 
 __Note: both of the above steps must be satisifed before using `pyscreener`__
 
-To avoid having to do this every time you start a new shell, you can add whatever commands you typed to your respective shell's startup file (e.g., .bash_profile for a bash shell) (you can also add them to the non-login shell startup file, but it's not good a idea to recursively edit your PATH in these files)
+To avoid having to do this every time you start a new shell, you can add whatever commands you typed to your respective shell's startup file (e.g., .bash_profile for a bash shell) (you can also add them to the non-login shell startup file, but it's not good a idea to edit your PATH in these files)
 
 ## Installation
 The first step in installing pyscreener is to clone this repository: `git clone <this_repo>`
 
+### virtual environment setup
 The easiest way to install all dependencies is to use conda along with the supplied [environment.yml](environment.yml) file, but you may also install them manually, if desired. All libraries listed in that file are __required__ before using `pyscreener`
 
-### virtual environment setup via conda 
 0. (if necessary) [install conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
 1. `cd /path/to/pyscreener`
 1. `conda env create -f environment.yml`
 
-Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener`
+Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)
 
 ### external software
 * vina-type software
-  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation
-  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and ensure the desired software is located on your path
+  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation and follow the directions to add the resulting `bin` folder to your path (you should see a command at the end of the installation process)
+  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and ensure the desired software executable is in a folder that is located on your path
 * [DOCK6](http://dock.compbio.ucsf.edu/)
   1. install [DOCK6](http://dock.compbio.ucsf.edu/) and specify the DOCK6 environment variable as the path of the parent folder (the one containing `bin`, `install`, etc.) as detailed [above](###specifying-an-environment-variable)
   1. install [sphgen_cpp](http://dock.compbio.ucsf.edu/Contributed_Code/sphgen_cpp.htm) and place the executable inside the `bin` subdirectory of the DOCK6 parent directory
@@ -62,6 +62,7 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 
 
 ## Running pyscreener as a software
+__!!please read the entire section before running pyscreener!!__
 pyscreener was designed to have a minimal interface under the principal that a high-throughput virtual screen is intended to be a broad strokes technique to gauge ligand favorability. With that in mind, all one really needs to get going are the following:
 - the PDB id of your receptor of interest or a PDB format file of the specific structure
 - a file containing the ligands you would like to dock, in SDF, SMI, or CSV format
@@ -70,6 +71,17 @@ pyscreener was designed to have a minimal interface under the principal that a h
 There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
 
 All of these options may be specified on the command line, but they may also be placed in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [test_configs](test_configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config test_configs/<config>`
+
+### Parallel setup
+pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, nothing additional needs to be done before starting the program. However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster.
+
+#### Limiting the number of cores
+To do this, simply type `ray start --head --num-cpus <N>` before starting pyscreener (where N is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
+
+#### Distributing across many nodes
+While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([submit_pyscreener_distributed.batch](submit_pyscreener_distributed.batch)) to achieve this, but you may have to alter some commands depending on your system.
+
+pyscreener writes a lot of intermediate input and output files. Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to your system's temporary directory (determined by `tempfile.gettempdir()`). If you are running pyscreener in a distributed setup, either check for yourself or contact your system administrator to see where this directory points to. pyscreener requires that this be a _cluster-global directory_ __rather__ than a _node-local_ directory. If it is the latter, you must specify the proper directory via the `--tmp` or `--tmpdir` argument. It is typically best to avoid pointing this directory to your home directory both for storage and efficiency reasons.
 
 ## Using pyscreener as a library
 At the core of the pyscreener software is the `pyscreener` library that enables the running of docking software from input preparation all the way to output file parsing. The workhorse class is the [`Screener`](pyscreener/docking/screener.py) ABC, which handles all of this for a user. To actually initialize a screener object, either of the derived classes: [`Vina`](pyscreener/docking/vina.py) or [`DOCK`](pyscreener/docking/dock.py). `Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina. `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.

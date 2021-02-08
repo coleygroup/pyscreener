@@ -1,0 +1,51 @@
+#!/bin/bash
+#SBATCH -J pyscreener_distributed
+#SBATCH -o %x_%j.out
+#SBATCH -e %x_%j.err
+
+#SBATCH -N <NUM_NODES>
+#SBATCH --ntasks-per-node 1
+#SBATCH -c 16
+#SBATCH --mem-per-cpu 4000
+
+source activate pyscreener
+
+# tempfile.gettempdir() returns the value of $TMPDIR first, so I set the value
+# to a custom environment variable, $TMP, that is set to my
+# cluster's global temporary directory
+export TMPDIR=$TMP
+
+######################## DO NOT CHANGE THINGS HERE ############################
+redis_password=$(uuidgen)
+export redis_password
+
+nodes=$(scontrol show hostnames $SLURM_JOB_NODELIST) # Getting the node names
+nodes_array=( $nodes )
+
+node_1=${nodes_array[0]} 
+ip=$(srun --nodes=1 --ntasks=1 -w $node_1 hostname --ip-address) # making redis-address
+port=6379
+ip_head=$ip:$port
+export ip_head
+echo "IP Head: $ip_head"
+
+echo "STARTING HEAD at $node_1"
+srun --nodes=1 --ntasks=1 -w $node_1 \
+    ray start --head \
+    --node-ip-address=$ip --port=$port --redis-password=$redis_password \
+    --num-cpus $SLURM_CPUS_PER_TASK --block &
+sleep 30
+
+worker_num=$(($SLURM_JOB_NUM_NODES - 1))
+for ((  i=1; i<=$worker_num; i++ ))
+do
+    node_i=${nodes_array[$i]}
+    echo "STARTING WORKER $i at $node_i"
+    srun --nodes=1 --ntasks=1 -w $node_i \
+        ray start --address $ip_head --redis-password=$redis_password \
+        --num-cpus $SLURM_CPUS_PER_TASK --block &
+  sleep 5
+done
+###############################################################################
+
+python run.py --config test_configs/test_vina.ini --ncpu 4

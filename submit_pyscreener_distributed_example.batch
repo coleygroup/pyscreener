@@ -3,22 +3,19 @@
 #SBATCH -o %x_%j.out
 #SBATCH -e %x_%j.err
 
-#SBATCH -N 1
+#SBATCH -N <NUM_NODES>
 #SBATCH --ntasks-per-node 1
 #SBATCH -c 16
 #SBATCH --mem-per-cpu 4000
 
-#SBATCH -p normal
-#SBATHC -t 120
-
-source /usr/share/Modules/init/sh
-module purge; module load anaconda
 source activate pyscreener
 
-######################## DO NOT CHANGE THINGS HERE ############################
-export LC_ALL=C.UTF-8
-export LANG=C.UTF-8
+# tempfile.gettempdir() returns the value of $TMPDIR first, so I set the value
+# to a custom environment variable, $TMP, that is set to my
+# cluster's global temporary directory
+export TMPDIR=$TMP
 
+######################## DO NOT CHANGE THINGS HERE ############################
 redis_password=$(uuidgen)
 export redis_password
 
@@ -34,10 +31,9 @@ echo "IP Head: $ip_head"
 
 echo "STARTING HEAD at $node_1"
 srun --nodes=1 --ntasks=1 -w $node_1 \
-    ray start --head --node-ip-address=$ip --port=$port \
-    --redis-password=$redis_password \
-    --num-cpus $SLURM_CPUS_PER_TASK \
-    --temp-dir /tmp/dgraff/ray --block &
+    ray start --head \
+    --node-ip-address=$ip --port=$port --redis-password=$redis_password \
+    --num-cpus $SLURM_CPUS_PER_TASK --block &
 sleep 30
 
 worker_num=$(($SLURM_JOB_NUM_NODES - 1))
@@ -47,8 +43,8 @@ do
     echo "STARTING WORKER $i at $node_i"
     srun --nodes=1 --ntasks=1 -w $node_i \
         ray start --address $ip_head --redis-password=$redis_password \
-        --num-cpus $SLURM_CPUS_PER_TASK --temp-dir /tmp/dgraff/ray --block &
-    sleep 5
+        --num-cpus $SLURM_CPUS_PER_TASK --block &
+  sleep 5
 done
 ###############################################################################
 

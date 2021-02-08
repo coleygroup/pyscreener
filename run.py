@@ -21,9 +21,11 @@ def main():
 
     try:
         if 'redis_password' in os.environ:
-            ray.init(address='auto',
+            ray.init(
+                address='auto',
                 #_node_ip_address=os.environ["ip_head"].split(":")[0], 
-                _redis_password=os.environ['redis_password'])
+                _redis_password=os.environ['redis_password']
+            )
         else:
             ray.init(address='auto')
     except ConnectionError:

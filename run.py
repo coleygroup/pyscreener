@@ -41,7 +41,7 @@ def main():
 
     name = params['name']
 
-    tmp_dir = Path(params['tmp']) / name
+    tmp_dir = Path(params['tmp_dir']) / name
     if not tmp_dir.exists():
         tmp_dir.mkdir(parents=True)
     params['path'] = tmp_dir

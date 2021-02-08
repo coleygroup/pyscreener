@@ -126,9 +126,9 @@ class Vina(Screener):
             None if preparation failed
         """
         receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
-        args = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
+        argv = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
         try:
-            sp.run(args, stderr=sp.PIPE, check=True)
+            sp.run(argv, stderr=sp.PIPE, check=True)
         except sp.SubprocessError:
             print(f'ERROR: failed to convert {receptor}', file=sys.stderr)
             return None
@@ -183,7 +183,7 @@ class Vina(Screener):
             return Vina.dock_ligand(
                 ligand, software=self.software, receptors=self.receptors,
                 center=self.center, size=self.size, ncpu=self.ncpu,
-                extra=self.extra, path=self.out_path,
+                extra=self.extra, path=self.tmp_out,
                 repeats=self.repeats, score_mode=self.score_mode
             )
 

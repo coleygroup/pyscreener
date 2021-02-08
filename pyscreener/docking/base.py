@@ -132,8 +132,8 @@ class Screener(ABC):
     @path.setter
     def path(self, path: str):
         """set both input and output directories"""
-        self.in_path = path / 'inputs'
-        self.out_path = path / 'outputs'
+        self.in_path = f'{path}/inputs'
+        self.out_path = f'{path}/outputs'
 
     @property
     def in_path(self) -> os.PathLike:
@@ -165,8 +165,8 @@ class Screener(ABC):
     @tmp_dir.setter
     def tmp_dir(self, tmp_dir: str):
         """set both the temp input and output directories"""
-        self.tmp_in = tmp_dir / 'inputs'
-        self.tmp_out = tmp_dir / 'outputs'
+        self.tmp_in = f'{tmp_dir}/inputs'
+        self.tmp_out = f'{tmp_dir}/outputs'
 
     @property
     def tmp_in(self) -> os.PathLike:
@@ -539,11 +539,11 @@ class Screener(ABC):
         """
         source = Path(source)
         if not source.exists():
-            raise ValueError(f'"{source}" does not exist!')
+            return [str(source)], [f'ligand_{offset}']
 
         if source.suffix == '.csv':
             smis, names = self.get_smis_from_csv(source, **kwargs)
-        if source.suffix in ('.smi', '.sdf'):
+        elif source.suffix in ('.smi', '.sdf'):
             smis, names = self.get_smis_from_supply(source, **kwargs)
         else:
             smis, names = self.get_smis_from_file(source, offset, **kwargs)
@@ -650,8 +650,8 @@ class Screener(ABC):
         return smis, names
 
     @staticmethod
-    def get_smis_from_file(filename: str,
-                           offset: int = 0) -> Tuple[List[str], List[str]]:
+    def get_smis_from_file(filename: str, offset: int = 0,
+                           **kwargs) -> Tuple[List[str], List[str]]:
         """get the SMILES strings and names from an arbitrary chemical 
         file format
 
@@ -660,6 +660,8 @@ class Screener(ABC):
         filename : str
             the file to parse
         offset : int, default=0
+        **kwargs
+            additional and unused keyword arguments
 
         Returns
         -------

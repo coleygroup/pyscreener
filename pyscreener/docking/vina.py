@@ -1,5 +1,6 @@
 from functools import partial
 from itertools import chain, takewhile
+import os
 from pathlib import Path
 import subprocess as sp
 import sys
@@ -110,7 +111,7 @@ class Vina(Screener):
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
 
-    def prepare_receptor(self, receptor: str):
+    def prepare_receptor(self, receptor: str) -> Optional[str]:
         """Prepare a receptor PDBQT file from its input file
 
         Parameters
@@ -121,7 +122,8 @@ class Vina(Screener):
         Returns
         -------
         receptor_pdbqt : Optional[str]
-            the filename of the resulting PDBQT file. None if preparation failed
+            the filepath of the resulting PDBQT file.
+            None if preparation failed
         """
         receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
         args = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
@@ -135,14 +137,14 @@ class Vina(Screener):
 
     @staticmethod
     def prepare_from_smi(smi: str, name: str = 'ligand',
-                         path: str = '.', **kwargs) -> Optional[Tuple]:
+                         path: str = '.', **kwargs) -> Tuple[str, str]:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
         ----------
         smi : str
             the SMILES string of the ligand
-        name : Optional[str], default=None
+        name : Optional[str], default='ligand'
             the name of the ligand.
         path : str, default='.'
             the path under which the output PDBQT file should be written
@@ -154,7 +156,7 @@ class Vina(Screener):
         smi : str
             the ligand's SMILES string
         pdbqt : str
-            the prepared input file corresponding to the ligand
+            the filepath of the coresponding input file
         """
         path = Path(path)
         if not path.is_dir():
@@ -170,6 +172,35 @@ class Vina(Screener):
 
         return smi, pdbqt
     
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        
+        @ray.remote(num_cpus=self.ncpu)
+        def prepare_and_dock_(smi, name):
+            ligand = Vina.prepare_from_smi(smi, name, self.tmp_in)
+
+            return Vina.dock_ligand(
+                ligand, software=self.software, receptors=self.receptors,
+                center=self.center, size=self.size, ncpu=self.ncpu,
+                extra=self.extra, path=self.out_path,
+                repeats=self.repeats, score_mode=self.score_mode
+            )
+
+        refs = list(map(prepare_and_dock_.remote, smis, names))
+        ligs_recs_reps = [
+            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
+        ]
+        # with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
+        #     ligs_recs_reps = pool.map(dock_ligand, ligands, 
+        #                                 chunksize=2)
+        #     ligs_recs_reps = list(tqdm(
+        #         ligs_recs_reps, total=len(ligands),
+        #         desc='Docking', unit='ligand')
+        #     )
+
+        return ligs_recs_reps
+
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
                           name: Optional[str] = None, path: str = '.', 
@@ -192,8 +223,8 @@ class Vina(Screener):
         Returns
         -------
         List[Tuple]
-            a tuple of the SMILES string the prepared input file corresponding
-            to the molecule contained in filename
+            a list of tuples of the SMILES string and the filepath of
+            the corresponding input file
         """
         name = name or Path(filepath).stem
 
@@ -202,8 +233,10 @@ class Vina(Screener):
         smis = [line.split()[0] for line in lines]
 
         if not use_3d:
-            ligands = [Vina.prepare_from_smi(smi, f'{name}_{i}', path) 
-                    for i, smi in enumerate(smis)]
+            ligands = [
+                Vina.prepare_from_smi(smi, f'{name}_{i}', path) 
+                for i, smi in enumerate(smis)
+            ]
             return [lig for lig in ligands if lig]
         
         path = Path(path)

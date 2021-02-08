@@ -6,9 +6,11 @@ from itertools import chain
 from math import ceil, exp, log10
 import os
 from pathlib import Path
+import tempfile
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
+from openbabel import pybel
 import ray
 from rdkit import Chem
 from tqdm import tqdm
@@ -61,7 +63,9 @@ class Screener(ABC):
     ncpu : int, default=1
         the number of cores allocated to each worker process
     path : os.PathLike, default='.'
-        the path under which input and output folders will be placed
+        the directory under which input and output folders will be placed
+    tmp_dir : os.PathLike, default=tempfile.gettempdir()
+        the temp directory under which input and output will be placed
     verbose : int
         the level of output this Screener should output
 
@@ -72,7 +76,7 @@ class Screener(ABC):
     receptor_score_mode : str
     ensemble_score_mode : str
     distributed : bool
-    num_workers : int, default= -1
+    num_workers : int, default=-1
     ncpu : int, default=1
     verbose : int, default=0
     **kwargs
@@ -85,8 +89,10 @@ class Screener(ABC):
                  ensemble_score_mode: str = 'best',
                  distributed: bool = False,
                  num_workers: int = -1, ncpu: int = 1,
-                 path: str = '.', verbose: int = 0, **kwargs):
-        self.path = Path(path)
+                 path: str = '.', tmp_dir = tempfile.gettempdir(),
+                 verbose: int = 0, **kwargs):
+        self.path = path
+        self.tmp_dir = tmp_dir
 
         receptors = receptors or []
         if pdbids:
@@ -120,13 +126,12 @@ class Screener(ABC):
     
     @property
     def path(self) -> Tuple[os.PathLike, os.PathLike]:
-        """return the Screener's in_path and out_path"""
+        """the Screener's input and output directories"""
         return self.__in_path, self.__out_path
         
     @path.setter
     def path(self, path: str):
-        """set both the in_path and out_path under the input path"""
-        path = Path(path)
+        """set both input and output directories"""
         self.in_path = path / 'inputs'
         self.out_path = path / 'outputs'
 
@@ -151,6 +156,39 @@ class Screener(ABC):
         if not path.is_dir():
             path.mkdir(parents=True)
         self.__out_path = path
+
+    @property
+    def tmp_dir(self) -> Tuple[os.PathLike, os.PathLike]:
+        """the Screener's temp in and out directories"""
+        return self.__tmp_in, self.__tmp_out
+        
+    @tmp_dir.setter
+    def tmp_dir(self, tmp_dir: str):
+        """set both the temp input and output directories"""
+        self.tmp_in = tmp_dir / 'inputs'
+        self.tmp_out = tmp_dir / 'outputs'
+
+    @property
+    def tmp_in(self) -> os.PathLike:
+        return self.__tmp_in
+
+    @tmp_in.setter
+    def tmp_in(self, path: str):
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir(parents=True)
+        self.__tmp_in = path
+    
+    @property
+    def tmp_out(self) -> os.PathLike:
+        return self.__tmp_out
+
+    @tmp_out.setter
+    def tmp_out(self, path: str):
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir(parents=True)
+        self.__tmp_out = path
 
     def dock(self, *smis_or_files: Iterable,
              full_results: bool = False,
@@ -232,8 +270,8 @@ class Screener(ABC):
         Parameters
         ----------
         smis_or_files: Iterable
-            an iterable of ligand sources, where each ligand source may be
-            one of the following:
+            an unpacked iterable of ligand sources, where each ligand 
+            source may be one of the following:
 
             * a ligand supply file
             * a list of SMILES strings
@@ -265,8 +303,18 @@ class Screener(ABC):
         """
         begin = timeit.default_timer()
 
-        ligands = self.prepare_ligands(*smis_or_files, **kwargs)
-        recordsss = self.run_docking(ligands)
+        # ligands = self.prepare_ligands(*smis_or_files, **kwargs)
+        # recordsss = self.run_docking(ligands)
+
+        smis = []
+        names = []
+        for smi_or_file in smis_or_files:
+            smis_, names_ = self.get_smis(
+                smi_or_file, len(smis) + len(self), **kwargs
+            )
+            smis.extend(smis_), names.extend(names_)
+
+        recordsss = self.prepare_and_dock(smis, names)
 
         self.num_docked_ligands += len(recordsss)
 
@@ -276,10 +324,16 @@ class Screener(ABC):
         hrs, mins = divmod(mins, 60)
         if self.verbose > 0 and len(recordsss) > 0:
             print(f'  Time to dock {len(recordsss)} ligands:',
-                f'{hrs:d}h {mins:d}m {secs:d}s ' +
-                f'({total/len(recordsss):0.3f} s/ligand)', flush=True)
+                  f'{hrs:d}h {mins:d}m {secs:d}s ' +
+                  f'({total/len(recordsss):0.3f} s/ligand)', flush=True)
 
         return recordsss
+
+    @abstractmethod
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        pass
 
     @abstractmethod
     def run_docking(self, ligands: Sequence[Tuple[str, str]]
@@ -344,29 +398,32 @@ class Screener(ABC):
         self.__receptors = receptors
     
     @abstractmethod
-    def prepare_receptor(self, *args, **kwargs):
-        """Prepare a receptor input file for the docking software"""
+    def prepare_receptor(self, *args, **kwargs) -> Optional[str]:
+        """Prepare a receptor input file for the docking software and return
+        the corresponding filepath"""
 
     @staticmethod
     @abstractmethod
-    def prepare_from_smi(*args, **kwargs):
-        """Prepare a ligand input file from a SMILES string"""
+    def prepare_from_smi(*args, **kwargs) -> Tuple[str, str]:
+        """Prepare a ligand input file from a SMILES string and return both
+        the SMILES string and the corresponding filepath"""
 
     @staticmethod
     @abstractmethod
-    def prepare_from_file(*args, **kwargs):
-        """Prepare a ligand input file from an input file"""
+    def prepare_from_file(*args, **kwargs) -> List[Tuple[str, str]]:
+        """Prepare the corresponding ligand input files from an
+        arbitrary input file type"""
 
-    def prepare_ligands(self, *sources,
-                        path: Optional[str] = None, **kwargs):
+    def prepare_ligands(self, *sources, path: Optional[str] = None,
+                        **kwargs) -> List[Tuple[str, str]]:
         path = path or self.in_path
         return list(chain(*(
             self._prepare_ligands(source, i+len(self), path, **kwargs)
             for i, source in enumerate(sources)
         )))
 
-    def _prepare_ligands(self, source, i: int,
-                         path: Optional[str] = None, **kwargs):
+    def _prepare_ligands(self, source, i: int, path: Optional[str] = None,
+                         **kwargs) -> List[Tuple[str, str]]:
         if isinstance(source, str):
             p_source = Path(source)
 
@@ -430,34 +487,12 @@ class Screener(ABC):
         smis = smis[start:stop]
         paths = (self.in_path for _ in range(len(smis)))
 
-
-        # print(self.in_path)
         @ray.remote
         def prepare_from_smi_(smi, name, path):
             return self.prepare_from_smi(smi, name, path)
         
-        refs = list(tqdm(map(prepare_from_smi_.remote, smis, names, paths), 
-                         desc='Submitting ligands'))
+        refs = list(map(prepare_from_smi_.remote, smis, names, paths))
         ligands = [ray.get(r) for r in tqdm(refs, desc='Preparing ligands')]
-
-        # CHUNKSIZE = 4
-        # with self.Pool(self.distributed, self.num_workers,
-        #                self.ncpu, True) as client:
-        #     # if self.distributed:
-        #         # p_prepare_from_smi = partial(
-        #         #     self.pmap, f=self.prepare_from_smi, ncpu=self.ncpu
-        #         # )
-        #     #     ligands = client.map(p_prepare_from_smi, smis, names, paths,
-        #     #                          chunksize=len(smis)/self.num_workers/4)
-        #     # else:
-        #     ligands = client.map(self.prepare_from_smi, smis, names, paths, 
-        #                             chunksize=CHUNKSIZE)
-        #     ligands = [
-        #         ligand for ligand in tqdm(
-        #             ligands, total=len(smis), desc='Preparing ligands', 
-        #             unit='ligand', smoothing=0.
-        #         ) if ligand
-        #     ]
         
         total = timeit.default_timer() - begin
         if self.verbose > 1 and len(ligands) > 0:
@@ -469,11 +504,184 @@ class Screener(ABC):
             
         return ligands
 
+    # @staticmethod
+    # def pmap(f, *args, ncpu=1, chunksize=4):
+    #     with Pool(max_workers=ncpu) as client:
+    #         xs = [x for x in client.map(f, *args, chunksize=chunksize) if x]
+    #     return xs
+
+    def get_smis(self, source: str, offset: int = 0,
+                 **kwargs) -> Tuple[List[str], List[str]]:
+        """
+        get the SMILES strings and names from an input source file
+
+        Parameters
+        ----------
+        source : str
+            the file to parse
+        offset : int, default=0
+            the offset for numbering ligands
+        **kwargs
+            keyword arguments to pass to the appropriate
+            get_smis_from_* method
+
+        Returns
+        -------
+        smis : List[str]
+            the SMILES strings
+        names : List[str]
+            the names of the molecules
+
+        Raises
+        ------
+        ValueError
+            if the file does not exit
+        """
+        source = Path(source)
+        if not source.exists():
+            raise ValueError(f'"{source}" does not exist!')
+
+        if source.suffix == '.csv':
+            smis, names = self.get_smis_from_csv(source, **kwargs)
+        if source.suffix in ('.smi', '.sdf'):
+            smis, names = self.get_smis_from_supply(source, **kwargs)
+        else:
+            smis, names = self.get_smis_from_file(source, offset, **kwargs)
+
+        if names is None:
+            names = [f'ligand_{i+offset}' for i in range(len(smis))]
+        
+        return smis, names
+
     @staticmethod
-    def pmap(f, *args, ncpu=1, chunksize=4):
-        with Pool(max_workers=ncpu) as client:
-            xs = [x for x in client.map(f, *args, chunksize=chunksize) if x]
-        return xs
+    def get_smis_from_csv(csv_filename: str, title_line: bool = True,
+                          smiles_col: int = 0, name_col: Optional[int] = None,
+                          **kwargs) -> Tuple[List[str], Optional[List[str]]]:
+        """Prepare the input files corresponding to the SMILES strings
+        contained in a CSV file
+
+        Parameters
+        ----------
+        csv_filename : str
+            the filename of the CSV file containing the ligands to convert
+        title_line : bool, default=True
+            does the CSV file contain a title line?
+        smiles_col : int, default=0
+            the column containing the SMILES strings
+        name_col : Optional[int], default=None
+            the column containing the molecule name
+        **kwargs
+            additional and unused keyword arguments
+
+        Returns
+        -------
+        smis : List[str]
+            the SMILES strings parsed from the CSV
+        names : Optional[List[str]]
+            the names parsed from the CSV. None if there were none.
+        """
+        with open(csv_filename) as fid:
+            reader = csv.reader(fid)
+            if title_line:
+                next(reader)
+
+            if name_col is None:
+                smis = [row[smiles_col] for row in reader]
+                names = None
+            else:
+                smis, names = zip(*[
+                    (row[smiles_col], row[name_col]) for row in reader
+                ])
+        
+        return smis, names
+
+    @staticmethod
+    def get_smis_from_supply(supply: str,
+                             id_prop_name: Optional[str] = None,
+                             **kwargs) -> List[Tuple]:
+        """Prepare the input files corresponding to the molecules contained in 
+        a molecular supply file
+
+        Parameters
+        ----------
+        supply : str
+            the filename of the SDF or SMI file containing
+            the ligands to convert
+        id_prop_name : Optional[str]
+            the name of the property containing the ID, if one exists
+            (e.g., "CatalogID", "Chemspace_ID", "Name", etc...)
+        **kwargs
+            additional and unused keyword arguments
+
+        Returns
+        -------
+        smis : List[str]
+            the SMILES strings parsed from the supply file
+        names : Optional[List[str]]
+            the names parsed from the supply file. None if there were none.
+        """
+        p_supply = Path(supply)
+        if p_supply.suffix == '.sdf':
+            mols = Chem.SDMolSupplier(supply)
+        elif p_supply.suffix == '.smi':
+            mols = Chem.SmilesMolSupplier(supply)
+        else:
+            raise ValueError(
+                f'input file: "{supply}" does not have .sdf or .smi extension')
+
+        smis = []
+        names = None
+
+        if id_prop_name:
+            names = []
+            for mol in mols:
+                if mol is None:
+                    continue
+
+                smis.append(Chem.MolToSmiles(mol))
+                names.append(mol.GetProp(id_prop_name))
+        else:
+            for mol in mols:
+                if mol is None:
+                    continue
+
+                smis.append(Chem.MolToSmiles(mol))
+
+        return smis, names
+
+    @staticmethod
+    def get_smis_from_file(filename: str,
+                           offset: int = 0) -> Tuple[List[str], List[str]]:
+        """get the SMILES strings and names from an arbitrary chemical 
+        file format
+
+        Parameters
+        ----------
+        filename : str
+            the file to parse
+        offset : int, default=0
+
+        Returns
+        -------
+        smis : List[str]
+            the SMILES strings
+        names : List[str]
+            the names
+        """
+        p = Path(filename)
+        fmt = p.suffix.strip('.')
+
+        smis = []
+        names = []
+        for i, mol in enumerate(pybel.readfile(fmt, filename)):
+            smis.append(mol.write())
+
+            if mol.title:
+                names.append(mol.title)
+            else:
+                names.append(f'ligand_{i+offset}')
+
+        return smis, names
 
     def prepare_from_csv(self, csv_filename: str, title_line: bool = True,
                          smiles_col: int = 0, name_col: Optional[int] = None,
@@ -518,9 +726,10 @@ class Screener(ABC):
                 smis = [row[smiles_col] for row in reader]
                 names = None
             else:
-                smis_names = [(row[smiles_col], row[name_col])
-                              for row in reader]
-                smis, names = zip(*smis_names)
+                smis, names = zip(*[
+                    (row[smiles_col], row[name_col]) for row in reader
+                ])
+                # smis, names = zip(*smis_names)
         
         return self.prepare_from_smis(smis, names=names,
                                       start=start, nconvert=nconvert)

@@ -8,8 +8,11 @@
 #SBATCH -c 16
 #SBATCH --mem-per-cpu 4000
 
-module load <YOUR_MODULES>
 source activate pyscreener
+
+# tempfile.gettempdir() returns the value of $TMPDIR first, so I set the value
+# to a custom environment variable, $TMP, that is set to my
+# cluster's global temporary directory
 export TMPDIR=$TMP
 
 ######################## DO NOT CHANGE THINGS HERE ############################

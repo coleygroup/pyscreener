@@ -30,7 +30,7 @@ def add_general_args(parser: ArgumentParser):
     
     parser.add_argument('--root', default='.',
                         help='the root directory under which to organize all program outputs')
-    parser.add_argument('--tmp', '--tmpdir', '--temp',
+    parser.add_argument('--tmp-dir', '--tmp', '--temp',
                         default=tempfile.gettempdir(),
                         help='The filepath of the temporary directory under which to write all input and output files. NOTE: If running in distributed mode, this folder must be visible to all nodes in your job allocation. By default, this directory will be set according to the python defaults, which for some compute clusters may be a node-local temp directory. In this case, consult your compute team to determine what the appropriate directory should be and specify this accordingly.')
     parser.add_argument('--copy-all', action='store_true', default=False,

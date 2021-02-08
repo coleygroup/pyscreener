@@ -160,7 +160,7 @@ class Vina(Screener):
         """
         path = Path(path)
         if not path.is_dir():
-            path.mkdir()
+            path.mkdir(parents=True)
         pdbqt = str(path / f'{name}.pdbqt')
 
         mol = pybel.readstring(format='smi', string=smi)
@@ -241,7 +241,7 @@ class Vina(Screener):
         
         path = Path(path)
         if not path.is_dir():
-            path.mkdir()
+            path.mkdir(parents=True)
 
         pdbqt = f'{path}/{name}_.pdbqt'
         argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']

@@ -2,6 +2,7 @@ from functools import partial
 from itertools import chain, takewhile
 import os
 from pathlib import Path
+import re
 import subprocess as sp
 import sys
 import timeit
@@ -160,7 +161,7 @@ class Vina(Screener):
         """
         path = Path(path)
         if not path.is_dir():
-            path.mkdir(parents=True)
+            path.mkdir(parents=True, exist_ok=True)
         pdbqt = str(path / f'{name}.pdbqt')
 
         mol = pybel.readstring(format='smi', string=smi)
@@ -241,7 +242,7 @@ class Vina(Screener):
         
         path = Path(path)
         if not path.is_dir():
-            path.mkdir(parents=True)
+            path.mkdir(parents=True, exist_ok=True)
 
         pdbqt = f'{path}/{name}_.pdbqt'
         argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']
@@ -362,8 +363,6 @@ class Vina(Screener):
 
         ensemble_rowss = []
         for receptor in receptors:
-            with open(receptor) as _:
-                pass
             repeat_rows = []
             for repeat in range(repeats):
                 name = f'{Path(receptor).stem}_{ligand_name}_{repeat}'
@@ -386,7 +385,7 @@ class Vina(Screener):
                 repeat_rows.append({
                     'smiles': smi,
                     'name': ligand_name,
-                    'id': ray.state.current_node_id(),
+                    'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
                     # 'in': p_pdbqt,
                     # 'out': p_out,
                     # 'log': p_log,
@@ -443,7 +442,7 @@ class Vina(Screener):
 
         path = Path(path)
         if not path.is_dir():
-            path.mkdir(parents=True)
+            path.mkdir(parents=True, exist_ok=True)
 
         name = name or (Path(receptor).stem+'_'+Path(ligand).stem)
         extra = extra or []
@@ -468,14 +467,19 @@ class Vina(Screener):
         """parse a Vina-type log file to calculate the overall ligand score
         from a single docking run
 
-        Returns
-        -------
+        Parameters
+        ----------
         log_file : str
             the path to a Vina-type log file
         score_mode : str (Default = 'best')
             the method by which to calculate a score from multiple scored
             conformations. Choices include: 'best', 'average', and 'boltzmann'.
             See Screener.calc_score for further explanation of these choices.
+        
+        Returns
+        -------
+        Optional[float]
+            the score parsed from the log file. None if no score was parsed
         """
         # vina-type log files have scoring information between this 
         # table border and the line: "Writing output ... done."

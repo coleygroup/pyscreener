@@ -42,9 +42,10 @@ def main():
     name = params['name']
 
     tmp_dir = Path(params['tmp_dir']) / name
-    if not tmp_dir.exists():
-        tmp_dir.mkdir(parents=True)
-    params['path'] = tmp_dir
+    out_dir = Path(params['root']) / name
+    # if not tmp_dir.exists():
+    #     tmp_dir.mkdir(parents=True)
+    params['path'] = out_dir
     
     print('Preprocessing ...', flush=True)
     params = pyscreener.preprocess(**params)
@@ -65,8 +66,10 @@ def main():
     pyscreener.postprocess(d_smi_score=d_smi_score, **params)
     print('Done!')
 
-    if params['copy_all']:
-        copy_tree(str(tmp_dir), str(out_dir))
+    if params['collect_all']:
+        print('Collecting all input and output files ...', end=' ', flush=True)
+        screener.collect_files(out_dir)
+        print('Done!')
 
     scores_filename = out_dir / f'{name}_scores.csv'
     extended_filename = out_dir / f'{name}_extended.csv'
@@ -81,9 +84,7 @@ def main():
     rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
     with open(extended_filename, 'w') as fid:
         writer = csv.writer(fid)
-        writer.writerow(
-            ['smiles', 'name', 'input_file', 'out_file', 'log_file', 'score']
-        )
+        writer.writerow(['smiles', 'name', 'node_id', 'score'])
         writer.writerows(row.values() for row in rows)
 
     print(f'Scoring data has been saved to: "{scores_filename}"')

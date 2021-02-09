@@ -33,8 +33,8 @@ def add_general_args(parser: ArgumentParser):
     parser.add_argument('--tmp-dir', '--tmp', '--temp',
                         default=tempfile.gettempdir(),
                         help='The filepath of the temporary directory under which to write all input and output files. NOTE: If running in distributed mode, this folder must be visible to all nodes in your job allocation. By default, this directory will be set according to the python defaults, which for some compute clusters may be a node-local temp directory. In this case, consult your compute team to determine what the appropriate directory should be and specify this accordingly.')
-    parser.add_argument('--copy-all', action='store_true', default=False,
-                        help='whether all prepared input files and generated output files should be copied to the final output directory. By default, these files are all stored in a temporary directory.')
+    parser.add_argument('--collect-all', action='store_true', default=False,
+                        help='whether all prepared input files and generated output files should be collected to the final output directory. By default, these files are all stored in a node-local temporary directory that is inaccessible after program completion.')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='the level of output this program should print')
 

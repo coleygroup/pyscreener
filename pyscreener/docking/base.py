@@ -136,8 +136,8 @@ class Screener(ABC):
     def path(self, path: str):
         """set both input and output directories"""
         path = Path(path)
-        if not path.is_dir():
-            path.mkdir(parents=True)
+        # if not path.is_dir():
+        #     path.mkdir(parents=True)
         self.__path = path
         self.in_path = f'{path}/inputs'
         self.out_path = f'{path}/outputs'
@@ -149,8 +149,8 @@ class Screener(ABC):
     @in_path.setter
     def in_path(self, path: str):
         path = Path(path)
-        if not path.is_dir():
-            path.mkdir(parents=True)
+        # if not path.is_dir():
+        #     path.mkdir(parents=True)
         self.__in_path = path
 
     @property
@@ -160,8 +160,8 @@ class Screener(ABC):
     @out_path.setter
     def out_path(self, path: str):
         path = Path(path)
-        if not path.is_dir():
-            path.mkdir(parents=True)
+        # if not path.is_dir():
+        #     path.mkdir(parents=True)
         self.__out_path = path
 
     @property

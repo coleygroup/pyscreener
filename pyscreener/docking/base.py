@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor, ProcessPoolExecutor as Pool
 import csv
-from functools import partial
+import datetime
 from itertools import chain
 from math import ceil, exp, log10
 import os
 from pathlib import Path
+import shutil
+import tarfile
 import tempfile
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
@@ -125,13 +127,17 @@ class Screener(ABC):
         return self.dock(*args, **kwargs)
     
     @property
-    def path(self) -> Tuple[os.PathLike, os.PathLike]:
-        """the Screener's input and output directories"""
-        return self.__in_path, self.__out_path
+    def path(self) -> os.PathLike:
+        """the Screener's parent directory"""
+        return self.__path
         
     @path.setter
     def path(self, path: str):
         """set both input and output directories"""
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir(parents=True)
+        self.__path = path
         self.in_path = f'{path}/inputs'
         self.out_path = f'{path}/outputs'
 
@@ -158,15 +164,20 @@ class Screener(ABC):
         self.__out_path = path
 
     @property
-    def tmp_dir(self) -> Tuple[os.PathLike, os.PathLike]:
-        """the Screener's temp in and out directories"""
-        return self.__tmp_in, self.__tmp_out
+    def tmp_dir(self) -> os.PathLike:
+        """the Screener's temp directory"""
+        return self.__tmp_dir
         
     @tmp_dir.setter
-    def tmp_dir(self, tmp_dir: str):
+    def tmp_dir(self, path: str):
         """set both the temp input and output directories"""
-        self.tmp_in = f'{tmp_dir}/inputs'
-        self.tmp_out = f'{tmp_dir}/outputs'
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        path = Path(path) / 'pyscreener' / f'session_{timestamp}'
+        if not path.is_dir():
+            path.mkdir(parents=True)
+        self.__tmp_dir = path
+        self.tmp_in = path / 'inputs'
+        self.tmp_out = path / 'outputs'
 
     @property
     def tmp_in(self) -> os.PathLike:
@@ -328,6 +339,25 @@ class Screener(ABC):
                   f'({total/len(recordsss):0.3f} s/ligand)', flush=True)
 
         return recordsss
+
+    def collect_files(self):
+        refs = []
+        for node in ray.nodes():    # run on all nodes
+            address = node["NodeManagerAddress"]
+
+            @ray.remote(resources={f'node:{address}': 0.1})
+            def copy_tmp_dir():
+                output_id = f'{ray.state.current_node_id()}.tar.gz'
+                tmp_tar = self.tmp_dir / output_id
+                final_tar = self.path / output_id
+
+                with tarfile.open(tmp_tar, 'w:gz') as tar:
+                    tar.add(self.tmp_dir, arcname=output_id)
+
+                shutil.move(tmp_tar, final_tar)
+
+            refs.append(copy_tmp_dir.remote())
+        ray.wait(refs)
 
     @abstractmethod
     def prepare_and_dock(

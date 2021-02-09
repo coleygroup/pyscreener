@@ -386,9 +386,10 @@ class Vina(Screener):
                 repeat_rows.append({
                     'smiles': smi,
                     'name': ligand_name,
-                    'in': p_pdbqt,
-                    'out': p_out,
-                    'log': p_log,
+                    'id': ray.state.current_node_id(),
+                    # 'in': p_pdbqt,
+                    # 'out': p_out,
+                    # 'log': p_log,
                     'score': Vina.parse_log_file(p_log, score_mode)
                 })
 

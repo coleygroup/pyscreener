@@ -23,14 +23,14 @@ nodes=$(scontrol show hostnames $SLURM_JOB_NODELIST) # Getting the node names
 nodes_array=( $nodes )
 
 node_1=${nodes_array[0]} 
-ip=$(srun --nodes=1 --ntasks=1 -w $node_1 hostname --ip-address) # making redis-address
+ip=$(srun -N 1 -n 1 -w $node_1 hostname --ip-address) # making redis-address
 port=6379
 ip_head=$ip:$port
 export ip_head
 echo "IP Head: $ip_head"
 
 echo "STARTING HEAD at $node_1"
-srun --nodes=1 --ntasks=1 -w $node_1 \
+srun -N 1 -n 1 -w $node_1 \
     ray start --head \
     --node-ip-address=$ip --port=$port --redis-password=$redis_password \
     --num-cpus $SLURM_CPUS_PER_TASK --block &
@@ -41,7 +41,7 @@ for ((  i=1; i<=$worker_num; i++ ))
 do
     node_i=${nodes_array[$i]}
     echo "STARTING WORKER $i at $node_i"
-    srun --nodes=1 --ntasks=1 -w $node_i \
+    srun -N 1 -n 1 -w $node_i \
         ray start --address $ip_head --redis-password=$redis_password \
         --num-cpus $SLURM_CPUS_PER_TASK --block &
   sleep 5

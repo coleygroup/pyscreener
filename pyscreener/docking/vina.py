@@ -448,7 +448,7 @@ class Vina(Screener):
         extra = extra or []
 
         out = path / f'{software}_{name}_out.pdbqt'
-        log = path / f'{software}_{name}_log.txt'
+        log = path / f'{software}_{name}.log'
         
         argv = [
             software, f'--receptor={receptor}', f'--ligand={ligand}',

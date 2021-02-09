@@ -369,7 +369,7 @@ class DOCK(Screener):
                 )
 
                 out = Path(f'{outfile_prefix}_scored.mol2')
-                log = Path(outfile_prefix).parent / f'{name}.out'
+                log = Path(outfile_prefix).parent / f'{name}.log'
                 argv = [DOCK6, '-i', infile, '-o', log]
 
                 ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)

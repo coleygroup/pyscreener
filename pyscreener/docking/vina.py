@@ -168,7 +168,10 @@ class Vina(Screener):
         mol = pybel.readstring(format='smi', string=smi)
         mol.addh()
         mol.make3D()
-        mol.calccharges(model='gasteiger')
+        try:
+            mol.calccharges(model='gasteiger')
+        except Exception:
+            pass
         mol.write(format='pdbqt', filename=pdbqt,
                   overwrite=True, opt={'h': None})
 

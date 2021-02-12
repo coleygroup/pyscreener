@@ -165,16 +165,15 @@ class Vina(Screener):
             path.mkdir(parents=True, exist_ok=True)
         pdbqt = str(path / f'{name}.pdbqt')
 
-        with pybel.ob.obErrorLog.SetOutputLevel(0):
-            mol = pybel.readstring(format='smi', string=smi)
-            mol.addh()
-            mol.make3D()
-            try:
-                mol.calccharges(model='gasteiger')
-            except Exception:
-                pass
-            mol.write(format='pdbqt', filename=pdbqt,
-                    overwrite=True, opt={'h': None})
+        mol = pybel.readstring(format='smi', string=smi)
+        mol.addh()
+        mol.make3D()
+        try:
+            mol.calccharges(model='gasteiger')
+        except Exception:
+            pass
+        mol.write(format='pdbqt', filename=pdbqt,
+                overwrite=True, opt={'h': None})
 
         return smi, pdbqt
     

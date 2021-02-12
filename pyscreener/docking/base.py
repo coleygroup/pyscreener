@@ -21,6 +21,8 @@ from tqdm import tqdm
 
 from pyscreener.preprocessing import pdbfix
 
+pybel.ob.obErrorLog.SetOutputLevel(0)
+
 if not ray.is_initialized():
     try:
         ray.init(address='auto')

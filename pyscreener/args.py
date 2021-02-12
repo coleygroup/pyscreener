@@ -15,24 +15,24 @@ def positive_int(arg: str):
 def add_general_args(parser: ArgumentParser):
     parser.add_argument('--config', is_config_file=True,
                         help='filepath of a configuration file to use')
-    parser.add_argument('--name',
-                        help='the base name of the outputs')
+    parser.add_argument('--name', default='pyscreener',
+                        help='the name of the output directory')
     parser.add_argument('--mode', default='docking',
-                        choices=['docking', 'md', 'dft'],
+                        choices=('docking', 'md', 'dft'),
                         help='the mode in which to run pyscreener')
 
-    parser.add_argument('--distributed', action='store_true', default=False,
-                        help='whether to parallelize computation using a distributed setup')
-    parser.add_argument('-nw', '-nj', '-np', '--num-workers', '--njobs',
-                        type=int, default=-1,
-                        metavar='N_WORKERS',
-                        help='the number of workers to use. (Only used when distributed=False.)')
+    # parser.add_argument('--distributed', action='store_true', default=False,
+    #                     help='whether to parallelize computation using a distributed setup')
+    # parser.add_argument('-nw', '-nj', '-np', '--num-workers', '--njobs',
+    #                     type=int, default=-1,
+    #                     metavar='N_WORKERS',
+    #                     help='the number of workers to use. (Only used when distributed=False.)')
     
     parser.add_argument('--root', default='.',
-                        help='the root directory under which to organize all program outputs')
+                        help='the root directory under which to organize all program outputs. I.e., the final output directory will be located at <root>/<name>')
     parser.add_argument('--tmp-dir', '--tmp', '--temp',
                         default=tempfile.gettempdir(),
-                        help='The filepath of the temporary directory under which to write all input and output files. NOTE: If running in distributed mode, this folder must be visible to all nodes in your job allocation. By default, this directory will be set according to the python defaults, which for some compute clusters may be a node-local temp directory. In this case, consult your compute team to determine what the appropriate directory should be and specify this accordingly.')
+                        help='The filepath of the temporary directory under which to write all input and output files. NOTE: on some systems you may not have write access under the default directory for this argument and this will usually manifest itself as a PermissionError. In this case, contact your system administrator to obtain an appropriate value for this argument.')
     parser.add_argument('--collect-all', action='store_true', default=False,
                         help='whether all prepared input files and generated output files should be collected to the final output directory. By default, these files are all stored in a node-local temporary directory that is inaccessible after program completion.')
     parser.add_argument('-v', '--verbose', action='count', default=0,
@@ -52,11 +52,13 @@ def add_preprocessing_args(parser: ArgumentParser):
 
 def add_preparation_args(parser: ArgumentParser):
     parser.add_argument('--no-title-line', default=False, action='store_true',
-                        help='whether there is no title line in the ligands csv file')
-    parser.add_argument('--start', type=int, default=0,
-                        help='the index at which start conversion')
-    parser.add_argument('--nconvert', type=int,
-                        help='the number of molecules to convert')
+                        help='whether there is no title line in the ligands CSV file')
+    parser.add_argument('--smiles-col', type=int, default=0,
+                        help='the column containing the SMILES strings in the CSV file.')
+    parser.add_argument('--name-col', type=int,
+                        help='(OPTIONAL) the column containing the molecule names/IDs in the CSV file. Molecules will be labeled as ligand_<i> otherwise.')
+    parser.add_argument('--id-prop-name',
+                        help='(OPTIONAL) the name of the property containing the molecule names/IDs in a SMI or SDF file (e.g., "CatalogID", "Chemspace_ID", "Name", etc.). Molecules will be labeled as ligand_<i> otherwise.')
     
 def add_docking_args(parser: ArgumentParser):
     parser.add_argument('--software', default='vina',
@@ -69,7 +71,7 @@ def add_docking_args(parser: ArgumentParser):
     parser.add_argument('-l', '--ligands', required=True, nargs='+',
                         help='the filenames containing the ligands to dock')
     parser.add_argument('--use-3d', action='store_true', default='False',
-                        help='how to treat the preparation of ligands from files containing three-dimensional information. If False, use only the 2D graph of each molecule in the SDF file when preparing inputs. Faster, but will result in the loss of conformational/tautomeric information. If True, use the 3D information contained in the file when preparing an input. Slower, but will preserve conformational/tautomeric information.')
+                        help='(UNUSED) how to treat the preparation of ligands from files containing three-dimensional information. If False, use only the 2D graph of each molecule in the SDF file when preparing inputs. Faster, but will result in the loss of conformational/tautomeric information. If True, use the 3D information contained in the file when preparing an input. Slower, but will preserve conformational/tautomeric information.')
     parser.add_argument('--center', type=float, nargs=3,
                         metavar=('CENTER_X', 'CENTER_Y', 'CENTER_Z'),
                         help='the x-, y-, and z-coordinates of the center of the docking box')
@@ -126,9 +128,6 @@ def gen_args(argv: Optional[str] = None) -> Namespace:
     add_postprocessing_args(parser)
 
     args = parser.parse_args(argv)
-
-    if args.name is None:
-        args.name = f'{Path(args.receptor).stem}_{Path(args.ligands).stem}'
         
     args.title_line = not args.no_title_line
     del args.no_title_line

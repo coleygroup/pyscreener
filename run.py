@@ -1,5 +1,4 @@
 import csv
-from distutils.dir_util import copy_tree
 import os
 from pathlib import Path
 
@@ -38,16 +37,12 @@ def main():
     except PermissionError:
         print('Failed to create a temporary directory for ray')
         raise
+    print('Ray cluster online with resources:')
     print(ray.cluster_resources())
-
-    
+    print(flush=True)
 
     name = params['name']
-
-    # tmp_dir = Path(params['tmp_dir']) / name
     out_dir = Path(params['root']) / name
-    # if not tmp_dir.exists():
-    #     tmp_dir.mkdir(parents=True)
     params['path'] = out_dir
     
     print('Preprocessing ...', flush=True)
@@ -61,37 +56,31 @@ def main():
     )
     print('Done!')
 
-    out_dir = Path(params['root']) / name
-    if not out_dir.exists():
-        out_dir.mkdir(parents=True)
-    params['path'] = out_dir
     print(f'Postprocessing ...', flush=True)
     pyscreener.postprocess(d_smi_score=d_smi_score, **params)
     print('Done!')
 
-    if params['collect_all']:
-        print('Collecting all input and output files ...', end=' ', flush=True)
-        screener.collect_files(out_dir)
-        print('Done!')
-
     scores_filename = out_dir / f'{name}_scores.csv'
-    extended_filename = out_dir / f'{name}_extended.csv'
-
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
         writer.writerows(
             sorted(d_smi_score.items(), key=lambda k_v: k_v[1] or float('inf'))
         )
-    
-    rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
-    with open(extended_filename, 'w') as fid:
-        writer = csv.writer(fid)
-        writer.writerow(['smiles', 'name', 'node_id', 'score'])
-        writer.writerows(row.values() for row in rows)
-
     print(f'Scoring data has been saved to: "{scores_filename}"')
-    print(f'Extended data has been saved to: "{extended_filename}"')
+
+    if params['collect_all']:
+        print('Collecting all input and output files ...', end=' ', flush=True)
+        screener.collect_files(out_dir)
+        extended_filename = out_dir / f'{name}_extended.csv'
+        rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
+        with open(extended_filename, 'w') as fid:
+            writer = csv.writer(fid)
+            writer.writerow(['smiles', 'name', 'node_id', 'score'])
+            writer.writerows(row.values() for row in rows)
+        print('Done!')
+        print(f'Extended data has been saved to: "{extended_filename}"')
+
     print('Thanks for using Pyscreener!')
 
 if __name__ == '__main__':

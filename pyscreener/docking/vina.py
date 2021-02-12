@@ -77,7 +77,7 @@ class Vina(Screener):
                  score_mode: str = 'best', repeats: int = 1,
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                 distributed: bool = False, num_workers: int = -1,
+                #  distributed: bool = False, num_workers: int = -1,
                  path: str = '.', verbose: int = 0, **kwargs):
         if software not in ('vina', 'qvina', 'smina', 'psovina'):
             raise ValueError(f'Unrecognized docking software: "{software}"')
@@ -103,8 +103,9 @@ class Vina(Screener):
                          repeats=repeats, score_mode=score_mode,
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
-                         distributed=distributed,
-                         num_workers=num_workers, ncpu=ncpu,
+                        #  distributed=distributed,
+                        #  num_workers=num_workers,
+                         ncpu=ncpu,
                          path=path, verbose=verbose, **kwargs)
 
     def __call__(self, *args, **kwargs):

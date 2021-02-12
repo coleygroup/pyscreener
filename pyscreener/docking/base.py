@@ -73,7 +73,7 @@ class Screener(ABC):
     verbose : int
         the level of output this Screener should output
 
-    Parameters
+    Attributes
     ----------
     repeats : int
     score_mode : str
@@ -100,10 +100,10 @@ class Screener(ABC):
 
         receptors = receptors or []
         if pdbids:
-            receptors.extend((
-                pdbfix.pdbfix(pdbid=pdbid, path=self.in_path)
+            receptors.extend([
+                pdbfix.pdbfix(pdbid=pdbid, path=self.receptors_dir)
                 for pdbid in pdbids
-            ))
+            ])
         if len(receptors) == 0:
             raise ValueError('No receptors or PDBids provided!')
 
@@ -113,8 +113,8 @@ class Screener(ABC):
         self.receptor_score_mode = receptor_score_mode
         self.ensemble_score_mode = ensemble_score_mode
         
-        self.distributed = distributed
-        self.num_workers = num_workers
+        # self.distributed = distributed
+        # self.num_workers = num_workers
         self.ncpu = ncpu
 
         self.verbose = verbose
@@ -153,7 +153,6 @@ class Screener(ABC):
         
     @tmp_dir.setter
     def tmp_dir(self, path: str):
-        """set both the temp input and output directories"""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         path = Path(path) / 'pyscreener' / f'session_{timestamp}'
         if not path.is_dir():
@@ -193,16 +192,19 @@ class Screener(ABC):
             If intending to pass multiple filepaths as an iterable, first 
             unpack the iterable in the function call by prepending a *.
             If passing multiple SMILES strings, either option is acceptable,
-            but it is much more efficient to NOT unpack the iterable.
+            but it is marginally more efficient to NOT unpack the iterable.
 
         Parameters
         ----------
         smis_or_files: Iterable
             an iterable of ligand sources, where each ligand source may be
             one of the following:
-            - a ligand supply file,
-            - a list of SMILES strings
-            - a single SMILES string
+            
+            * an arbitrary format file containing molecules,
+            * a list of SMILES strings
+            * a single SMILES string
+        full_results : bool, default=False
+            whether the full dataframe of every single run should be returned
         **kwargs
             keyword arguments to pass to the appropriate prepare_from_*
             function(s)
@@ -216,12 +218,13 @@ class Screener(ABC):
         records : List[Dict]
             a list of dictionaries containing the record of every single
             docking run performed. Each dictionary contains the following keys:
-            - smiles: the ligand's SMILES string
-            - name: the name of the ligand
-            - in: the filename of the input ligand file
-            - out: the filename of the output docked ligand file
-            - log: the filename of the output log file
-            - score: the ligand's docking score
+            
+            * 'smiles': the ligand's SMILES string
+            * 'name': the name of the ligand
+            * 'node_id': the ID of the node that ran the docking simulations and
+                    the ID of the TAR file containing all of the
+                    corresponding files if collect_files() is called
+            * 'score': the ligand's docking score
         """
         recordsss = self.dock_ensemble(*smis_or_files, **kwargs)
 
@@ -280,18 +283,18 @@ class Screener(ABC):
             an NxMxO list of dictionaries where each dictionary is a record of 
             an individual docking run and:
 
-            * N is the number of total ligands that will be docked
-            * M is the number of receptors each ligand is docked against
-            * O is the number of times each docking run is repeated.
+            * N is the number of total ligands that were docked
+            * M is the number of receptors each ligand was docked against
+            * O is the number of times each docking run was repeated.
             
             Each dictionary contains the following keys:
 
-            * smiles: the ligand's SMILES string (not canonicalized)
-            * name: the name of the ligand
-            * node_id: the ID of the node that ran the docking simulations and
+            * 'smiles': the ligand's SMILES string (not canonicalized)
+            * 'name': the name of the ligand
+            * 'node_id': the ID of the node that ran the docking simulations and
                     the ID of the TAR file containing all of the
                     corresponding files if collect_files() is called
-            * score: the ligand's docking score
+            * 'score': the ligand's docking score
 
         """
         begin = timeit.default_timer()
@@ -656,13 +659,11 @@ class Screener(ABC):
         ----------
         scores : Sequence[float]
         score_mode : str, default='best'
-            the method used to calculate the overall score
+            the method used to calculate the overall score. Choices include:
 
-            Choices:
-
-            * 'best' - return the top score
-            * 'avg' - return the average of the scores
-            * 'boltzmann' - return the boltzmann average of the scores
+            * 'best': return the top score
+            * 'avg': return the average of the scores
+            * 'boltzmann': return the boltzmann average of the scores
 
         Returns
         -------

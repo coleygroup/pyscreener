@@ -18,6 +18,11 @@ def main():
 *  /_/    /____/                                              *
 ***************************************************************''')
     print('Welcome to Pyscreener!\n')
+    params = vars(args.gen_args())
+    print('Pyscreener will be run with the following arguments:')
+    for param, value in sorted(params.items()):
+        print(f'  {param}: {value}')
+    print(flush=True)
 
     try:
         if 'redis_password' in os.environ:
@@ -29,15 +34,13 @@ def main():
         else:
             ray.init(address='auto')
     except ConnectionError:
-        ray.init()
+        ray.init(_temp_dir=params['tmp_dir'])
+    except PermissionError:
+        print('Failed to create a temporary directory for ray')
+        raise
     print(ray.cluster_resources())
 
-    params = vars(args.gen_args())
-
-    print('Pyscreener will be run with the following arguments:')
-    for param, value in sorted(params.items()):
-        print(f'  {param}: {value}')
-    print(flush=True)
+    
 
     name = params['name']
 

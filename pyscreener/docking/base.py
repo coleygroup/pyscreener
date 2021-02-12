@@ -349,7 +349,7 @@ class Screener(ABC):
             * O is the number of times each docking run was repeated
         """
 
-    def collect_files(self, out_path: str):
+    def collect_files(self, out_path: Optional[str]=None):
         """Collect all the files from the local disks of the respective nodes
 
         For I/O purposes, input and output files for each simulation are 
@@ -366,10 +366,17 @@ class Screener(ABC):
         This function should ideally only be called once during the lifetime
         of a Screener because it is slow and early calls will yield nothing
         over a single, final call.
+
+        Parameters
+        ----------
+        out_path : Optional[str], defualt=None
+            the path under which the tar files should be collected to. If None,
+            use self.path
         """
-        # out_path = Path(out_path)
-        # if not out_path.is_dir():
-        #     out_path.mkdir(parents=True)
+        out_path = out_path or self.path
+        out_path = Path(out_path)
+        if not out_path.is_dir():
+            out_path.mkdir(parents=True)
 
         refs = []
         for node in ray.nodes():    # run on all nodes
@@ -383,7 +390,7 @@ class Screener(ABC):
                 with tarfile.open(tmp_tar, 'w:gz') as tar:
                     tar.add(self.tmp_dir, arcname=output_id)
 
-                shutil.move(str(tmp_tar), str(self.path))
+                shutil.move(str(tmp_tar), str(out_path))
 
             refs.append(copy_tmp_dir.remote())
         ray.wait(refs)

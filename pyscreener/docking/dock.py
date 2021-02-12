@@ -7,6 +7,7 @@ import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from openbabel import pybel
+import ray
 from tqdm import tqdm
 
 from pyscreener.docking import Screener
@@ -159,38 +160,42 @@ class DOCK(Screener):
             the filepath of a file containing a receptor. Must be in a format
             that is readable by Chimera
         """
-        rec_mol2 = ucsfdock_prep.prepare_mol2(receptor, self.in_path)
-        rec_pdb = ucsfdock_prep.prepare_pdb(receptor, self.in_path)
+        receptors_dir = self.path / 'receptors'
+        if not receptors_dir.is_dir():
+            receptors_dir.mkdir(parents=True, exist_ok=True)
+        
+        rec_mol2 = ucsfdock_prep.prepare_mol2(receptor, receptors_dir)
+        rec_pdb = ucsfdock_prep.prepare_pdb(receptor, receptors_dir)
         if rec_mol2 is None or rec_pdb is None:
             return None
 
         rec_dms = ucsfdock_prep.prepare_dms(
-            rec_pdb, self.probe_radius, self.in_path
+            rec_pdb, self.probe_radius, receptors_dir
         )
         if rec_dms is None:
             return None
 
         rec_sph = ucsfdock_prep.prepare_sph(
             rec_dms, self.steric_clash_dist,
-            self.min_radius, self.max_radius, self.in_path
+            self.min_radius, self.max_radius, receptors_dir
         )
         if rec_sph is None:
             return None
 
         rec_sph = ucsfdock_prep.select_spheres(
             rec_sph, self.center, self.size, self.docked_ligand_file,
-            self.use_largest, self.buffer, self.in_path
+            self.use_largest, self.buffer, receptors_dir
         )
 
         rec_box = ucsfdock_prep.prepare_box(
             rec_sph, self.center, self.size,
-            self.enclose_spheres, self.buffer, self.in_path
+            self.enclose_spheres, self.buffer, receptors_dir
         )
         if rec_box is None:
             return None
 
         grid_prefix = ucsfdock_prep.prepare_grid(
-            rec_mol2, rec_box, self.in_path
+            rec_mol2, rec_box, receptors_dir
         )
         if grid_prefix is None:
             return None
@@ -234,6 +239,33 @@ class DOCK(Screener):
         return smi, mol2
         # does this need a try/except?
 
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        
+        @ray.remote(num_cpus=self.ncpu)
+        def prepare_and_dock_(smi, name):
+            ligand = DOCK.prepare_from_smi(smi, name, self.tmp_in)
+
+            return DOCK.dock_ligand(
+                ligand, receptors=self.receptors,
+                in_path=self.in_path, out_path=self.out_path,
+                repeats=self.repeats, score_mode=self.score_mode
+            )
+            # return Vina.dock_ligand(
+            #     ligand, software=self.software, receptors=self.receptors,
+            #     center=self.center, size=self.size, ncpu=self.ncpu,
+            #     extra=self.extra, path=self.tmp_out,
+            #     repeats=self.repeats, score_mode=self.score_mode
+            # )
+
+        refs = list(map(prepare_and_dock_.remote, smis, names))
+        ligs_recs_reps = [
+            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
+        ]
+
+        return ligs_recs_reps
+    
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
                           name: Optional[str] = None, path: str = '.'):
@@ -484,10 +516,10 @@ class DOCK(Screener):
         """
         in_path = Path(in_path)
         if not in_path.is_dir():
-            in_path.mkdir(parents=True)
+            in_path.mkdir(parents=True, exist_ok=True)
         out_path = Path(out_path)
         if not out_path.is_dir():
-            out_path.mkdir(parents=True)
+            out_path.mkdir(parents=True, exist_ok=True)
 
         name = name or f'{Path(sph_file).stem}_{Path(ligand_file).stem}'
         infile = in_path / f'{name}.in'

@@ -1,12 +1,10 @@
-from functools import partial
-from itertools import chain, takewhile
-import os
+from itertools import takewhile
+from math import ceil, log10
 from pathlib import Path
 import re
 import subprocess as sp
 import sys
-import timeit
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from openbabel import pybel
 import ray
@@ -126,12 +124,14 @@ class Vina(Screener):
             the filepath of the resulting PDBQT file.
             None if preparation failed
         """
-        receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
+        receptor_pdbqt = Path(receptor).with_suffix('.pdbqt').name
+        receptor_pdbqt = str(self.receptors_dir / receptor_pdbqt)
+
         argv = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
         try:
             sp.run(argv, stderr=sp.PIPE, check=True)
         except sp.SubprocessError:
-            print(f'ERROR: failed to convert {receptor}', file=sys.stderr)
+            print(f'ERROR: failed to convert "{receptor}"', file=sys.stderr)
             return None
 
         return receptor_pdbqt
@@ -192,112 +192,102 @@ class Vina(Screener):
         ligs_recs_reps = [
             ray.get(r) for r in tqdm(refs, desc='Docking ligands')
         ]
-        # with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
-        #     ligs_recs_reps = pool.map(dock_ligand, ligands, 
-        #                                 chunksize=2)
-        #     ligs_recs_reps = list(tqdm(
-        #         ligs_recs_reps, total=len(ligands),
-        #         desc='Docking', unit='ligand')
-        #     )
 
         return ligs_recs_reps
 
     @staticmethod
-    def prepare_from_file(filepath: str, use_3d: bool = False,
-                          name: Optional[str] = None, path: str = '.', 
-                          **kwargs) -> Tuple:
-        """Convert a single ligand to the appropriate input format
+    def prepare_from_file(filename: str, path: str = '.', 
+                          offset: int = 0, **kwargs) -> List[Tuple[str, str]]:
+        """Convert the molecules contained in the arbitrary chemical file to
+        indidvidual PDBQT files with their same geometry
 
         Parameters
         ----------
         filename : str
-            the name of the file containing the ligand
-        use_3d : bool, default=False
-            whether to use the 3D information in the input file (if possible)
-        name : Optional[str], default=None
-            the name of the ligand. If None, use the stem of the input file
+            the name of the file containing the molecules
         path : str, default='.'
-            the path under which the output .pdbqt file should be written
+            the path under which the output PDBQT files should be written
+        offset : int, default=0
+            the numbering offset for ligand naming
         **kwargs
             additional and unused keyword arguments
 
         Returns
         -------
-        List[Tuple]
+        List[Tuple[str, str]]
             a list of tuples of the SMILES string and the filepath of
-            the corresponding input file
+            the corresponding PDBQT file
         """
-        name = name or Path(filepath).stem
-
-        ret = sp.run(['obabel', filepath, '-osmi'], stdout=sp.PIPE, check=True)
-        lines = ret.stdout.decode('utf-8').splitlines()
-        smis = [line.split()[0] for line in lines]
-
-        if not use_3d:
-            ligands = [
-                Vina.prepare_from_smi(smi, f'{name}_{i}', path) 
-                for i, smi in enumerate(smis)
-            ]
-            return [lig for lig in ligands if lig]
-        
         path = Path(path)
         if not path.is_dir():
             path.mkdir(parents=True, exist_ok=True)
 
-        pdbqt = f'{path}/{name}_.pdbqt'
-        argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']
-        ret = sp.run(argv, check=False, stderr=sp.PIPE)
-        
-        try:
-            ret.check_returncode()
-        except sp.SubprocessError:
-            return None
+        fmt = Path(filename).suffix.strip('.')
+        mols = list(pybel.readfile(fmt, filename))
+        width = ceil(log10(len(mols) + offset)) + 1
 
-        n_mols = 0
-        stderr = ret.stderr.decode('utf-8')
-        for line in stderr.splitlines():
-            if 'converted' not in line:
-                continue
-            n_mols = int(line.split()[0])
+        smis = []
+        pdbqts = []
+        for i, mol in enumerate(mols):
+            if mol.title:
+                name = mol.title
+            else:
+                name = f'ligand_{i+offset:0{width}}'
+            
+            smi = mol.write()
+            pdbqt = str(path / f'{name}.pdbqt')
+            mol.addh()
+            # mol.make3D()
+            mol.calccharges(model='gasteiger')
+            mol.write(format='pdbqt', filename=pdbqt,
+                      overwrite=True, opt={'h': None})
 
-        # have to think about some molecules failing and
-        # how that affects numbering
-        pdbqts = [f'{path}/{name}_{i}.pdbqt' for i in range(1, n_mols)]
+            smis.append(smi)
+            pdbqts.append(pdbqt)
 
         return list(zip(smis, pdbqts))
+        # ret = sp.run(['obabel', filepath, '-osmi'], stdout=sp.PIPE, check=True)
+        # lines = ret.stdout.decode('utf-8').splitlines()
+        # smis = [line.split()[0] for line in lines]
 
-    def run_docking(self, ligands: Sequence[Tuple[str, str]]
-                   ) -> List[List[List[Dict]]]:
-        # dock_ligand = partial(
-        #     Vina.dock_ligand,
-        #     software=self.software, receptors=self.receptors,
-        #     center=self.center, size=self.size, ncpu=self.ncpu,
-        #     extra=self.extra, path=self.out_path,
-        #     repeats=self.repeats, score_mode=self.score_mode
-        # )
+        # if not use_3d:
+        #     ligands = [
+        #         Vina.prepare_from_smi(smi, f'{name}_{i}', path) 
+        #         for i, smi in enumerate(smis)
+        #     ]
+        #     return [lig for lig in ligands if lig]
+        
+        # path = Path(path)
+        # if not path.is_dir():
+        #     path.mkdir(parents=True, exist_ok=True)
 
-        @ray.remote(num_cpus=self.ncpu)
-        def dock_ligand_(ligand):
-            return Vina.dock_ligand(
-                ligand, software=self.software, receptors=self.receptors,
-                center=self.center, size=self.size, ncpu=self.ncpu,
-                extra=self.extra, path=self.out_path,
-                repeats=self.repeats, score_mode=self.score_mode
-            )
+        # # pdbqt = f'{path}/{name}_.pdbqt'
+        # # argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']
+        # # ret = sp.run(argv, check=False, stderr=sp.PIPE)
 
-        refs = list(map(dock_ligand_.remote, ligands))
-        ligs_recs_reps = [
-            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
-        ]
-        # with self.Pool(self.distributed, self.num_workers, self.ncpu) as pool:
-        #     ligs_recs_reps = pool.map(dock_ligand, ligands, 
-        #                                 chunksize=2)
-        #     ligs_recs_reps = list(tqdm(
-        #         ligs_recs_reps, total=len(ligands),
-        #         desc='Docking', unit='ligand')
-        #     )
+        
+        # mol.addh()
+        # mol.make3D()
+        # mol.calccharges(model='gasteiger')
+        # mol.write(format='pdbqt', filename=pdbqt,
+        #           overwrite=True, opt={'h': None})
+        # try:
+        #     ret.check_returncode()
+        # except sp.SubprocessError:
+        #     return None
 
-        return ligs_recs_reps
+        # n_mols = 0
+        # stderr = ret.stderr.decode('utf-8')
+        # for line in stderr.splitlines():
+        #     if 'converted' not in line:
+        #         continue
+        #     n_mols = int(line.split()[0])
+
+        # # have to think about some molecules failing and
+        # # how that affects numbering
+        # pdbqts = [f'{path}/{name}_{i}.pdbqt' for i in range(1, n_mols)]
+
+        # return list(zip(smis, pdbqts))
 
     @staticmethod
     def dock_ligand(ligand: Tuple[str, str], software: str,
@@ -386,9 +376,6 @@ class Vina(Screener):
                     'smiles': smi,
                     'name': ligand_name,
                     'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-                    # 'in': p_pdbqt,
-                    # 'out': p_out,
-                    # 'log': p_log,
                     'score': Vina.parse_log_file(p_log, score_mode)
                 })
 
@@ -437,7 +424,7 @@ class Vina(Screener):
         log : str
             the filepath of the log file which the docking program will write to
         """
-        if software not in {'vina', 'smina', 'psovina', 'qvina'}:
+        if software not in ('vina', 'smina', 'psovina', 'qvina'):
             raise ValueError(f'Invalid docking program: "{software}"')
 
         path = Path(path)
@@ -503,20 +490,3 @@ class Vina(Screener):
             score = None
         
         return score
-
-    @staticmethod
-    def parse_ligand_results(ligand_results: List[List[Dict]],
-                             score_mode: str = 'best'):
-        for receptor_results in ligand_results:
-            for repeat_result in receptor_results:
-                score = Vina.parse_log_file(repeat_result['log'], score_mode)
-                repeat_result['score'] = score
-
-                # repeat_result['score'] = score
-                # p_in = repeat_result['in']
-                # repeat_result['in'] = Path(p_in.parent.name) / p_in.name
-                # p_out = repeat_result['out']
-                # repeat_result['out'] = Path(p_out.parent.name) / p_out.name
-                # p_log = repeat_result['log']
-                # repeat_result['log'] = Path(p_log.parent.name) / p_log.name
-        return ligand_results

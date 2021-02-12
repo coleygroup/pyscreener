@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor, ProcessPoolExecutor as Pool
 import csv
 import datetime
 from itertools import chain
@@ -11,7 +10,9 @@ import shutil
 import tarfile
 import tempfile
 import timeit
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
+
+from numpy.lib.arraysetops import isin
 
 from openbabel import pybel
 import ray
@@ -94,7 +95,7 @@ class Screener(ABC):
                  num_workers: int = -1, ncpu: int = 1,
                  path: str = '.', tmp_dir = tempfile.gettempdir(),
                  verbose: int = 0, **kwargs):
-        self.path = path
+        self.path = Path(path)
         self.tmp_dir = tmp_dir
 
         receptors = receptors or []
@@ -127,42 +128,23 @@ class Screener(ABC):
     def __call__(self, *args, **kwargs) -> Dict[str, Optional[float]]:
         return self.dock(*args, **kwargs)
     
-    # @property
-    # def path(self) -> os.PathLike:
-    #     """the Screener's parent directory"""
-    #     return self.__path
+    @property
+    def path(self) -> os.PathLike:
+        return self.__path
+    
+    @path.setter
+    def path(self, path: os.PathLike):
+        path = Path(path)
+        receptors_dir = path / 'receptors'
+        if not receptors_dir.is_dir():
+            receptors_dir.mkdir(parents=True, exist_ok=True)
         
-    # @path.setter
-    # def path(self, path: str):
-    #     """set both input and output directories"""
-    #     path = Path(path)
-    #     # if not path.is_dir():
-    #     #     path.mkdir(parents=True)
-    #     self.__path = path
-    #     self.in_path = f'{path}/inputs'
-    #     self.out_path = f'{path}/outputs'
+        self.__path = path
+        self.__receptors_dir = receptors_dir
 
-    # @property
-    # def in_path(self) -> os.PathLike:
-    #     return self.__in_path
-
-    # @in_path.setter
-    # def in_path(self, path: str):
-    #     path = Path(path)
-    #     # if not path.is_dir():
-    #     #     path.mkdir(parents=True)
-    #     self.__in_path = path
-
-    # @property
-    # def out_path(self) -> os.PathLike:
-    #     return self.__out_path
-
-    # @out_path.setter
-    # def out_path(self, path: str):
-    #     path = Path(path)
-    #     # if not path.is_dir():
-    #     #     path.mkdir(parents=True)
-    #     self.__out_path = path
+    @property
+    def receptors_dir(self) -> os.PathLike:
+        return self.__receptors_dir
 
     @property
     def tmp_dir(self) -> os.PathLike:
@@ -285,10 +267,9 @@ class Screener(ABC):
             an unpacked iterable of ligand sources, where each ligand 
             source may be one of the following:
 
-            * a ligand supply file
+            * an arbitrary chemical supply file (e.g., CSV, SMI, SDF, etc.)
             * a list of SMILES strings
             * a single SMILES string
-
         **kwargs
             keyword arguments to pass to the appropriate prepare_from_*
             function(s)
@@ -305,26 +286,29 @@ class Screener(ABC):
             
             Each dictionary contains the following keys:
 
-            * smiles: the ligand's SMILES string
+            * smiles: the ligand's SMILES string (not canonicalized)
             * name: the name of the ligand
-            * in: the filename of the input ligand file
-            * out: the filename of the output docked ligand file
-            * log: the filename of the output log file
+            * node_id: the ID of the node that ran the docking simulations and
+                    the ID of the TAR file containing all of the
+                    corresponding files if collect_files() is called
             * score: the ligand's docking score
 
         """
         begin = timeit.default_timer()
 
-        # ligands = self.prepare_ligands(*smis_or_files, **kwargs)
-        # recordsss = self.run_docking(ligands)
-
         smis = []
         names = []
         for smi_or_file in smis_or_files:
-            smis_, names_ = self.get_smis(
-                smi_or_file, len(smis) + len(self), **kwargs
-            )
+            smis_, names_ = self.get_smis(smi_or_file, **kwargs)
             smis.extend(smis_), names.extend(names_)
+
+        width = ceil(log10(len(smis) + len(self))) + 1
+        names = [
+            name or f'ligand_{i + len(self):0{width}}'
+            for i, name in enumerate(names)
+        ]
+
+        assert len(smis) == len(names)
 
         recordsss = self.prepare_and_dock(smis, names)
 
@@ -340,6 +324,30 @@ class Screener(ABC):
                   f'({total/len(recordsss):0.3f} s/ligand)', flush=True)
 
         return recordsss
+
+    @abstractmethod
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        """Run the docking simulations for the input molecules
+        
+        Parameters
+        ----------
+        smis : Sequence[str]
+            the SMILES strings of the molecules to dock
+        names: Sequence[str]
+            a parallel list containing the ID or name of each molecule
+        
+        Returns
+        -------
+        List[List[List[Dict]]]
+            an NxMxO list of dictionaries where each individual dictionary is a 
+            record of an individual docking run and
+            
+            * N is the number of molecules that were docked
+            * M is the number of receptors in the ensemble
+            * O is the number of times each docking run was repeated
+        """
 
     def collect_files(self, out_path: str):
         """Collect all the files from the local disks of the respective nodes
@@ -359,9 +367,9 @@ class Screener(ABC):
         of a Screener because it is slow and early calls will yield nothing
         over a single, final call.
         """
-        out_path = Path(out_path)
-        if not out_path.is_dir():
-            out_path.mkdir(parents=True)
+        # out_path = Path(out_path)
+        # if not out_path.is_dir():
+        #     out_path.mkdir(parents=True)
 
         refs = []
         for node in ray.nodes():    # run on all nodes
@@ -375,66 +383,10 @@ class Screener(ABC):
                 with tarfile.open(tmp_tar, 'w:gz') as tar:
                     tar.add(self.tmp_dir, arcname=output_id)
 
-                shutil.move(str(tmp_tar), str(out_path))
+                shutil.move(str(tmp_tar), str(self.path))
 
             refs.append(copy_tmp_dir.remote())
         ray.wait(refs)
-
-    @abstractmethod
-    def prepare_and_dock(
-        self, smis: Sequence[str], names: Sequence[str]
-    ) -> List[List[List[Dict]]]:
-        pass
-
-    # @abstractmethod
-    # def run_docking(self, ligands: Sequence[Tuple[str, str]]
-    #                ) -> List[List[List[Dict]]]:
-    #     """Run the docking simulations for the input ligands
-        
-    #     Parameters
-    #     ----------
-    #     ligands : Sequence[Tuple[str, str]]
-    #         a sequence of tuples containing a ligand's SMILES string and the 
-    #         filepath of the corresponding input file
-        
-    #     Returns
-    #     -------
-    #     List[List[List[Dict]]]
-    #         an NxMxO list of dictionaries where each individual dictionary is a 
-    #         record of an individual docking run and
-            
-    #         * N is the number of ligands contained in the ligand sources
-    #         * M is the number of receptors in the ensemble against which each \
-    #             ligand should be docked
-    #         * O is the number of times each docking run should be repeated
-            
-    #         NOTE: the records contain a 'score' that is None for each entry
-    #         as the log/out files must first be parsed to obtain the value
-    #     """
-
-    # @staticmethod
-    # @abstractmethod
-    # def parse_ligand_results(recs_reps: List[List[Dict]],
-    #                          score_mode: str = 'best') -> List[List[Dict]]:
-    #     """Parse the results of the docking simulations for a single ligand
-        
-    #     Parameters
-    #     ----------
-    #     recs_reps : List[List[Dict]]
-    #         an MxO list of list of dictionaries where each individual 
-    #         dictionary is a record of an individual docking run and
-            
-    #         * M is the number of receptors in the ensemble against which each ligand should be docked
-    #         * O is the number of times each docking run should be repeated
-        
-
-    #     Returns
-    #     -------
-    #     recs_reps : List[List[Dict]]
-    #         the same List as the input argument, but with the 
-    #         'score' key of record updated to reflect the desired 
-    #         score parsed from each docking run
-    #     """
 
     @property
     def receptors(self):
@@ -442,8 +394,8 @@ class Screener(ABC):
 
     @receptors.setter
     def receptors(self, receptors):
-        receptors = [self.prepare_receptor(receptor) for receptor in receptors]
-        receptors = [receptor for receptor in receptors if receptor is not None]
+        receptors = [self.prepare_receptor(rec) for rec in receptors]
+        receptors = [rec for rec in receptors if rec is not None]
         if len(receptors) == 0:
             raise RuntimeError('Preparation failed for all receptors!')
         self.__receptors = receptors
@@ -465,113 +417,14 @@ class Screener(ABC):
         """Prepare the corresponding ligand input files from an
         arbitrary input file type"""
 
-    # def prepare_ligands(self, *sources, path: Optional[str] = None,
-    #                     **kwargs) -> List[Tuple[str, str]]:
-    #     path = path or self.in_path
-    #     return list(chain(*(
-    #         self._prepare_ligands(source, i+len(self), path, **kwargs)
-    #         for i, source in enumerate(sources)
-    #     )))
-
-    # def _prepare_ligands(self, source, i: int, path: Optional[str] = None,
-    #                      **kwargs) -> List[Tuple[str, str]]:
-    #     if isinstance(source, str):
-    #         p_source = Path(source)
-
-    #         if not p_source.exists():
-    #             return [self.prepare_from_smi(source, f'ligand_{i}', path)]
-
-    #         if p_source.suffix == '.csv':
-    #             return self.prepare_from_csv(source, **kwargs)
-    #         if p_source.suffix == '.smi':
-    #             return self.prepare_from_supply(source, **kwargs)
-    #         if p_source.suffix == '.sdf':
-    #             if kwargs['use_3d']:
-    #                 return self.prepare_from_file(source, path=path,
-    #                                               **kwargs)
-    #             else:
-    #                 return self.prepare_from_supply(source, **kwargs)
-            
-    #         return self.prepare_from_file(source, path=path, **kwargs)
-
-    #     if isinstance(source, Sequence):
-    #         return self.prepare_from_smis(source, **kwargs)
-        
-    #     raise TypeError('Arg "source" must be of type str or ', 
-    #                     f'Sequence[str]. Got: {type(source)}')
-
-    # def prepare_from_smis(self, smis: Sequence[str],
-    #                       names: Optional[Sequence[str]] = None, 
-    #                       start: int = 0, nconvert: Optional[int] = None,
-    #                       **kwargs) -> List[Tuple]:
-    #     """Convert the list of SMILES strings to their corresponding input files
-
-    #     Parameters
-    #     ----------
-    #     smis : Sequence[str]
-    #         a sequence of SMILES strings
-    #     names : Optional[Sequence[str]], default=None
-    #         a parallel sequence of names for each ligand
-    #     start : int, default=0
-    #         the index at which to start ligand preparation
-    #     nconvert : Optional[int], default=None
-    #         the number of ligands to convert. If None, convert all ligands
-    #     **kwargs
-    #         additional and unused keyword arguments
-
-    #     Returns
-    #     -------
-    #     ligands : List[Tuple]
-    #         a list of tuples containing a ligand's SMILES string and the 
-    #         filepath of the corresponding input file
-    #     """
-    #     begin = timeit.default_timer()
-        
-    #     stop = min(len(smis), start+nconvert) if nconvert else len(smis)
-
-    #     if names is None:
-    #         width = ceil(log10(len(smis))) + 1
-    #         names = (f'ligand_{i:0{width}}' for i in range(start, stop))
-    #     else:
-    #         # could theoretically handle empty strings
-    #         names = names[start:stop]
-    #     smis = smis[start:stop]
-    #     paths = (self.in_path for _ in range(len(smis)))
-
-    #     @ray.remote
-    #     def prepare_from_smi_(smi, name, path):
-    #         return self.prepare_from_smi(smi, name, path)
-        
-    #     refs = list(map(prepare_from_smi_.remote, smis, names, paths))
-    #     ligands = [ray.get(r) for r in tqdm(refs, desc='Preparing ligands')]
-        
-    #     total = timeit.default_timer() - begin
-    #     if self.verbose > 1 and len(ligands) > 0:
-    #         m, s = divmod(int(total), 60)
-    #         h, m = divmod(m, 60)
-    #         print(f'    Time to prepare {len(ligands)} ligands: ',
-    #                 f'{h}h {m}m {s}s ({total/len(ligands):0.4f} s/ligand)', 
-    #                 flush=True)
-            
-    #     return ligands
-
-    # @staticmethod
-    # def pmap(f, *args, ncpu=1, chunksize=4):
-    #     with Pool(max_workers=ncpu) as client:
-    #         xs = [x for x in client.map(f, *args, chunksize=chunksize) if x]
-    #     return xs
-
-    def get_smis(self, source: str, offset: int = 0,
+    def get_smis(self, source: Union[str, Sequence[str]],
                  **kwargs) -> Tuple[List[str], List[str]]:
-        """
-        get the SMILES strings and names from an input source file
+        """Get the SMILES strings and names from an input source file
 
         Parameters
         ----------
-        source : str
-            the file to parse
-        offset : int, default=0
-            the offset for numbering ligands
+        source : Union[str, Sequence[str]]
+            the file to parse, SMILES string, or list of SMILES strings
         **kwargs
             keyword arguments to pass to the appropriate
             get_smis_from_* method
@@ -580,7 +433,7 @@ class Screener(ABC):
         -------
         smis : List[str]
             the SMILES strings
-        names : List[str]
+        names : List[Optional[[str]]
             the names of the molecules
 
         Raises
@@ -588,26 +441,26 @@ class Screener(ABC):
         ValueError
             if the file does not exit
         """
-        source = Path(source)
-        if not source.exists():
-            return [str(source)], [f'ligand_{offset}']
+        if not isinstance(source, str):
+            smis = [smi for smi in source]
+            names = [None for _ in smis]
 
-        if source.suffix == '.csv':
+        p_source = Path(source)
+        if not p_source.exists():
+            smis, names = [source], [None]
+        elif p_source.suffix == '.csv':
             smis, names = self.get_smis_from_csv(source, **kwargs)
-        elif source.suffix in ('.smi', '.sdf'):
+        elif p_source.suffix in ('.smi', '.sdf'):
             smis, names = self.get_smis_from_supply(source, **kwargs)
         else:
-            smis, names = self.get_smis_from_file(source, offset, **kwargs)
-
-        if names is None:
-            names = [f'ligand_{i+offset}' for i in range(len(smis))]
-        
+            smis, names = self.get_smis_from_file(source, **kwargs)
+            
         return smis, names
 
     @staticmethod
     def get_smis_from_csv(csv_filename: str, title_line: bool = True,
                           smiles_col: int = 0, name_col: Optional[int] = None,
-                          **kwargs) -> Tuple[List[str], Optional[List[str]]]:
+                          **kwargs) -> Tuple[List[str], List[Optional[str]]]:
         """Prepare the input files corresponding to the SMILES strings
         contained in a CSV file
 
@@ -628,8 +481,8 @@ class Screener(ABC):
         -------
         smis : List[str]
             the SMILES strings parsed from the CSV
-        names : Optional[List[str]]
-            the names parsed from the CSV. None if there were none.
+        names : List[Optional[str]]
+            the names parsed from the CSV. None's if there were none.
         """
         with open(csv_filename) as fid:
             reader = csv.reader(fid)
@@ -638,7 +491,7 @@ class Screener(ABC):
 
             if name_col is None:
                 smis = [row[smiles_col] for row in reader]
-                names = None
+                names = [None for _ in smis]
             else:
                 smis, names = zip(*[
                     (row[smiles_col], row[name_col]) for row in reader
@@ -649,7 +502,7 @@ class Screener(ABC):
     @staticmethod
     def get_smis_from_supply(supply: str,
                              id_prop_name: Optional[str] = None,
-                             **kwargs) -> List[Tuple]:
+                             **kwargs) -> Tuple[List[str], List[Optional[str]]]:
         """Prepare the input files corresponding to the molecules contained in 
         a molecular supply file
 
@@ -668,8 +521,8 @@ class Screener(ABC):
         -------
         smis : List[str]
             the SMILES strings parsed from the supply file
-        names : Optional[List[str]]
-            the names parsed from the supply file. None if there were none.
+        names : List[Optional[str]]
+            the names parsed from the supply file. None's if there were none.
         """
         p_supply = Path(supply)
         if p_supply.suffix == '.sdf':
@@ -681,10 +534,9 @@ class Screener(ABC):
                 f'input file: "{supply}" does not have .sdf or .smi extension')
 
         smis = []
-        names = None
+        names = []
 
         if id_prop_name:
-            names = []
             for mol in mols:
                 if mol is None:
                     continue
@@ -697,12 +549,12 @@ class Screener(ABC):
                     continue
 
                 smis.append(Chem.MolToSmiles(mol))
-
+            names = [None for _ in smis]
         return smis, names
 
     @staticmethod
-    def get_smis_from_file(filename: str, offset: int = 0,
-                           **kwargs) -> Tuple[List[str], List[str]]:
+    def get_smis_from_file(filename: str,
+                           **kwargs) -> Tuple[List[str], List[Optional[str]]]:
         """get the SMILES strings and names from an arbitrary chemical 
         file format
 
@@ -710,7 +562,6 @@ class Screener(ABC):
         ----------
         filename : str
             the file to parse
-        offset : int, default=0
         **kwargs
             additional and unused keyword arguments
 
@@ -718,136 +569,23 @@ class Screener(ABC):
         -------
         smis : List[str]
             the SMILES strings
-        names : List[str]
-            the names
+        names : List[Optional[str]]
+            the names. None for each molecule without a name
         """
         p = Path(filename)
         fmt = p.suffix.strip('.')
 
         smis = []
         names = []
-        for i, mol in enumerate(pybel.readfile(fmt, filename)):
+        for mol in pybel.readfile(fmt, filename):
             smis.append(mol.write())
 
             if mol.title:
                 names.append(mol.title)
             else:
-                names.append(f'ligand_{i+offset}')
+                names.append(None)
 
         return smis, names
-
-    # def prepare_from_csv(self, csv_filename: str, title_line: bool = True,
-    #                      smiles_col: int = 0, name_col: Optional[int] = None,
-    #                      start: int = 0, nconvert: Optional[int] = None,
-    #                      **kwargs) -> List[Tuple]:
-    #     """Prepare the input files corresponding to the SMILES strings
-    #     contained in a CSV file
-
-    #     Parameters
-    #     ----------
-    #     csv_filename : str
-    #         the filename of the CSV file containing the ligands to convert
-    #     title_line : bool, default=True
-    #         does the CSV file contain a title line?
-    #     smiles_col : int, default=0
-    #         the column containing the SMILES strings
-    #     name_col : Optional[int], default=None
-    #         the column containing the molecule name
-    #     start : int, default=0
-    #         the index at which to start conversion
-    #     nconvert : Optional[int], default=None
-    #         the number of ligands to convert. If None, convert all molecules
-    #     **kwargs
-    #         additional and unused keyword arguments
-
-    #     Returns
-    #     -------
-    #     ligands : List[Tuple]
-    #         a list of tuples containing a ligand's SMILES string and the 
-    #         filepath of the corresponding input file. Files are named 
-    #         <compound_id>.<suffix> if compound_id property exists in the 
-    #         original supply file. Otherwise, they are named:
-                
-    #             lig0.<suffix>, lig1.<suffix>, ...
-    #     """
-    #     with open(csv_filename) as fid:
-    #         reader = csv.reader(fid)
-    #         if title_line:
-    #             next(reader)
-
-    #         if name_col is None:
-    #             smis = [row[smiles_col] for row in reader]
-    #             names = None
-    #         else:
-    #             smis, names = zip(*[
-    #                 (row[smiles_col], row[name_col]) for row in reader
-    #             ])
-    #             # smis, names = zip(*smis_names)
-        
-    #     return self.prepare_from_smis(smis, names=names,
-    #                                   start=start, nconvert=nconvert)
-
-    # def prepare_from_supply(self, supply: str,
-    #                         id_prop_name: Optional[str] = None,
-    #                         start: int = 0, nconvert: Optional[int] = None,  
-    #                         **kwargs) -> List[Tuple]:
-    #     """Prepare the input files corresponding to the molecules contained in 
-    #     a molecular supply file
-
-    #     Parameters
-    #     ----------
-    #     supply : str
-    #         the filename of the SDF or SMI file containing
-    #         the ligands to convert
-    #     id_prop_name : Optional[str]
-    #         the name of the property containing the ID, if one exists
-    #         (e.g., "CatalogID", "Chemspace_ID", "Name", etc...)
-    #     start : int, default=0
-    #         the index at which to start ligand conversion
-    #     nconvert : Optional[int], default=None
-    #         the number of ligands to convert. If None, convert all molecules
-    #     **kwargs
-    #         additional and unused keyword arguments
-
-    #     Returns
-    #     -------
-    #     ligands : List[Tuple[str, str]]
-    #         a list of tuples containing a ligand's SMILES string and the 
-    #         filepath of the corresponding input file. Files are named 
-    #         <compound_id>.<suffix> if compound_id property exists in the 
-    #         original supply file. Otherwise, they are named:
-                
-    #             lig0.<suffix>, lig1.<suffix>, ...
-    #     """
-    #     p_supply = Path(supply)
-    #     if p_supply.suffix == '.sdf':
-    #         mols = Chem.SDMolSupplier(supply)
-    #     elif p_supply.suffix == '.smi':
-    #         mols = Chem.SmilesMolSupplier(supply)
-    #     else:
-    #         raise ValueError(
-    #             f'input file: "{supply}" does not have .sdf or .smi extension')
-
-    #     smis = []
-    #     names = None
-
-    #     if id_prop_name:
-    #         names = []
-    #         for mol in mols:
-    #             if mol is None:
-    #                 continue
-
-    #             smis.append(Chem.MolToSmiles(mol))
-    #             names.append(mol.GetProp(id_prop_name))
-    #     else:
-    #         for mol in mols:
-    #             if mol is None:
-    #                 continue
-
-    #             smis.append(Chem.MolToSmiles(mol))
-
-    #     return self.prepare_from_smis(smis, names=names,
-    #                                   start=start, nconvert=nconvert)
 
     @staticmethod
     def calc_ligand_score(ligand_results: List[List[Dict]],
@@ -935,93 +673,3 @@ class Screener(ABC):
             score = scores[0]
             
         return score
-    
-    # @staticmethod
-    # def Pool(distributed: bool = False, num_workers: int = -1, ncpu: int = 1,
-    #          all_cores: bool = False) -> Type[Executor]:
-    #     """build a process pool to parallelize computation over
-
-    #     Parameters
-    #     ----------
-    #     distributed : bool, default=False
-    #         whether to return a distributed or a local process pool
-    #     num_workers : int, default=-1
-    #         if distributed is True, then this argument is ignored. If False,
-    #         then it should be equal to the total number of worker processes
-    #         desired. Using a value of -1 will spawn as many worker processes
-    #         as cores available on this machine.
-
-    #         NOTE: this is usually not a good idea and it's much better to
-    #         specify the number of processes explicitly.
-    #     ncpu : int, default=1
-    #         if distributed is True, then this argument should be the number of 
-    #         cores allocated to each worker. if False, then this should be the
-    #         number of cores that is desired to be allocated to each worker.
-
-    #         NOTE: this is an implicit argument because Screener.dock() will   
-    #         make subprocess calls to progams that themselves can utilize 
-    #         multiple cores. It will not actually assign <ncpu> cores to 
-    #         each worker process.
-    #     all_cores : bool (Default = False)
-    #         whether to initialize as many processes as cores available
-    #         (= num_workers * ncpu).
-        
-    #     Returns
-    #     -------
-    #     Executor
-    #         the initialized process pool
-        
-    #     Notes
-    #     ------
-    #     in some cases, as shown in the examples below, the values specified for
-    #     num_workers and ncpu will be inconsequential. Regardless, it is good
-    #     practice for this function to always be called the same way, with only
-    #     all_cores changing, depending on the context in which the initialized Executor will be used
-
-    #     **Ex. 1**
-
-    #     *Given:* a single machine with 16 cores, screening using vina-type
-    #     docking software (via the docking.Vina class)
-        
-    #     the function should be called with distributed=False, all_cores=False, 
-    #     and both num_workers and ncpu should be specified such that the product 
-    #     of the two is equal to 16.
-    #     Choices: (1, 16), (2, 8), (4, 4), (8, 2), and (16, 1). You will often have to determine the optimal values empirically.
-
-    #     **Ex. 2**
-
-    #     *Given:* a cluster of machines where you've requested resources for 8
-    #     tasks with 2 cores each. The software was then initialized with
-    #     8 separate MPI processes and screening using vina-type docking
-    #     software is to be performed.
-
-    #     the function should be called with distributed=True and all_cores=False
-    #     (neither num_workers or ncpu needs to be specified)
-
-    #     **Ex. 3**
-
-    #     *Given:* a single machine with 16 cores, and pure python code is to be
-    #     executed in parallel
-
-    #     the function should be called with distributed=False, all_cores=True,
-    #     and both num_workers and ncpu should be specified such that the product 
-    #     of the two is equal to 16.
-    #     Choices: see Ex. 1
-    #     """
-    #     if distributed:
-    #         from mpi4py import MPI
-    #         from mpi4py.futures import MPIPoolExecutor as Pool
-
-    #         num_workers = MPI.COMM_WORLD.size
-    #     else:
-    #         if num_workers == -1:
-    #             try:
-    #                 num_workers = len(os.sched_getaffinity(0))
-    #             except AttributeError:
-    #                 num_workers = os.cpu_count()
-    #             ncpu = 1
-
-    #     if all_cores and not distributed:
-    #         num_workers *= ncpu
-
-    #     return Pool(max_workers=num_workers)

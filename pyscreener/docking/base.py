@@ -12,14 +12,12 @@ import tempfile
 import timeit
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-from numpy.lib.arraysetops import isin
-
 from openbabel import pybel
 import ray
 from rdkit import Chem
-from tqdm import tqdm
 
 from pyscreener.preprocessing import pdbfix
+from pyscreener import utils
 
 pybel.ob.obErrorLog.SetOutputLevel(0)
 
@@ -38,8 +36,7 @@ class Screener(ABC):
     * prepare_receptor
     * prepare_from_smi
     * prepare_from_file
-    * run_docking
-    * parse_ligand_results
+    * prepare_and_dock
 
     NOTE: This is an abstract base class and cannot be instantiated.
 
@@ -107,7 +104,7 @@ class Screener(ABC):
                 for pdbid in pdbids
             ])
         if len(receptors) == 0:
-            raise ValueError('No receptors or PDBids provided!')
+            raise ValueError('No receptors or PDBIDs provided!')
 
         self.receptors = receptors
         self.repeats = repeats
@@ -131,7 +128,7 @@ class Screener(ABC):
         return self.dock(*args, **kwargs)
     
     @property
-    def path(self) -> os.PathLike:
+    def path(self) -> Path:
         return self.__path
     
     @path.setter
@@ -149,7 +146,7 @@ class Screener(ABC):
         return self.__receptors_dir
 
     @property
-    def tmp_dir(self) -> os.PathLike:
+    def tmp_dir(self) -> Path:
         """the Screener's temp directory"""
         return self.__tmp_dir
         
@@ -164,7 +161,7 @@ class Screener(ABC):
         self.tmp_out = path / 'outputs'
 
     @property
-    def tmp_in(self) -> os.PathLike:
+    def tmp_in(self) -> Path:
         return self.__tmp_in
 
     @tmp_in.setter
@@ -175,7 +172,7 @@ class Screener(ABC):
         self.__tmp_in = path
     
     @property
-    def tmp_out(self) -> os.PathLike:
+    def tmp_out(self) -> Path:
         return self.__tmp_out
 
     @tmp_out.setter
@@ -184,6 +181,79 @@ class Screener(ABC):
         if not path.is_dir():
             path.mkdir(parents=True)
         self.__tmp_out = path
+
+    @property
+    def receptors(self) -> List[str]:
+        return self.__receptors
+
+    @receptors.setter
+    def receptors(self, receptors):
+        receptors = [self.prepare_receptor(rec) for rec in receptors]
+        receptors = [rec for rec in receptors if rec is not None]
+        if len(receptors) == 0:
+            raise RuntimeError('Preparation failed for all receptors!')
+        self.__receptors = receptors
+
+        refs = []
+        for node in ray.nodes():    # run on all nodes
+            address = node["NodeManagerAddress"]
+            @ray.remote(resources={f'node:{address}': 0.1})
+            def copy_receptors():
+                return [
+                    shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
+                ]
+            refs.append(copy_receptors.remote())
+        ray.wait(refs)
+
+        print(ray.get(refs[0]))
+        # self.__receptors = ray.get(refs[0])
+
+        def copy_receptors():
+            return [shutil.copy(rec, str(self.tmp_dir)) for rec in receptors]
+        rs = utils.run_on_all_nodes(copy_receptors)
+        print(rs[0])
+        
+
+    @abstractmethod
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        """Run the docking simulations for the input molecules
+        
+        Parameters
+        ----------
+        smis : Sequence[str]
+            the SMILES strings of the molecules to dock
+        names: Sequence[str]
+            a parallel list containing the ID or name of each molecule
+        
+        Returns
+        -------
+        List[List[List[Dict]]]
+            an NxMxO list of dictionaries where each individual dictionary is a 
+            record of an individual docking run and
+            
+            * N is the number of molecules that were docked
+            * M is the number of receptors in the ensemble
+            * O is the number of times each docking run was repeated
+        """
+
+    @abstractmethod
+    def prepare_receptor(self, *args, **kwargs) -> Optional[str]:
+        """Prepare a receptor input file for the docking software and return
+        the corresponding filepath or None if preparation failed"""
+
+    @staticmethod
+    @abstractmethod
+    def prepare_from_smi(*args, **kwargs) -> Tuple[str, str]:
+        """Prepare a ligand input file from a SMILES string and return both
+        the SMILES string and the corresponding filepath"""
+
+    @staticmethod
+    @abstractmethod
+    def prepare_from_file(*args, **kwargs) -> List[Tuple[str, str]]:
+        """Prepare the corresponding ligand input files from an
+        arbitrary input file type"""
 
     def dock(self, *smis_or_files: Iterable,
              full_results: bool = False,
@@ -330,30 +400,6 @@ class Screener(ABC):
 
         return recordsss
 
-    @abstractmethod
-    def prepare_and_dock(
-        self, smis: Sequence[str], names: Sequence[str]
-    ) -> List[List[List[Dict]]]:
-        """Run the docking simulations for the input molecules
-        
-        Parameters
-        ----------
-        smis : Sequence[str]
-            the SMILES strings of the molecules to dock
-        names: Sequence[str]
-            a parallel list containing the ID or name of each molecule
-        
-        Returns
-        -------
-        List[List[List[Dict]]]
-            an NxMxO list of dictionaries where each individual dictionary is a 
-            record of an individual docking run and
-            
-            * N is the number of molecules that were docked
-            * M is the number of receptors in the ensemble
-            * O is the number of times each docking run was repeated
-        """
-
     def collect_files(self, out_path: Optional[str]=None):
         """Collect all the files from the local disks of the respective nodes
 
@@ -386,9 +432,8 @@ class Screener(ABC):
         refs = []
         for node in ray.nodes():    # run on all nodes
             address = node["NodeManagerAddress"]
-
             @ray.remote(resources={f'node:{address}': 0.1})
-            def copy_tmp_dir():
+            def zip_and_move_tmp():
                 output_id = re.sub('[:,.]', '', ray.state.current_node_id())
                 tmp_tar = (self.tmp_dir / output_id).with_suffix('.tar.gz')
 
@@ -397,37 +442,8 @@ class Screener(ABC):
 
                 shutil.move(str(tmp_tar), str(out_path))
 
-            refs.append(copy_tmp_dir.remote())
+            refs.append(zip_and_move_tmp.remote())
         ray.wait(refs)
-
-    @property
-    def receptors(self):
-        return self.__receptors
-
-    @receptors.setter
-    def receptors(self, receptors):
-        receptors = [self.prepare_receptor(rec) for rec in receptors]
-        receptors = [rec for rec in receptors if rec is not None]
-        if len(receptors) == 0:
-            raise RuntimeError('Preparation failed for all receptors!')
-        self.__receptors = receptors
-    
-    @abstractmethod
-    def prepare_receptor(self, *args, **kwargs) -> Optional[str]:
-        """Prepare a receptor input file for the docking software and return
-        the corresponding filepath"""
-
-    @staticmethod
-    @abstractmethod
-    def prepare_from_smi(*args, **kwargs) -> Tuple[str, str]:
-        """Prepare a ligand input file from a SMILES string and return both
-        the SMILES string and the corresponding filepath"""
-
-    @staticmethod
-    @abstractmethod
-    def prepare_from_file(*args, **kwargs) -> List[Tuple[str, str]]:
-        """Prepare the corresponding ligand input files from an
-        arbitrary input file type"""
 
     def get_smis(self, source: Union[str, Sequence[str]],
                  **kwargs) -> Tuple[List[str], List[str]]:

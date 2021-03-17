@@ -2,7 +2,6 @@
 pyscreener
 pythonic interface to virtual screening software
 """
-
 from typing import Dict, List, Tuple
 
 from pyscreener._version import __version__

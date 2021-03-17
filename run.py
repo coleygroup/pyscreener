@@ -37,6 +37,7 @@ def main():
     except PermissionError:
         print('Failed to create a temporary directory for ray')
         raise
+    
     print('Ray cluster online with resources:')
     print(ray.cluster_resources())
     print(flush=True)

@@ -742,6 +742,10 @@ class Screener(ABC):
                     num_workers = os.cpu_count()
                 ncpu = 1
 
+
+            from concurrent.futures import Executor, ProcessPoolExecutor as Pool
+
+
         if all_cores and not distributed:
             num_workers *= ncpu
 

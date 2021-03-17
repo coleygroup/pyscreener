@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor, ProcessPoolExecutor as Pool
+from concurrent.futures import Executor
+from concurrent.futures import ProcessPoolExecutor as Pool
 import csv
 from functools import partial
 from itertools import chain

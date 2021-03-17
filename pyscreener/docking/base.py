@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor
-from concurrent.futures import ProcessPoolExecutor as Pool
+from concurrent.futures import Executor, ProcessPoolExecutor
 import csv
 from functools import partial
 from itertools import chain
@@ -736,6 +735,7 @@ class Screener(ABC):
 
             num_workers = MPI.COMM_WORLD.size
         else:
+            Pool = ProcessPoolExecutor
             if num_workers == -1:
                 try:
                     num_workers = len(os.sched_getaffinity(0))

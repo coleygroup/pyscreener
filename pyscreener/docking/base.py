@@ -454,7 +454,7 @@ class Screener(ABC):
 
     @staticmethod
     def pmap(f, *args, ncpu=1, chunksize=4):
-        with Pool(max_workers=ncpu) as client:
+        with ProcessPoolExecutor(max_workers=ncpu) as client:
             xs = [x for x in client.map(f, *args, chunksize=chunksize) if x]
         return xs
 

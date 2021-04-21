@@ -21,12 +21,6 @@ from pyscreener import utils
 
 pybel.ob.obErrorLog.SetOutputLevel(0)
 
-if not ray.is_initialized():
-    try:
-        ray.init(address='auto')
-    except ConnectionError:
-        ray.init()
-
 class Screener(ABC):
     """A Screener conducts virtual screens against an ensemble of receptors.
 
@@ -90,8 +84,7 @@ class Screener(ABC):
                  repeats: int = 1, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                 distributed: bool = False,
-                 num_workers: int = -1, ncpu: int = 1,
+                 ncpu: int = 1,
                  path: str = '.', tmp_dir = tempfile.gettempdir(),
                  verbose: int = 0, **kwargs):
         self.path = Path(path)
@@ -112,14 +105,20 @@ class Screener(ABC):
         self.receptor_score_mode = receptor_score_mode
         self.ensemble_score_mode = ensemble_score_mode
         
-        # self.distributed = distributed
-        # self.num_workers = num_workers
         self.ncpu = ncpu
 
         self.verbose = verbose
 
         self.num_docked_ligands = 0
         
+        if not ray.is_initialized():
+            try:
+                print('No Ray cluster started! attempting to autoconnect...')
+                ray.init(address='auto')
+            except ConnectionError:
+                print('No Ray cluster detected! Starting local cluster...')
+                ray.init()
+
     def __len__(self) -> int:
         """The number of ligands this screener has simulated"""
         return self.num_docked_ligands

@@ -28,8 +28,7 @@ class DOCK(Screener):
     NOTE: there are several steps in the receptor preparation process, each
     with their own set of options. Two important steps are:
 
-    1. selecting spheres to represent the binding site in the \
-        docking simulations
+    1. selecting spheres to build the binding site in the docking simulations
     2. calculating the grid box for the scoring function
     
     Both of these steps can rely on some prior information about the
@@ -202,6 +201,33 @@ class DOCK(Screener):
 
         return rec_sph, grid_prefix
 
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        
+        @ray.remote
+        def prepare_and_dock_(smi, name):
+            ligand = DOCK.prepare_from_smi(smi, name, self.tmp_in)
+
+            return DOCK.dock_ligand(
+                ligand, receptors=self.receptors,
+                in_path=self.in_path, out_path=self.out_path,
+                repeats=self.repeats, score_mode=self.score_mode
+            )
+            # return Vina.dock_ligand(
+            #     ligand, software=self.software, receptors=self.receptors,
+            #     center=self.center, size=self.size, ncpu=self.ncpu,
+            #     extra=self.extra, path=self.tmp_out,
+            #     repeats=self.repeats, score_mode=self.score_mode
+            # )
+
+        refs = list(map(prepare_and_dock_.remote, smis, names))
+        ligs_recs_reps = [
+            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
+        ]
+
+        return ligs_recs_reps
+
     @staticmethod
     def prepare_from_smi(smi: str, name: str = 'ligand',
                          path: str = '.') -> Tuple[str, str]:
@@ -238,33 +264,6 @@ class DOCK(Screener):
                   overwrite=True, opt={'h': None})
         return smi, mol2
         # does this need a try/except?
-
-    def prepare_and_dock(
-        self, smis: Sequence[str], names: Sequence[str]
-    ) -> List[List[List[Dict]]]:
-        
-        @ray.remote(num_cpus=self.ncpu)
-        def prepare_and_dock_(smi, name):
-            ligand = DOCK.prepare_from_smi(smi, name, self.tmp_in)
-
-            return DOCK.dock_ligand(
-                ligand, receptors=self.receptors,
-                in_path=self.in_path, out_path=self.out_path,
-                repeats=self.repeats, score_mode=self.score_mode
-            )
-            # return Vina.dock_ligand(
-            #     ligand, software=self.software, receptors=self.receptors,
-            #     center=self.center, size=self.size, ncpu=self.ncpu,
-            #     extra=self.extra, path=self.tmp_out,
-            #     repeats=self.repeats, score_mode=self.score_mode
-            # )
-
-        refs = list(map(prepare_and_dock_.remote, smis, names))
-        ligs_recs_reps = [
-            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
-        ]
-
-        return ligs_recs_reps
     
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
@@ -328,21 +327,21 @@ class DOCK(Screener):
 
         return list(zip(smis, mol2s))
 
-    def run_docking(self, ligands: Sequence[Tuple[str, str]]
-                   ) -> List[List[List[Dict]]]:
-        dock_ligand = partial(
-            DOCK.dock_ligand, receptors=self.receptors,
-            in_path=self.in_path, out_path=self.out_path,
-            repeats=self.repeats, score_mode=self.score_mode
-        )
-        CHUNKSIZE = 2
-        with self.Pool(self.distributed, self.num_workers) as pool:
-            ligs_recs_reps = pool.map(dock_ligand, ligands, 
-                                      chunksize=CHUNKSIZE)
-            ligs_recs_reps = list(tqdm(ligs_recs_reps, total=len(ligands),
-                                       desc='Docking', unit='ligand'))
+    # def run_docking(self, ligands: Sequence[Tuple[str, str]]
+    #                ) -> List[List[List[Dict]]]:
+    #     dock_ligand = partial(
+    #         DOCK.dock_ligand, receptors=self.receptors,
+    #         in_path=self.in_path, out_path=self.out_path,
+    #         repeats=self.repeats, score_mode=self.score_mode
+    #     )
+    #     CHUNKSIZE = 2
+    #     with self.Pool(self.distributed, self.num_workers) as pool:
+    #         ligs_recs_reps = pool.map(dock_ligand, ligands, 
+    #                                   chunksize=CHUNKSIZE)
+    #         ligs_recs_reps = list(tqdm(ligs_recs_reps, total=len(ligands),
+    #                                    desc='Docking', unit='ligand'))
 
-        return ligs_recs_reps
+    #     return ligs_recs_reps
 
     @staticmethod
     def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],

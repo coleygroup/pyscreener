@@ -137,6 +137,28 @@ class Vina(Screener):
 
         return receptor_pdbqt
 
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        
+        @ray.remote(num_cpus=self.ncpu)
+        def prepare_and_dock_(smi, name):
+            ligand = Vina.prepare_from_smi(smi, name, self.tmp_in)
+
+            return Vina.dock_ligand(
+                ligand, software=self.software, receptors=self.receptors,
+                center=self.center, size=self.size, ncpu=self.ncpu,
+                extra=self.extra, path=self.tmp_out,
+                repeats=self.repeats, score_mode=self.score_mode
+            )
+
+        refs = list(map(prepare_and_dock_.remote, smis, names))
+        ligs_recs_reps = [
+            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
+        ]
+
+        return ligs_recs_reps
+        
     @staticmethod
     def prepare_from_smi(smi: str, name: str = 'ligand',
                          path: str = '.', **kwargs) -> Tuple[str, str]:
@@ -176,28 +198,6 @@ class Vina(Screener):
                 overwrite=True, opt={'h': None})
 
         return smi, pdbqt
-    
-    def prepare_and_dock(
-        self, smis: Sequence[str], names: Sequence[str]
-    ) -> List[List[List[Dict]]]:
-        
-        @ray.remote(num_cpus=self.ncpu)
-        def prepare_and_dock_(smi, name):
-            ligand = Vina.prepare_from_smi(smi, name, self.tmp_in)
-
-            return Vina.dock_ligand(
-                ligand, software=self.software, receptors=self.receptors,
-                center=self.center, size=self.size, ncpu=self.ncpu,
-                extra=self.extra, path=self.tmp_out,
-                repeats=self.repeats, score_mode=self.score_mode
-            )
-
-        refs = list(map(prepare_and_dock_.remote, smis, names))
-        ligs_recs_reps = [
-            ray.get(r) for r in tqdm(refs, desc='Docking ligands')
-        ]
-
-        return ligs_recs_reps
 
     @staticmethod
     def prepare_from_file(filename: str, path: str = '.', 

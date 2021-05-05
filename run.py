@@ -1,11 +1,11 @@
 import csv
-from distutils.dir_util import copy_tree
-from operator import itemgetter
+import os
 from pathlib import Path
-import tempfile
+
+import ray
 
 import pyscreener
-from pyscreener import args, preprocess, postprocess
+from pyscreener import args
 
 def main():
     print('''\
@@ -17,20 +17,34 @@ def main():
 *  /_/    /____/                                              *
 ***************************************************************''')
     print('Welcome to Pyscreener!\n')
-
     params = vars(args.gen_args())
-
     print('Pyscreener will be run with the following arguments:')
     for param, value in sorted(params.items()):
         print(f'  {param}: {value}')
     print(flush=True)
 
-    name = params['name']
+    try:
+        if 'redis_password' in os.environ:
+            ray.init(
+                address='auto',
+                #_node_ip_address=os.environ["ip_head"].split(":")[0], 
+                _redis_password=os.environ['redis_password']
+            )
+        else:
+            ray.init(address='auto')
+    except ConnectionError:
+        ray.init(_temp_dir=params['tmp_dir'])
+    except PermissionError:
+        print('Failed to create a temporary directory for ray')
+        raise
+    
+    print('Ray cluster online with resources:')
+    print(ray.cluster_resources())
+    print(flush=True)
 
-    tmp_dir = Path(tempfile.gettempdir()) / name
-    if not tmp_dir.exists():
-        tmp_dir.mkdir(parents=True)
-    params['path'] = tmp_dir
+    name = params['name']
+    out_dir = Path(params['root']) / name
+    params['path'] = out_dir
     
     print('Preprocessing ...', flush=True)
     params = pyscreener.preprocess(**params)
@@ -38,40 +52,36 @@ def main():
 
     print(f'Preparing and screening inputs ...', flush=True)
     screener = pyscreener.build_screener(**params)
-    d_smi_score, rows = screener(*params['ligands'], full_results=True, 
-                                 **params)
+    d_smi_score, rows = screener(
+        *params['ligands'], full_results=True, **params
+    )
     print('Done!')
 
-    out_dir = Path(params['root']) / name
-    if not out_dir.exists():
-        out_dir.mkdir(parents=True)
-    params['path'] = out_dir
     print(f'Postprocessing ...', flush=True)
     pyscreener.postprocess(d_smi_score=d_smi_score, **params)
     print('Done!')
 
-    if params['copy_all']:
-        copy_tree(str(tmp_dir), str(out_dir))
-
     scores_filename = out_dir / f'{name}_scores.csv'
-    extended_filename = out_dir / f'{name}_extended.csv'
-
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
         writer.writerows(
             sorted(d_smi_score.items(), key=lambda k_v: k_v[1] or float('inf'))
         )
-    
-    rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
-    with open(extended_filename, 'w') as fid:
-        writer = csv.writer(fid)
-        writer.writerow(
-            ['smiles', 'name', 'input_file', 'out_file', 'log_file', 'score'])
-        writer.writerows(row.values() for row in rows)
-
     print(f'Scoring data has been saved to: "{scores_filename}"')
-    print(f'Extended data has been saved to: "{extended_filename}"')
+
+    if params['collect_all']:
+        print('Collecting all input and output files ...', end=' ', flush=True)
+        screener.collect_files(out_dir)
+        extended_filename = out_dir / f'{name}_extended.csv'
+        rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
+        with open(extended_filename, 'w') as fid:
+            writer = csv.writer(fid)
+            writer.writerow(['smiles', 'name', 'node_id', 'score'])
+            writer.writerows(row.values() for row in rows)
+        print('Done!')
+        print(f'Extended data has been saved to: "{extended_filename}"')
+
     print('Thanks for using Pyscreener!')
 
 if __name__ == '__main__':

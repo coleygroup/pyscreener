@@ -14,6 +14,8 @@ dependencies:
   - pandas
   - omnia::pdbfixer
   - pip
+  - pip:
+    - ray
   - python=3.6
   - rdkit
   - scikit-learn

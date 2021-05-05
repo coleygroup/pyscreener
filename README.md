@@ -34,7 +34,6 @@ After you have downloaded the appropriate software relevant to preparing inputs 
 ### specifying an environment variable
 Due to some wonkiness with getting DOCK6 to work with `pyscreener`, it requires that the DOCK6 environment variable be set with the location of the DOCK6 parent folder (the folder that is unpacked after downloading the original zip file and contains both the `bin` and `parameters` subdirectories.) To set the environment variable, enter the following command: `export DOCK6=<path/to/dock6>`. (_note_: this environment vairable must always be set before running pyscreener, so it's probably best to place this inside your `.bashrc` or `.bash_profile`)
 
-
 __Note: both of the above steps must be satisifed before using `pyscreener`__
 
 To avoid having to do this every time you start a new shell, you can add whatever commands you typed to your respective shell's startup file (e.g., .bash_profile for a bash shell) (you can also add them to the non-login shell startup file, but it's not good a idea to edit your PATH in these files)
@@ -80,7 +79,7 @@ pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its paralle
 To do this, simply type `ray start --head --num-cpus <N>` before starting pyscreener (where N is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
 
 #### Distributing across many nodes
-While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([submit_pyscreener_distributed.batch](submit_pyscreener_distributed.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html)
+While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([run_pyscreener_distributed_example.batch](run_pyscreener_distributed_example.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html)
 
 pyscreener writes a lot of intermediate input and output files. Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to your system's temporary directory (determined by `tempfile.gettempdir()`). If you are running pyscreener in a distributed setup, either check for yourself or contact your system administrator to see where this directory points to. pyscreener requires that this be a _cluster-global_ directory __rather__ than a _node-local_ directory (i.e., the directory must be visible to all nodes on the cluster rather than only the local node.) If it is the latter, you must specify the proper directory via the `--tmp` or `--tmpdir` argument. It is typically best to avoid pointing this directory to your home directory both for storage and efficiency reasons.
 

@@ -19,7 +19,7 @@ nodes_array=( $nodes )
 
 node_1=${nodes_array[0]} 
 ip=$(srun -N 1 -n 1 -w $node_1 hostname --ip-address) # making redis-address
-port=6379
+port=$( python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()' )
 ip_head=$ip:$port
 
 export ip_head

@@ -243,6 +243,7 @@ class Screener(ABC):
             address = node["NodeManagerAddress"]
             @ray.remote(resources={f'node:{address}': 0.1})
             def copy_receptors():
+                self.tmp_dir.mkdir(parents=True, exist_ok=True)
                 return [
                     shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
                 ]

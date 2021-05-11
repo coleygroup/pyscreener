@@ -251,7 +251,7 @@ class Screener(ABC):
         ray.wait(refs)
 
         # print(ray.get(refs[0]))
-        # self.__receptors = ray.get(refs[0])
+        self.__receptors = ray.get(refs[0])
 
         # def copy_receptors():
         #     return [shutil.copy(rec, str(self.tmp_dir)) for rec in receptors]

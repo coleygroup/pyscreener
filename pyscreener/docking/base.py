@@ -241,7 +241,7 @@ class Screener(ABC):
         refs = []
         for node in ray.nodes():    # run on all nodes
             address = node["NodeManagerAddress"]
-            
+
             @ray.remote(resources={f'node:{address}': 0.1})
             def copy_receptors():
                 self.tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -249,9 +249,9 @@ class Screener(ABC):
                 copied_receptors = []
                 for rec in receptors:
                     if isinstance(rec, Iterable):
-                        receptor_copy = (
+                        receptor_copy = tuple([
                             shutil.copy(r, str(self.tmp_dir)) for r in rec
-                        )
+                        ])
                     else:
                         receptor_copy = shutil.copy(rec, str(self.tmp_dir))
                     copied_receptors.append(receptor_copy)

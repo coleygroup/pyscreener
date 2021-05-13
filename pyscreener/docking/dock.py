@@ -220,6 +220,9 @@ class DOCK(Screener):
                 shutil.copy(f, str(self.tmp_dir))
                 for f in glob.glob(f'{grid_stem}.*')
             ]
+            print(grid_stem)
+            print(glob.glob(f'{grid_stem}.*'))
+            print(grid_files)
             grid_stem = os.path.splitext(grid_files[0][0])
             copied_receptors.append((rec_sph, grid_stem))
 
@@ -272,7 +275,7 @@ class DOCK(Screener):
         """
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
-        
+
         mol2 = str(path / f'{name}.mol2')
 
         mol = pybel.readstring(format='smi', string=smi)

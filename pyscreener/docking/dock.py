@@ -220,7 +220,7 @@ class DOCK(Screener):
                 shutil.copy(f, str(self.tmp_dir))
                 for f in glob.glob(f'{grid_stem}.*')
             ]
-            grid_stem = os.path.splitext(grid_files[0])
+            grid_stem = os.path.splitext(grid_files[0][0])
             copied_receptors.append((rec_sph, grid_stem))
 
         print(copied_receptors)

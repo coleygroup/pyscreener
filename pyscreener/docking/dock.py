@@ -223,7 +223,7 @@ class DOCK(Screener):
             print(grid_stem)
             print(glob.glob(f'{grid_stem}.*'))
             print(grid_files)
-            grid_stem = os.path.splitext(grid_files[0][0])
+            grid_stem = os.path.splitext(grid_files[0])[0]
             copied_receptors.append((rec_sph, grid_stem))
 
         print(copied_receptors)

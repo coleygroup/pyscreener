@@ -222,7 +222,7 @@ class Screener(ABC):
                 with tarfile.open(tmp_tar, 'w:gz') as tar:
                     tar.add(self.tmp_dir, arcname=output_id)
 
-                shutil.move(str(tmp_tar), str(out_path))
+                shutil.copy(str(tmp_tar), str(out_path))
 
             refs.append(zip_and_move_tmp.remote())
         ray.wait(refs)

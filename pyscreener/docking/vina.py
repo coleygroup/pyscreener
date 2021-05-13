@@ -143,7 +143,7 @@ class Vina(Screener):
             shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
         ]
         return copied_receptors
-        
+
     def prepare_and_dock(
         self, smis: Sequence[str], names: Sequence[str]
     ) -> List[List[List[Dict]]]:
@@ -190,8 +190,8 @@ class Vina(Screener):
             the filepath of the coresponding input file
         """
         path = Path(path)
-        if not path.is_dir():
-            path.mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
+        
         pdbqt = str(path / f'{name}.pdbqt')
 
         mol = pybel.readstring(format='smi', string=smi)
@@ -257,48 +257,6 @@ class Vina(Screener):
             pdbqts.append(pdbqt)
 
         return list(zip(smis, pdbqts))
-        # ret = sp.run(['obabel', filepath, '-osmi'], stdout=sp.PIPE, check=True)
-        # lines = ret.stdout.decode('utf-8').splitlines()
-        # smis = [line.split()[0] for line in lines]
-
-        # if not use_3d:
-        #     ligands = [
-        #         Vina.prepare_from_smi(smi, f'{name}_{i}', path) 
-        #         for i, smi in enumerate(smis)
-        #     ]
-        #     return [lig for lig in ligands if lig]
-        
-        # path = Path(path)
-        # if not path.is_dir():
-        #     path.mkdir(parents=True, exist_ok=True)
-
-        # # pdbqt = f'{path}/{name}_.pdbqt'
-        # # argv = ['obabel', filepath, '-opdbqt', '-O', pdbqt, '-m']
-        # # ret = sp.run(argv, check=False, stderr=sp.PIPE)
-
-        
-        # mol.addh()
-        # mol.make3D()
-        # mol.calccharges(model='gasteiger')
-        # mol.write(format='pdbqt', filename=pdbqt,
-        #           overwrite=True, opt={'h': None})
-        # try:
-        #     ret.check_returncode()
-        # except sp.SubprocessError:
-        #     return None
-
-        # n_mols = 0
-        # stderr = ret.stderr.decode('utf-8')
-        # for line in stderr.splitlines():
-        #     if 'converted' not in line:
-        #         continue
-        #     n_mols = int(line.split()[0])
-
-        # # have to think about some molecules failing and
-        # # how that affects numbering
-        # pdbqts = [f'{path}/{name}_{i}.pdbqt' for i in range(1, n_mols)]
-
-        # return list(zip(smis, pdbqts))
 
     @staticmethod
     def dock_ligand(ligand: Tuple[str, str], software: str,

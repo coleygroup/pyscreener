@@ -271,8 +271,8 @@ class DOCK(Screener):
             the prepared input file corresponding to the ligand
         """
         path = Path(path)
-        if not path.is_dir():
-            path.mkdir()
+        path.mkdir(parents=True, exist_ok=True)
+        
         mol2 = str(path / f'{name}.mol2')
 
         mol = pybel.readstring(format='smi', string=smi)

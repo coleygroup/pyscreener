@@ -236,17 +236,31 @@ class Screener(ABC):
         receptors = [rec for rec in receptors if rec is not None]
         if len(receptors) == 0:
             raise RuntimeError('Preparation failed for all receptors!')
-        self.__receptors = receptors
+        # self.__receptors = receptors
 
         refs = []
         for node in ray.nodes():    # run on all nodes
             address = node["NodeManagerAddress"]
+            
             @ray.remote(resources={f'node:{address}': 0.1})
             def copy_receptors():
                 self.tmp_dir.mkdir(parents=True, exist_ok=True)
-                return [
-                    shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
-                ]
+
+                copied_receptors = []
+                for rec in receptors:
+                    if isinstance(rec, Iterable):
+                        receptor_copy = (
+                            shutil.copy(r, str(self.tmp_dir)) for r in rec
+                        )
+                    else:
+                        receptor_copy = shutil.copy(rec, str(self.tmp_dir))
+                    copied_receptors.append(receptor_copy)
+
+                return copied_receptors
+                # return [
+                #     shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
+                # ]
+
             refs.append(copy_receptors.remote())
         ray.wait(refs)
 

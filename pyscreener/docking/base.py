@@ -245,9 +245,10 @@ class Screener(ABC):
 
             @ray.remote(resources={f'node:{address}': 0.1})
             def copy_receptors():
+                self.tmp_dir.mkdir(parents=True, exist_ok=True)
                 return self.copy_receptors(receptors)
             # def copy_receptors():
-            #     self.tmp_dir.mkdir(parents=True, exist_ok=True)
+            #     
 
             #     copied_receptors = []
             #     for rec in receptors:

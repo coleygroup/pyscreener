@@ -387,7 +387,7 @@ def prepare_box(sph_file: str,
 def prepare_grid(rec_mol2: str, box_file: str,
                  path: str = '.') -> Optional[str]:
     p_rec = Path(rec_mol2)
-    p_grid_prefix = Path(path) / f'{p_rec.stem}_grid'
+    p_grid_stem = Path(path) / f'{p_rec.stem}_grid'
 
     shutil.copy(box_file, 'tmp_box.pdb')
     with open('grid.in', 'w') as fid:
@@ -407,7 +407,7 @@ def prepare_grid(rec_mol2: str, box_file: str,
         fid.write(f'receptor_file {rec_mol2}\n')
         fid.write('box_file tmp_box.pdb\n')
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
-        fid.write(f'score_grid_prefix  {p_grid_prefix}\n')
+        fid.write(f'score_grid_prefix  {p_grid_stem}\n')
     
     ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], stdout=sp.PIPE)
     try:
@@ -420,4 +420,4 @@ def prepare_grid(rec_mol2: str, box_file: str,
         return None
 
     os.unlink('tmp_box.pdb')
-    return str(p_grid_prefix)
+    return str(p_grid_stem)

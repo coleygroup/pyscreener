@@ -2,6 +2,7 @@ from itertools import takewhile
 from math import ceil, log10
 from pathlib import Path
 import re
+import shutil
 import subprocess as sp
 import sys
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -137,6 +138,11 @@ class Vina(Screener):
 
         return receptor_pdbqt
 
+    def copy_receptors(self, receptors) -> List[str]:
+        copied_receptors = [
+            shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
+        ]
+        return copied_receptors
     def prepare_and_dock(
         self, smis: Sequence[str], names: Sequence[str]
     ) -> List[List[List[Dict]]]:

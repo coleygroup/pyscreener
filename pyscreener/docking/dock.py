@@ -1,7 +1,9 @@
 from functools import partial
+import glob
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess as sp
 import sys
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -158,6 +160,15 @@ class DOCK(Screener):
         receptor : str
             the filepath of a file containing a receptor. Must be in a format
             that is readable by Chimera
+        
+        Returns
+        -------
+        rec_sph : str
+            the filepath of the file containing the selected spheres
+        grid_prefix : str
+            the prefix of all prepared grid files.
+        None
+            if receptor preparation fails at any point
         """
         receptors_dir = self.path / 'receptors'
         if not receptors_dir.is_dir():
@@ -193,13 +204,26 @@ class DOCK(Screener):
         if rec_box is None:
             return None
 
-        grid_prefix = ucsfdock_prep.prepare_grid(
+        grid_stem = ucsfdock_prep.prepare_grid(
             rec_mol2, rec_box, receptors_dir
         )
-        if grid_prefix is None:
+        if grid_stem is None:
             return None
 
-        return rec_sph, grid_prefix
+        return rec_sph, grid_stem
+
+    def copy_receptors(self, receptors) -> List[str]:
+        copied_receptors = []
+        for rec_sph, grid_stem in receptors:
+            rec_sph = shutil.copy(rec_sph, str(self.tmp_dir))
+            grid_files = [
+                shutil.copy(f, str(self.tmp_dir))
+                for f in glob.glob(f'{grid_stem}.*')
+            ]
+            grid_stem = os.path.splitext(grid_files[0])
+            copied_receptors.append((rec_sph, grid_stem))
+            
+        return copied_receptors
 
     def prepare_and_dock(
         self, smis: Sequence[str], names: Sequence[str]

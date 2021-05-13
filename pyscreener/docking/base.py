@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import csv
 import datetime
+import glob
 from itertools import chain
 from math import ceil, exp, log10
 import os
@@ -244,19 +245,22 @@ class Screener(ABC):
 
             @ray.remote(resources={f'node:{address}': 0.1})
             def copy_receptors():
-                self.tmp_dir.mkdir(parents=True, exist_ok=True)
+                return self.copy_receptors(receptors)
+            # def copy_receptors():
+            #     self.tmp_dir.mkdir(parents=True, exist_ok=True)
 
-                copied_receptors = []
-                for rec in receptors:
-                    if isinstance(rec, Iterable):
-                        receptor_copy = tuple([
-                            shutil.copy(r, str(self.tmp_dir)) for r in rec
-                        ])
-                    else:
-                        receptor_copy = shutil.copy(rec, str(self.tmp_dir))
-                    copied_receptors.append(receptor_copy)
+            #     copied_receptors = []
+            #     for rec in receptors:
+            #         if isinstance(rec, str):
+            #             copied_receptor = shutil.copy(rec, str(self.tmp_dir))
+            #         else:
+            #             rec = list(chain(*(glob.glob(f'{r}*') for r in rec)))
+            #             copied_receptor = tuple([
+            #                 shutil.copy(r, str(self.tmp_dir)) for r in rec
+            #             ])
+            #         copied_receptors.append(copied_receptor)
 
-                return copied_receptors
+            #     return copied_receptors
                 # return [
                 #     shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
                 # ]
@@ -301,6 +305,10 @@ class Screener(ABC):
     def prepare_receptor(self, *args, **kwargs) -> Optional[str]:
         """Prepare a receptor input file for the docking software and return
         the corresponding filepath or None if preparation failed"""
+
+    @abstractmethod
+    def copy_receptors(self, receptors) -> List[str]:
+        """Copy the prepared receptors to self.tmp_dir"""
 
     @staticmethod
     @abstractmethod

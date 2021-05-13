@@ -119,7 +119,7 @@ class DOCK(Screener):
                  repeats: int = 1, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                 distributed: bool = False, num_workers: int = -1,
+                #  distributed: bool = False, num_workers: int = -1,
                  path: str = '.', verbose: int = 0, **kwargs):
         if docked_ligand_file is None and center is None and not use_largest:
             print('WARNING: Args "docked_ligand_file" and "center" were both ',
@@ -145,7 +145,7 @@ class DOCK(Screener):
                          repeats=repeats, score_mode=score_mode, 
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
-                         distributed=distributed, num_workers=num_workers,
+                        #  distributed=distributed, num_workers=num_workers,
                          path=path, verbose=verbose, **kwargs)
 
     def __call__(self, *args, **kwargs):
@@ -223,6 +223,7 @@ class DOCK(Screener):
             grid_stem = os.path.splitext(grid_files[0])
             copied_receptors.append((rec_sph, grid_stem))
 
+        print(copied_receptors)
         return copied_receptors
 
     def prepare_and_dock(
@@ -238,12 +239,6 @@ class DOCK(Screener):
                 in_path=self.tmp_in, out_path=self.tmp_out,
                 repeats=self.repeats, score_mode=self.score_mode
             )
-            # return Vina.dock_ligand(
-            #     ligand, software=self.software, receptors=self.receptors,
-            #     center=self.center, size=self.size, ncpu=self.ncpu,
-            #     extra=self.extra, path=self.tmp_out,
-            #     repeats=self.repeats, score_mode=self.score_mode
-            # )
 
         refs = list(map(prepare_and_dock_.remote, smis, names))
         ligs_recs_reps = [
@@ -414,13 +409,13 @@ class DOCK(Screener):
         smi, lig_mol2 = ligand
 
         ensemble_rowss = []
-        for sph_file, grid_prefix in receptors:
+        for sph_file, grid_stem in receptors:
             repeat_rows = []
             for repeat in range(repeats):
                 name = f'{Path(sph_file).stem}_{Path(lig_mol2).stem}_{repeat}'
 
                 infile, outfile_prefix = DOCK.prepare_input_file(
-                    lig_mol2, sph_file, grid_prefix, name, in_path, out_path
+                    lig_mol2, sph_file, grid_stem, name, in_path, out_path
                 )
 
                 out = Path(f'{outfile_prefix}_scored.mol2')

@@ -143,6 +143,7 @@ class Vina(Screener):
             shutil.copy(rec, str(self.tmp_dir)) for rec in receptors
         ]
         return copied_receptors
+        
     def prepare_and_dock(
         self, smis: Sequence[str], names: Sequence[str]
     ) -> List[List[List[Dict]]]:

@@ -222,7 +222,7 @@ class DOCK(Screener):
             ]
             grid_stem = os.path.splitext(grid_files[0])
             copied_receptors.append((rec_sph, grid_stem))
-            
+
         return copied_receptors
 
     def prepare_and_dock(
@@ -235,7 +235,7 @@ class DOCK(Screener):
 
             return DOCK.dock_ligand(
                 ligand, receptors=self.receptors,
-                in_path=self.in_path, out_path=self.out_path,
+                in_path=self.tmp_in, out_path=self.tmp_out,
                 repeats=self.repeats, score_mode=self.score_mode
             )
             # return Vina.dock_ligand(

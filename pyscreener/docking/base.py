@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import csv
 import datetime
-import glob
 from itertools import chain
 from math import ceil, exp, log10
 import os
@@ -132,7 +131,7 @@ class Screener(ABC):
         return self.__path
     
     @path.setter
-    def path(self, path: os.PathLike):
+    def path(self, path: Union[str, os.PathLike]):
         path = Path(path)
         receptors_dir = path / 'receptors'
         if not receptors_dir.is_dir():
@@ -151,7 +150,7 @@ class Screener(ABC):
         return self.__tmp_dir
         
     @tmp_dir.setter
-    def tmp_dir(self, path: str):
+    def tmp_dir(self, path: Union[str, os.PathLike]):
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         path = Path(path) / 'pyscreener' / f'session_{timestamp}'
         if not path.is_dir():
@@ -165,7 +164,7 @@ class Screener(ABC):
         return self.__tmp_in
 
     @tmp_in.setter
-    def tmp_in(self, path: str):
+    def tmp_in(self, path: Union[str, os.PathLike]):
         path = Path(path)
         if not path.is_dir():
             path.mkdir(parents=True)
@@ -176,13 +175,13 @@ class Screener(ABC):
         return self.__tmp_out
 
     @tmp_out.setter
-    def tmp_out(self, path: str):
+    def tmp_out(self, path: Union[str, os.PathLike]):
         path = Path(path)
         if not path.is_dir():
             path.mkdir(parents=True)
         self.__tmp_out = path
 
-    def collect_files(self, out_path: Optional[str]=None):
+    def collect_files(self, out_path: Optional[Union[str, os.PathLike]]=None):
         """Collect all the files from the local disks of the respective nodes
 
         For I/O purposes, input and output files for each simulation are 
@@ -206,13 +205,11 @@ class Screener(ABC):
             the path under which the tar files should be collected to. If None,
             use self.path
         """
-        out_path = out_path or self.path
-        out_path = Path(out_path)
-        if not out_path.is_dir():
-            out_path.mkdir(parents=True)
+        out_path = Path(out_path or self.path)
+        out_path.mkdir(parents=True, exist_ok=True)
 
         refs = []
-        for node in ray.nodes():    # run on all nodes
+        for node in ray.nodes():
             address = node["NodeManagerAddress"]
 
             @ray.remote(resources={f'node:{address}': 0.1})

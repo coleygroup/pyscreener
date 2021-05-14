@@ -201,7 +201,7 @@ class Screener(ABC):
 
         Parameters
         ----------
-        out_path : Optional[str], defualt=None
+        out_path : Optional[out_path or self.path], default=None
             the path under which the tar files should be collected to. If None,
             use self.path
         """

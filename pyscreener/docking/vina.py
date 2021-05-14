@@ -78,7 +78,6 @@ class Vina(Screener):
                  score_mode: str = 'best', repeats: int = 1,
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                #  distributed: bool = False, num_workers: int = -1,
                  path: str = '.', verbose: int = 0, **kwargs):
         if software not in ('vina', 'qvina', 'smina', 'psovina'):
             raise ValueError(f'Unrecognized docking software: "{software}"')
@@ -104,10 +103,7 @@ class Vina(Screener):
                          repeats=repeats, score_mode=score_mode,
                          receptor_score_mode=receptor_score_mode,
                          ensemble_score_mode=ensemble_score_mode,
-                        #  distributed=distributed,
-                        #  num_workers=num_workers,
-                         ncpu=ncpu,
-                         path=path, verbose=verbose, **kwargs)
+                         ncpu=ncpu, path=path, verbose=verbose, **kwargs)
 
     def __call__(self, *args, **kwargs):
         return self.dock(*args, **kwargs)
@@ -314,7 +310,7 @@ class Vina(Screener):
         """
         if repeats <= 0:
             raise ValueError(f'Repeats must be greater than 0! ({repeats})')
-            
+
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 

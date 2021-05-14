@@ -214,14 +214,13 @@ class Screener(ABC):
         refs = []
         for node in ray.nodes():    # run on all nodes
             address = node["NodeManagerAddress"]
+
             @ray.remote(resources={f'node:{address}': 0.1})
             def zip_and_move_tmp():
                 output_id = re.sub('[:,.]', '', ray.state.current_node_id())
                 tmp_tar = (self.tmp_dir / output_id).with_suffix('.tar.gz')
-
                 with tarfile.open(tmp_tar, 'w:gz') as tar:
                     tar.add(self.tmp_dir, arcname=output_id)
-
                 shutil.copy(str(tmp_tar), str(out_path))
 
             refs.append(zip_and_move_tmp.remote())

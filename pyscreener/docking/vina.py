@@ -191,7 +191,7 @@ class Vina(Screener):
         """
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
-        
+
         pdbqt = str(path / f'{name}.pdbqt')
 
         mol = pybel.readstring(format='smi', string=smi)
@@ -314,6 +314,9 @@ class Vina(Screener):
         """
         if repeats <= 0:
             raise ValueError(f'Repeats must be greater than 0! ({repeats})')
+            
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
 
         smi, pdbqt = ligand
 
@@ -395,10 +398,6 @@ class Vina(Screener):
         """
         if software not in ('vina', 'smina', 'psovina', 'qvina'):
             raise ValueError(f'Invalid docking program: "{software}"')
-
-        path = Path(path)
-        if not path.is_dir():
-            path.mkdir(parents=True, exist_ok=True)
 
         name = name or (Path(receptor).stem+'_'+Path(ligand).stem)
         extra = extra or []

@@ -33,6 +33,8 @@ def add_general_args(parser: ArgumentParser):
     parser.add_argument('--tmp-dir', '--tmp', '--temp',
                         default=tempfile.gettempdir(),
                         help='The filepath of the temporary directory under which to write all input and output files. NOTE: on some systems you may not have write access under the default directory for this argument and this will usually manifest itself as a PermissionError. In this case, contact your system administrator to obtain an appropriate value for this argument.')
+    parser.add_argument('--no-sort', action='store_true', default=False,
+                        help='do not sort the output scores CSV file by score')
     parser.add_argument('--collect-all', action='store_true', default=False,
                         help='whether all prepared input files and generated output files should be collected to the final output directory. By default, these files are all stored in a node-local temporary directory that is inaccessible after program completion.')
     parser.add_argument('-v', '--verbose', action='count', default=0,

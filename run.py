@@ -5,7 +5,7 @@ from pathlib import Path
 import ray
 
 import pyscreener
-from pyscreener import args
+from pyscreener.args import gen_args
 
 def main():
     print('''\
@@ -17,7 +17,8 @@ def main():
 *  /_/    /____/                                              *
 ***************************************************************''')
     print('Welcome to Pyscreener!\n')
-    params = vars(args.gen_args())
+    args = gen_args()
+    params = vars(args)
     print('Pyscreener will be run with the following arguments:')
     for param, value in sorted(params.items()):
         print(f'  {param}: {value}')
@@ -33,7 +34,7 @@ def main():
         else:
             ray.init(address='auto')
     except ConnectionError:
-        ray.init(_temp_dir=params['tmp_dir'])
+        ray.init(_temp_dir=args.tmp_dir)
     except PermissionError:
         print('Failed to create a temporary directory for ray')
         raise
@@ -42,8 +43,8 @@ def main():
     print(ray.cluster_resources())
     print(flush=True)
 
-    name = params['name']
-    out_dir = Path(params['root']) / name
+    name = args.name
+    out_dir = Path(args.root) / name
     params['path'] = out_dir
     
     print('Preprocessing ...', flush=True)
@@ -65,12 +66,13 @@ def main():
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
-        writer.writerows(
-            sorted(d_smi_score.items(), key=lambda k_v: k_v[1] or float('inf'))
-        )
+        writer.writerows(sorted(
+            d_smi_score.items(),
+            key=None if args.no_sort else lambda k_v: k_v[1] or float('inf')
+        ))
     print(f'Scoring data has been saved to: "{scores_filename}"')
 
-    if params['collect_all']:
+    if args.collect_all:
         print('Collecting all input and output files ...', end=' ', flush=True)
         screener.collect_files(out_dir)
         extended_filename = out_dir / f'{name}_extended.csv'

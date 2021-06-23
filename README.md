@@ -99,10 +99,10 @@ For example, the following code snippet will dock benzene (SMILES string c1ccccc
 >>> screener = docking.Vina(software='vina', receptors=['testing_inputs/5WIU.pdb'], docked_ligand_file='testing_inputs/5WIU_with_ligand.pdb', buffer=10., path='testing_outputs', ncpu=4)
 Autoboxing ... Done!
 Autoboxed ligand from "testing_inputs/5WIU_with_ligand.pdb" with center=(-18.2, 14.4, -16.1) and size=(15.4, 13.9, 14.5)
->>> results = vina_screener('c1ccccc1')
+>>> results = screener('c1ccccc1')
 >>> results
 {'c1ccccc1': -4.4}
->>> results = vina_screener('testing_inputs/ligands.csv')
+>>> results = screener('testing_inputs/ligands.csv')
 >>> results
 {...}
 ```
@@ -113,7 +113,8 @@ A few notes from the above example:
 - the prepared input/output files are stored in $TMPDIR by default. You can manually specify this via the `tmp_dir` argument during the `Vina` intialization. If you want these files at the end of execution, call the function `Screener.collect_all()`. This will collect all the input and output folders and move them under the directory specified by the `path` argument.
 - If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight that you can initialize ray according to your own needs (i.e., distributed setup).
-
+- you can call the `screener` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`)
+    
 ## Copyright
 Copyright (c) 2020, david graff
 

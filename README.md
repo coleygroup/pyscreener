@@ -84,7 +84,35 @@ While the precise instructions for this will vary with HPC cluster architecture,
 pyscreener writes a lot of intermediate input and output files. Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to your system's temporary directory (determined by `tempfile.gettempdir()`). If you are running pyscreener in a distributed setup, either check for yourself or contact your system administrator to see where this directory points to. pyscreener requires that this be a _cluster-global_ directory __rather__ than a _node-local_ directory (i.e., the directory must be visible to all nodes on the cluster rather than only the local node.) If it is the latter, you must specify the proper directory via the `--tmp` or `--tmpdir` argument. It is typically best to avoid pointing this directory to your home directory both for storage and efficiency reasons.
 
 ## Using pyscreener as a library
-At the core of the pyscreener software is the `pyscreener` library that enables the running of docking software from input preparation all the way to output file parsing. The workhorse class is the [`Screener`](pyscreener/docking/screener.py) ABC, which handles all of this for a user. To actually initialize a screener object, either of the derived classes: [`Vina`](pyscreener/docking/vina.py) or [`DOCK`](pyscreener/docking/dock.py). `Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina. `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.
+To perform docking calls inside your python code using `pyscreener`, you must first initialize a `Screener` object using either of the derived classes: [`Vina`](pyscreener/docking/vina.py) or [`DOCK`](pyscreener/docking/dock.py).
+    
+`Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina.
+    
+`DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.
+
+For example, the following code snippet will dock benzene (SMILES string c1ccccc1) against the D4 dopamine receptor (PDB ID: 5WIU) using the site of a previously docked ligand.
+```python
+>>> import ray
+>>> ray.init()
+[...]
+>>> from pyscreener import docking
+>>> screener = docking.Vina(software='vina', receptors=['testing_inputs/5WIU.pdb'], docked_ligand_file='testing_inputs/5WIU_with_ligand.pdb', buffer=10., path='testing_outputs', ncpu=4)
+Autoboxing ... Done!
+Autoboxed ligand from "testing_inputs/5WIU_with_ligand.pdb" with center=(-18.2, 14.4, -16.1) and size=(15.4, 13.9, 14.5)
+>>> results = vina_screener('c1ccccc1')
+>>> results
+{'c1ccccc1': -4.4}
+>>> results = vina_screener('testing_inputs/ligands.csv')
+>>> results
+{...}
+```
+    
+A few notes from the above example:
+- the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=['5WIU']) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
+- you can manually input the center and size of your docking box, but this must be manually determined before runtime.
+- the prepared input/output files are stored in $TMPDIR by default. You can manually specify this via the `tmp_dir` argument during the `Vina` intialization. If you want these files at the end of execution, call the function `Screener.collect_all()`. This will collect all the input and output folders and move them under the directory specified by the `path` argument.
+- If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
+- ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight that you can initialize ray according to your own needs (i.e., distributed setup).
 
 ## Copyright
 Copyright (c) 2020, david graff

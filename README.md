@@ -109,7 +109,7 @@ Autoboxed ligand from "testing_inputs/5WIU_with_ligand.pdb" with center=(-18.2, 
     
 A few notes from the above example:
 - the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=['5WIU']) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
-- you can manually input the center and size of your docking box, but this must be manually determined before runtime.
+- you can manually input the center and size of your docking box, but this must be manually determined before runtime. e.g. `screener = docking.Vina(software='vina', receptors=['testing_inputs/5WIU.pdb'], center=(-18.2, 14.4, -16.1), size=(15.4, 13.9, 14.5), path='testing_outputs', ncpu=4)`
 - the prepared input/output files are stored in $TMPDIR by default. You can manually specify this via the `tmp_dir` argument during the `Vina` intialization. If you want these files at the end of execution, call the function `Screener.collect_all()`. This will collect all the input and output folders and move them under the directory specified by the `path` argument.
 - If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight that you can initialize ray according to your own needs (i.e., distributed setup).

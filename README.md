@@ -96,13 +96,13 @@ For example, the following code snippet will dock benzene (SMILES string c1ccccc
 >>> ray.init()
 [...]
 >>> from pyscreener import docking
->>> screener = docking.Vina(software='vina', receptors=['testing_inputs/5WIU.pdb'], docked_ligand_file='testing_inputs/5WIU_with_ligand.pdb', buffer=10., path='testing_outputs', ncpu=4)
+>>> vina_screener = docking.screener(software='vina', receptors=['testing_inputs/5WIU.pdb'], docked_ligand_file='testing_inputs/5WIU_with_ligand.pdb', buffer=10., path='testing_outputs', ncpu=4)
 Autoboxing ... Done!
 Autoboxed ligand from "testing_inputs/5WIU_with_ligand.pdb" with center=(-18.2, 14.4, -16.1) and size=(15.4, 13.9, 14.5)
->>> results = screener('c1ccccc1')
+>>> results = vina_screener('c1ccccc1')
 >>> results
 {'c1ccccc1': -4.4}
->>> results = screener('testing_inputs/ligands.csv')
+>>> results = vina_screener('testing_inputs/ligands.csv')
 >>> results
 {...}
 ```

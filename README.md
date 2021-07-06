@@ -102,7 +102,7 @@ Autoboxed ligand from "testing_inputs/5WIU_with_ligand.pdb" with center=(-18.2, 
 >>> results = vina_screener('c1ccccc1')
 >>> results
 {'c1ccccc1': -4.4}
->>> results = vina_screener('testing_inputs/ligands.csv')
+>>> results = vina_screener('testing_inputs/test_ligands.csv')
 >>> results
 {...}
 ```

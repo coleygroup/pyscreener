@@ -10,14 +10,13 @@ import shutil
 import tarfile
 import tempfile
 import timeit
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from openbabel import pybel
 import ray
 from rdkit import Chem
 
 from pyscreener.preprocessing import pdbfix
-from pyscreener import utils
 
 pybel.ob.obErrorLog.SetOutputLevel(0)
 
@@ -28,6 +27,7 @@ class Screener(ABC):
     defining the following methods:
 
     * prepare_receptor
+    * copy_receptors
     * prepare_from_smi
     * prepare_from_file
     * prepare_and_dock
@@ -37,9 +37,9 @@ class Screener(ABC):
     Parameters
     ----------
     receptors : List[str]
-        the filepath(s) of receptors to prepare for docking
+        the PDB file of each receptor to prepare for docking
     pdbids : List[str]
-        a list of PDB IDs corresponding to receptors to prepare for DOCKing.
+        the PDB ID of each receptor to prepare for docking
     repeats : int, default=1
         the number of times each docking run will be repeated
     score_mode : str, default='best'
@@ -84,8 +84,8 @@ class Screener(ABC):
                  repeats: int = 1, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                 ncpu: int = 1,
-                 path: str = '.', tmp_dir = tempfile.gettempdir(),
+                 ncpu: int = 1, path: str = '.',
+                 tmp_dir = tempfile.gettempdir(),
                  verbose: int = 0, **kwargs):
         self.path = Path(path)
         self.tmp_dir = tmp_dir
@@ -181,6 +181,85 @@ class Screener(ABC):
             path.mkdir(parents=True)
         self.__tmp_out = path
 
+    @property
+    def receptors(self) -> List:
+        """The file(s) corresponding to each receptor in the virtual screen"""
+        return self.__receptors
+
+    @receptors.setter
+    def receptors(self, receptors: Iterable[str]):
+        """Prepare the corresponding input file(s) for each receptor from the
+        specified receptor files and copy these files to the temporary
+        on each node in the ray cluster
+
+        Raises
+        ------
+        RuntimeError
+            if preparation failed for each receptor
+        """
+        receptors = [self.prepare_receptor(rec) for rec in receptors]
+        receptors = [rec for rec in receptors if rec is not None]
+        if len(receptors) == 0:
+            raise RuntimeError('Preparation failed for all receptors!')
+
+        refs = []
+        for node in ray.nodes():
+            address = node["NodeManagerAddress"]
+            @ray.remote(resources={f'node:{address}': 0.1})
+            def copy_receptors():
+                self.tmp_dir.mkdir(parents=True, exist_ok=True)
+                return self.copy_receptors(receptors)
+
+            refs.append(copy_receptors.remote())
+        ray.wait(refs)
+
+        self.__receptors = ray.get(refs[0])
+
+    @abstractmethod
+    def prepare_receptor(self, *args, **kwargs) -> Optional[Any]:
+        """Prepare a receptor input file for the docking software and return
+        the corresponding filepath(s) or None if preparation failed"""
+
+    @abstractmethod
+    def copy_receptors(self, receptors) -> List:
+        """Copy the prepared receptors file(s) to self.tmp_dir"""
+
+    @staticmethod
+    @abstractmethod
+    def prepare_from_smi(*args, **kwargs) -> Tuple[str, str]:
+        """Prepare a ligand input file from a SMILES string and return both
+        the SMILES string and the corresponding filepath"""
+
+    @staticmethod
+    @abstractmethod
+    def prepare_from_file(*args, **kwargs) -> List[Tuple[str, str]]:
+        """Prepare the corresponding ligand input files from an
+        arbitrary input file type"""
+
+    @abstractmethod
+    def prepare_and_dock(
+        self, smis: Sequence[str], names: Sequence[str]
+    ) -> List[List[List[Dict]]]:
+        """Run the docking simulations for the input molecules
+        
+        Parameters
+        ----------
+        smis : Sequence[str]
+            the SMILES strings of the molecules to dock
+        names: Sequence[str]
+            a parallel list containing the ID or name of each molecule
+        
+        Returns
+        -------
+        List[List[List[Dict]]]
+            an NxMxO list of dictionaries where each individual dictionary is a 
+            record of an individual docking run and
+            
+            * N is the number of molecules that were docked
+            * M is the number of receptors in the ensemble
+            * O is the number of times each docking run was repeated
+        """
+
     def collect_files(self, out_path: Optional[Union[str, os.PathLike]]=None):
         """Collect all the files from the local disks of the respective nodes
 
@@ -222,79 +301,11 @@ class Screener(ABC):
 
             refs.append(zip_and_move_tmp.remote())
         ray.wait(refs)
-        
-    @property
-    def receptors(self) -> List[str]:
-        return self.__receptors
 
-    @receptors.setter
-    def receptors(self, receptors):
-        receptors = [self.prepare_receptor(rec) for rec in receptors]
-        receptors = [rec for rec in receptors if rec is not None]
-        if len(receptors) == 0:
-            raise RuntimeError('Preparation failed for all receptors!')
-
-        refs = []
-        for node in ray.nodes():
-            address = node["NodeManagerAddress"]
-            @ray.remote(resources={f'node:{address}': 0.1})
-            def copy_receptors():
-                self.tmp_dir.mkdir(parents=True, exist_ok=True)
-                return self.copy_receptors(receptors)
-
-            refs.append(copy_receptors.remote())
-        ray.wait(refs)
-
-        self.__receptors = ray.get(refs[0])        
-
-    @abstractmethod
-    def prepare_and_dock(
-        self, smis: Sequence[str], names: Sequence[str]
-    ) -> List[List[List[Dict]]]:
-        """Run the docking simulations for the input molecules
-        
-        Parameters
-        ----------
-        smis : Sequence[str]
-            the SMILES strings of the molecules to dock
-        names: Sequence[str]
-            a parallel list containing the ID or name of each molecule
-        
-        Returns
-        -------
-        List[List[List[Dict]]]
-            an NxMxO list of dictionaries where each individual dictionary is a 
-            record of an individual docking run and
-            
-            * N is the number of molecules that were docked
-            * M is the number of receptors in the ensemble
-            * O is the number of times each docking run was repeated
-        """
-
-    @abstractmethod
-    def prepare_receptor(self, *args, **kwargs) -> Optional[str]:
-        """Prepare a receptor input file for the docking software and return
-        the corresponding filepath or None if preparation failed"""
-
-    @abstractmethod
-    def copy_receptors(self, receptors) -> List[str]:
-        """Copy the prepared receptors to self.tmp_dir"""
-
-    @staticmethod
-    @abstractmethod
-    def prepare_from_smi(*args, **kwargs) -> Tuple[str, str]:
-        """Prepare a ligand input file from a SMILES string and return both
-        the SMILES string and the corresponding filepath"""
-
-    @staticmethod
-    @abstractmethod
-    def prepare_from_file(*args, **kwargs) -> List[Tuple[str, str]]:
-        """Prepare the corresponding ligand input files from an
-        arbitrary input file type"""
-
-    def dock(self, *smis_or_files: Iterable,
-             full_results: bool = False,
-             **kwargs) -> Dict[str, Optional[float]]:
+    def dock(
+            self, *smis_or_files: Iterable,
+            full_results: bool = False, **kwargs
+        ) -> Dict[str, Optional[float]]:
         """dock the ligands contained in sources
 
         NOTE: the star operator, *, in the function signature.
@@ -340,33 +351,42 @@ class Screener(ABC):
         smis_scores = []
         for ligand_results in recordsss:
             smi = ligand_results[0][0]['smiles']
-            score = self.calc_ligand_score(
+            score = Screener.calc_ligand_score(
                 ligand_results, self.receptor_score_mode,
                 self.ensemble_score_mode
             )
             smis_scores.append((smi, score))
 
         d_smi_score = {}
-        for smi_score in smis_scores:
-            smi, score = smi_score
-            if smi not in d_smi_score:
+        for smi, score in smis_scores:
+            curr_score = d_smi_score.get(smi)
+            if curr_score is None:
                 d_smi_score[smi] = score
             elif score is None:
-                continue
+                d_smi_score[smi] = curr_score
             else:
-                curr_score = d_smi_score[smi]
-                if curr_score is None:
-                    d_smi_score[smi] = score
-                else:
-                    d_smi_score[smi] = min(d_smi_score[smi], score)
+                d_smi_score[smi] = min(curr_score, score)
+
+            # if smi not in d_smi_score:
+            #     d_smi_score[smi] = score
+            # elif score is None:
+            #     continue
+            # else:
+            #     curr_score = d_smi_score[smi]
+            #     if curr_score is None:
+            #         d_smi_score[smi] = score
+            #     else:
+            #         d_smi_score[smi] = min(d_smi_score[smi], score)
+
 
         if full_results:
             return d_smi_score, list(chain(*list(chain(*recordsss))))
 
         return d_smi_score
 
-    def dock_ensemble(self, *smis_or_files: Iterable,
-                      **kwargs) -> List[List[List[Dict]]]:
+    def dock_ensemble(
+            self, *smis_or_files: Iterable, **kwargs
+        ) -> List[List[List[Dict]]]:
         """Run the docking program with the ligands contained in *smis_or_files
 
         NOTE: the star operator, *, in the function signature
@@ -423,7 +443,6 @@ class Screener(ABC):
         assert len(smis) == len(names)
 
         recordsss = self.prepare_and_dock(smis, names)
-
         self.num_docked_ligands += len(recordsss)
 
         total = timeit.default_timer() - begin
@@ -437,8 +456,9 @@ class Screener(ABC):
 
         return recordsss
 
-    def get_smis(self, source: Union[str, Sequence[str]],
-                 **kwargs) -> Tuple[List[str], List[str]]:
+    def get_smis(
+            self, source: Union[str, Sequence[str]], **kwargs
+        ) -> Tuple[List[str], List[str]]:
         """Get the SMILES strings and names from an input source file
 
         Parameters
@@ -478,9 +498,10 @@ class Screener(ABC):
         return smis, names
 
     @staticmethod
-    def get_smis_from_csv(csv_filename: str, title_line: bool = True,
-                          smiles_col: int = 0, name_col: Optional[int] = None,
-                          **kwargs) -> Tuple[List[str], List[Optional[str]]]:
+    def get_smis_from_csv(
+            csv_filename: str, title_line: bool = True,
+            smiles_col: int = 0, name_col: Optional[int] = None, **kwargs
+        ) -> Tuple[List[str], List[Optional[str]]]:
         """Prepare the input files corresponding to the SMILES strings
         contained in a CSV file
 
@@ -520,9 +541,9 @@ class Screener(ABC):
         return smis, names
 
     @staticmethod
-    def get_smis_from_supply(supply: str,
-                             id_prop_name: Optional[str] = None,
-                             **kwargs) -> Tuple[List[str], List[Optional[str]]]:
+    def get_smis_from_supply(
+            supply: str, id_prop_name: Optional[str] = None, **kwargs
+        ) -> Tuple[List[str], List[Optional[str]]]:
         """Prepare the input files corresponding to the molecules contained in 
         a molecular supply file
 
@@ -573,8 +594,9 @@ class Screener(ABC):
         return smis, names
 
     @staticmethod
-    def get_smis_from_file(filename: str,
-                           **kwargs) -> Tuple[List[str], List[Optional[str]]]:
+    def get_smis_from_file(
+            filename: str, **kwargs
+        ) -> Tuple[List[str], List[Optional[str]]]:
         """get the SMILES strings and names from an arbitrary chemical 
         file format
 
@@ -608,9 +630,11 @@ class Screener(ABC):
         return smis, names
 
     @staticmethod
-    def calc_ligand_score(ligand_results: List[List[Dict]],
-                          receptor_score_mode: str = 'best',
-                          ensemble_score_mode: str = 'best') -> Optional[float]:
+    def calc_ligand_score(
+            ligand_results: List[List[Dict]],
+            receptor_score_mode: str = 'best',
+            ensemble_score_mode: str = 'best'
+        ) -> Optional[float]:
         """Calculate the overall score of a ligand given all of its docking
         runs
 

@@ -62,7 +62,7 @@ def main():
     pyscreener.postprocess(d_smi_score=d_smi_score, **params)
     print('Done!')
 
-    scores_filename = out_dir / f'{name}_scores.csv'
+    scores_filename = out_dir / 'scores.csv'
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
@@ -75,7 +75,7 @@ def main():
     if args.collect_all:
         print('Collecting all input and output files ...', end=' ', flush=True)
         screener.collect_files(out_dir)
-        extended_filename = out_dir / f'{name}_extended.csv'
+        extended_filename = out_dir / 'extended.csv'
         rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
         with open(extended_filename, 'w') as fid:
             writer = csv.writer(fid)

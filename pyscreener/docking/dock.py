@@ -235,7 +235,7 @@ class DOCK(Screener):
             return DOCK.dock_ligand(
                 ligand, receptors=self.receptors,
                 in_path=self.tmp_in, out_path=self.tmp_out,
-                repeats=self.repeats, score_mode=self.score_mode
+                repeats=self.repeats, score_mode=self.score_mode, k=self.k
             )
 
         refs = list(map(prepare_and_dock_.remote, smis, names))
@@ -344,11 +344,12 @@ class DOCK(Screener):
         return list(zip(smis, mol2s))
 
     @staticmethod
-    def dock_ligand(ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
-                    in_path: Union[str, os.PathLike] = 'inputs',
-                    out_path: Union[str, os.PathLike] = 'outputs',
-                    repeats: int = 1, score_mode: str = 'best'
-                    ) -> List[List[Dict]]:
+    def dock_ligand(
+            ligand: Tuple[str, str], receptors: List[Tuple[str, str]],
+            in_path: Union[str, os.PathLike] = 'inputs',
+            out_path: Union[str, os.PathLike] = 'outputs',
+            repeats: int = 1, score_mode: str = 'best', k: int = 1
+        ) -> List[List[Dict]]:
         """Dock this ligand into the ensemble of receptors
 
         Parameters
@@ -368,7 +369,9 @@ class DOCK(Screener):
         score_mode : str, default='best'
             The method used to calculate the docking score from the outfile 
             file. See also Screener.calc_score for more details
-        
+        k : int, default=1
+            the number of top scores to average if using "top-k" score mode
+
         Returns
         -------
         ensemble_rowss : List[List[Dict]]
@@ -416,7 +419,7 @@ class DOCK(Screener):
                     'smiles': smi,
                     'name': name,
                     'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-                    'score': DOCK.parse_out_file(out, score_mode)
+                    'score': DOCK.parse_out_file(out, score_mode, k)
                 })
 
             if repeat_rows:
@@ -556,8 +559,9 @@ class DOCK(Screener):
         return infile, outfile_prefix
 
     @staticmethod
-    def parse_out_file(outfile: Union[str, os.PathLike],
-                       score_mode: str = 'best') -> Optional[float]:
+    def parse_out_file(
+        outfile: Union[str, os.PathLike], score_mode: str = 'best', k: int = 1
+    ) -> Optional[float]:
         """Parse the out file generated from a run of DOCK to calculate an
         overall ligand score
 
@@ -569,7 +573,8 @@ class DOCK(Screener):
         score_mode : str, default='best'
             The method used to calculate the docking score from the outfile 
             file. See also Screener.calc_score for more details
-
+        k : int, default=1
+            the number of top scores to average if using "top-k" score mode
         Returns
         -------
         score : Optional[float]
@@ -588,7 +593,7 @@ class DOCK(Screener):
             if len(scores) == 0:
                 score = None
             else:
-                score = Screener.calc_score(scores, score_mode)
+                score = Screener.calc_score(scores, score_mode, k)
         except OSError:
             score = None
         

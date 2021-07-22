@@ -152,7 +152,7 @@ class Vina(Screener):
                 ligand, software=self.software, receptors=self.receptors,
                 center=self.center, size=self.size, ncpu=self.ncpu,
                 extra=self.extra, path=self.tmp_out,
-                repeats=self.repeats, score_mode=self.score_mode
+                repeats=self.repeats, score_mode=self.score_mode, k=self.k
             )
 
         refs = list(map(prepare_and_dock_.remote, smis, names))
@@ -260,7 +260,7 @@ class Vina(Screener):
                     center: Tuple[float, float, float],
                     size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 1, 
                     path: str = '.', extra: Optional[List[str]] = None,
-                    repeats: int = 1, score_mode: str = 'best'
+                    repeats: int = 1, score_mode: str = 'best', k: int = 1
                     ) -> List[List[Dict]]:
         """Dock the given ligand using the specified vina-type docking program 
         and parameters into the ensemble of receptors repeatedly
@@ -289,7 +289,8 @@ class Vina(Screener):
         score_mode : str
             the mode used to calculate a score for an individual docking run 
             given multiple output scored conformations
-
+        k : int, default=1
+            the number of top scores to average if using "top-k"score mode
         Returns
         -------
         ensemble_rowss : List[List[Dict]]
@@ -344,7 +345,7 @@ class Vina(Screener):
                     'smiles': smi,
                     'name': ligand_name,
                     'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-                    'score': Vina.parse_log_file(p_log, score_mode)
+                    'score': Vina.parse_log_file(p_log, score_mode, k)
                 })
 
             ensemble_rowss.append(repeat_rows)
@@ -413,8 +414,9 @@ class Vina(Screener):
         return argv, out, log
 
     @staticmethod
-    def parse_log_file(log_file: str,
-                       score_mode: str = 'best') -> Optional[float]:
+    def parse_log_file(
+        log_file: str, score_mode: str = 'best', k: int = 1
+    ) -> Optional[float]:
         """parse a Vina-type log file to calculate the overall ligand score
         from a single docking run
 
@@ -422,11 +424,12 @@ class Vina(Screener):
         ----------
         log_file : str
             the path to a Vina-type log file
-        score_mode : str (Default = 'best')
+        score_mode : str, default='best'
             the method by which to calculate a score from multiple scored
             conformations. Choices include: 'best', 'average', and 'boltzmann'.
             See Screener.calc_score for further explanation of these choices.
-        
+        k : int, default=1
+            the number of top scores to average if using "top-k" score mode
         Returns
         -------
         Optional[float]
@@ -449,7 +452,7 @@ class Vina(Screener):
             if len(scores) == 0:
                 score = None
             else:
-                score = Screener.calc_score(scores, score_mode)
+                score = Screener.calc_score(scores, score_mode, k)
         except OSError:
             score = None
         

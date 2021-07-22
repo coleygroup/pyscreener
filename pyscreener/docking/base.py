@@ -12,6 +12,7 @@ import tempfile
 import timeit
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 from openbabel import pybel
 import ray
 from rdkit import Chem
@@ -51,6 +52,8 @@ class Screener(ABC):
     ensemble_score_mode : str, default='best'
         the mode used to calculate an overall score for an ensemble of receptors
         given multiple receptors in an ensemble
+    k : int, default=1
+        the number of top scores to average if using top-k score mode
     distributed : bool, default=False
         True if the computation will parallelized over a distributed setup.
         False if the computation will parallelized over a local setup
@@ -72,6 +75,7 @@ class Screener(ABC):
     score_mode : str
     receptor_score_mode : str
     ensemble_score_mode : str
+    k : int
     distributed : bool
     num_workers : int, default=-1
     ncpu : int, default=1
@@ -84,7 +88,7 @@ class Screener(ABC):
                  repeats: int = 1, score_mode: str = 'best',
                  receptor_score_mode: str = 'best', 
                  ensemble_score_mode: str = 'best',
-                 ncpu: int = 1, path: str = '.',
+                 k: int = 1, ncpu: int = 1, path: str = '.',
                  tmp_dir = tempfile.gettempdir(),
                  verbose: int = 0, **kwargs):
         self.path = Path(path)
@@ -104,7 +108,7 @@ class Screener(ABC):
         self.score_mode = score_mode
         self.receptor_score_mode = receptor_score_mode
         self.ensemble_score_mode = ensemble_score_mode
-        
+        self.k = k
         self.ncpu = ncpu
 
         self.verbose = verbose
@@ -293,10 +297,12 @@ class Screener(ABC):
 
             @ray.remote(resources={f'node:{address}': 0.1})
             def zip_and_move_tmp():
-                output_id = re.sub('[:,.]', '', ray.state.current_node_id())
+                output_id = re.sub(r'[:,.]', '', ray.state.current_node_id())
                 tmp_tar = (self.tmp_dir / output_id).with_suffix('.tar.gz')
                 with tarfile.open(tmp_tar, 'w:gz') as tar:
-                    tar.add(self.tmp_dir, arcname=output_id)
+                    # tar.add(self.tmp_dir, arcname=output_id)
+                    tar.add(self.tmp_in, arcname='inputs')
+                    tar.add(self.tmp_out, arcname='outputs')
                 shutil.copy(str(tmp_tar), str(out_path))
 
             refs.append(zip_and_move_tmp.remote())
@@ -353,7 +359,7 @@ class Screener(ABC):
             smi = ligand_results[0][0]['smiles']
             score = Screener.calc_ligand_score(
                 ligand_results, self.receptor_score_mode,
-                self.ensemble_score_mode
+                self.ensemble_score_mode, self.k
             )
             smis_scores.append((smi, score))
 
@@ -633,7 +639,8 @@ class Screener(ABC):
     def calc_ligand_score(
             ligand_results: List[List[Dict]],
             receptor_score_mode: str = 'best',
-            ensemble_score_mode: str = 'best'
+            ensemble_score_mode: str = 'best',
+            k: int = 1,
         ) -> Optional[float]:
         """Calculate the overall score of a ligand given all of its docking
         runs
@@ -652,7 +659,8 @@ class Screener(ABC):
         ensemble_score_mode : str, default='best'
             the mode used to calculate the overall score for a given ensemble
             of receptors
-
+        k : int, default=1
+            the number of scores to consider, if averaging the top-k
         Returns
         -------
         ensemble_score : Optional[float]
@@ -673,20 +681,22 @@ class Screener(ABC):
             ]
             if successful_rep_scores:
                 receptor_scores.append(Screener.calc_score(
-                    successful_rep_scores, receptor_score_mode
+                    successful_rep_scores, receptor_score_mode, k
                 ))
 
         receptor_scores = [score for score in receptor_scores]
         if receptor_scores:
             ensemble_score = Screener.calc_score(
-                receptor_scores, ensemble_score_mode)
+                receptor_scores, ensemble_score_mode, k
+            )
         else:
             ensemble_score = None
         
         return ensemble_score
     
     @staticmethod
-    def calc_score(scores: Sequence[float], score_mode: str = 'best') -> float:
+    def calc_score(scores: Sequence[float],
+                   score_mode: str = 'best', k: int = 1) -> float:
         """Calculate an overall score from a sequence of scores
 
         Parameters
@@ -697,21 +707,27 @@ class Screener(ABC):
 
             * 'best': return the top score
             * 'avg': return the average of the scores
+            * 'top-k': return the average of the top-k scores
             * 'boltzmann': return the boltzmann average of the scores
 
+        k : int, default=1
+            the number of top scores to average, if using the top-k average
         Returns
         -------
         score : float
         """
-        scores = sorted(scores)
+        S = np.array(scores)
         if score_mode in ('best', 'top'):
-            score = scores[0]
+            score = S.min()
         elif score_mode in ('avg', 'mean'):
-            score = sum(score for score in scores) / len(scores)
+            score = S.mean()
         elif score_mode == 'boltzmann':
-            Z = sum(exp(-score) for score in scores)
-            score = sum(score * exp(-score) / Z for score in scores)
+            S_e = np.exp(-S)
+            W = S_e / S_e.sum()
+            score = (S * W).sum()
+        elif score_mode == 'top-k':
+            score = S.sort()[:k].mean()
         else:
-            score = scores[0]
+            score = np.min(S)
             
         return score

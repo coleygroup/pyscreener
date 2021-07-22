@@ -20,13 +20,6 @@ def add_general_args(parser: ArgumentParser):
     parser.add_argument('--mode', default='docking',
                         choices=('docking', 'md', 'dft'),
                         help='the mode in which to run pyscreener')
-
-    # parser.add_argument('--distributed', action='store_true', default=False,
-    #                     help='whether to parallelize computation using a distributed setup')
-    # parser.add_argument('-nw', '-nj', '-np', '--num-workers', '--njobs',
-    #                     type=int, default=-1,
-    #                     metavar='N_WORKERS',
-    #                     help='the number of workers to use. (Only used when distributed=False.)')
     
     parser.add_argument('--root', default='.',
                         help='the root directory under which to organize all program outputs. I.e., the final output directory will be located at <root>/<name>')
@@ -97,17 +90,19 @@ def add_screening_args(parser: ArgumentParser):
 
     ### SCORING ARGS ###    
     parser.add_argument('--score-mode', default='best',
-                        choices={'best', 'avg', 'boltzmann'},
+                        choices={'best', 'avg', 'boltzmann', 'top-k'},
                         help='The method used to calculate the score of a single docking run on a single receptor')
     parser.add_argument('--repeats', type=positive_int, default=1,
                         help='the number of times to repeat each screening run')
     parser.add_argument('--repeat-score-mode', default='best',
-                        choices={'best', 'avg', 'boltzmann'},
+                        choices={'best', 'avg', 'boltzmann', 'top-k'},
                         help='The method used to calculate the overall score from multiple docking runs on the same receptor')
     parser.add_argument('--ensemble-score-mode', default='best',
-                        choices={'best', 'avg', 'boltzmann'},
+                        choices={'best', 'avg', 'boltzmann', 'top-k'},
                         help='The method used to calculate the overall score from an ensemble of docking runs')
-
+    parser.add_argument('-k', type=int,
+                        help='the number of top scores to average if using "top-k" score mode')
+                        
 def add_postprocessing_args(parser: ArgumentParser):
     parser.add_argument('--postprocessing-options', nargs='+', default='none',
                         choices=['cluster', 'visualize'],

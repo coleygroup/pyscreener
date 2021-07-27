@@ -32,7 +32,7 @@ def main():
     path = Path(args.path or args.root_dir)
 
     for node_id in d_nodeID_ligands:
-        with tarfile.open(f'{node_id}.tar.gz') as tar:
+        with tarfile.open(root_dir / f'{node_id}.tar.gz') as tar:
             member_names = tar.getnames()
             ligand_names = d_nodeID_ligands[node_id]
             extracted_members = [

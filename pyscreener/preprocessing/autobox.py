@@ -2,7 +2,7 @@
 simulations"""
 
 from itertools import chain, takewhile
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 def autobox(receptors: Optional[List[str]] = None,
             residues: Optional[List[int]] = None,
@@ -45,19 +45,26 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
         the x-, y-, and z-radii of the ligand autobox
     """
     residues = set(residues)
+    residue_coords = []
+
+    ATOM_RECORD_COLUMNS = slice(1, 5)
+    ATOM_NAME_COLUMNS = slice(13, 17)
+    RES_NUMBER_COLUMNS = slice(23, 27)
+
     with open(pdbfile) as fid:
-        residue_coords = []
         for line in fid:    # advance to the atom information lines
             if 'ATOM' in line:
                 break
         fid = chain([line], fid)    # prepend the first line to the generator
         for line in fid:
-            record, _, a_type, _, _, res_num, x, y, z, _, _, _ = line.split()
-            if 'ATOM' != record:
+            if 'ATOM' != line[ATOM_NAME_COLUMNS]:
                 break
 
-            if res_num in residues and a_type == 'CA':
-                residue_coords.append((float(x), float(y), float(z)))
+            if (
+                line[ATOM_NAME_COLUMNS] == 'CA'
+                and line[ATOM_NAME_COLUMNS] in residues
+            ):
+                residue_coords.append(parse_xyz(line))
     
     return minimum_bounding_box(residue_coords)
 
@@ -97,9 +104,18 @@ def docked_ligand(docked_ligand_file: str,
     return minimum_bounding_box(ligand_atom_coords, buffer)
 
 def parse_xyz(line: str) -> Tuple[float, float, float]:
-    return tuple(map(float, line.split()[5:8]))
+    """Parse the x-, y-, and z-coordinates from an ATOM record in a PDB file"""
+    X_COORD_COLUMNS = slice(31, 39)
+    Y_COORD_COLUMNS = slice(39, 47)
+    Z_COORD_COLUMNS = slice(47, 55)
 
-def minimum_bounding_box(coords: List[Tuple[float, float, float]], 
+    x = float(line[X_COORD_COLUMNS])
+    y = float(line[Y_COORD_COLUMNS])
+    z = float(line[Z_COORD_COLUMNS])
+
+    return (x, y, z)
+
+def minimum_bounding_box(coords: Iterable[Tuple[float, float, float]], 
                          buffer: float = 10.) -> Tuple[Tuple, Tuple]:
     """Calculate the minimum bounding box for a list of coordinates
 

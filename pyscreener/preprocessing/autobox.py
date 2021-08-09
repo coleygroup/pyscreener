@@ -52,17 +52,17 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     RES_NUMBER_COLUMNS = slice(23, 27)
 
     with open(pdbfile) as fid:
-        for line in fid:    # advance to the atom information lines
-            if 'ATOM' in line:
+        for line in fid:    # advance to the ATOM RECORDS
+            if 'ATOM' == line[ATOM_RECORD_COLUMNS]:
                 break
-        fid = chain([line], fid)    # prepend the first line to the generator
-        for line in fid:
-            if 'ATOM' != line[ATOM_NAME_COLUMNS]:
+        lines = chain([line], fid)    # prepend the first line to the generator
+        for line in lines:
+            if 'ATOM' != line[ATOM_RECORD_COLUMNS]:
                 break
 
             if (
                 line[ATOM_NAME_COLUMNS] == 'CA'
-                and line[ATOM_NAME_COLUMNS] in residues
+                and line[RES_NUMBER_COLUMNS] in residues
             ):
                 residue_coords.append(parse_xyz(line))
     

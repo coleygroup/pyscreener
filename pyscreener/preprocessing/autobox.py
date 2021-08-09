@@ -44,18 +44,18 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    residues = set(residues)
-    residue_coords = []
-
     ATOM_RECORD_COLUMNS = slice(1, 5)
     ATOM_NAME_COLUMNS = slice(13, 17)
     RES_NUMBER_COLUMNS = slice(23, 27)
 
+    residues = set(residues)
+    residue_coords = []
+
     with open(pdbfile) as fid:
-        for line in fid:    # advance to the ATOM RECORDS
+        for line in fid:
             if 'ATOM' == line[ATOM_RECORD_COLUMNS]:
                 break
-        lines = chain([line], fid)    # prepend the first line to the generator
+        lines = chain([line], fid)
         for line in lines:
             if 'ATOM' != line[ATOM_RECORD_COLUMNS]:
                 break

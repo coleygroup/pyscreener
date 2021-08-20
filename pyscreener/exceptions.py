@@ -1,0 +1,2 @@
+class NotSimulatedError(Exception):
+    pass

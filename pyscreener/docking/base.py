@@ -13,13 +13,13 @@ import timeit
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-from openbabel import pybel
+# from openbabel import pybel
 import ray
 from rdkit import Chem
 
-from pyscreener.preprocessing import pdbfix
+# from pyscreener.preprocessing import pdbfix
 
-pybel.ob.obErrorLog.SetOutputLevel(0)
+# pybel.ob.obErrorLog.SetOutputLevel(0)
 
 class Screener(ABC):
     """A Screener conducts virtual screens against an ensemble of receptors.

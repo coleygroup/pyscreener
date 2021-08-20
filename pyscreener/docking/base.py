@@ -264,7 +264,7 @@ class Screener(ABC):
             * O is the number of times each docking run was repeated
         """
 
-    def collect_files(self, out_path: Optional[Union[str, os.PathLike]]=None):
+    def collect_files(self, out_path: Optional[Union[str, os.PathLike]] = None):
         """Collect all the files from the local disks of the respective nodes
 
         For I/O purposes, input and output files for each simulation are 
@@ -284,7 +284,7 @@ class Screener(ABC):
 
         Parameters
         ----------
-        out_path : Optional[out_path or self.path], default=None
+        out_path : Optional[str], default=None
             the path under which the tar files should be collected to. If None,
             use self.path
         """

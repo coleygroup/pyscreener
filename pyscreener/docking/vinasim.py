@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from itertools import takewhile
 from math import ceil, log10
 from pathlib import Path
@@ -8,7 +7,7 @@ import subprocess as sp
 import sys
 from typing import Dict, List, Mapping, Optional, Tuple, Union
 
-# from openbabel import pybel
+from openbabel import pybel
 import ray
 
 from pyscreener import utils

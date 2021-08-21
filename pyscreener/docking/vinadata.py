@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Union
 
 @dataclass(repr=False, eq=False)
 class VinaCalculationData:
-    ligand: str
+    smi: str
     receptor: str
     software: str
     center: Tuple[float, float, float]

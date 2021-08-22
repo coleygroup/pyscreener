@@ -80,7 +80,6 @@ def calc_ligand_score(
     
     return ensemble_score
 
-@staticmethod
 def calc_score(
     scores: Sequence[float], score_mode: str = 'best', k: int = 1
 ) -> float:

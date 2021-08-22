@@ -1,6 +1,8 @@
 from itertools import takewhile
 from math import ceil, log10
 from pathlib import Path
+from pyscreener.docking.vina import Vina
+from pyscreener.docking.vinadata import VinaCalculationData
 import re
 import subprocess as sp
 import sys
@@ -13,8 +15,15 @@ from pyscreener import utils
 
 class VinaRunner(object):
     @staticmethod
+    def prepare(vinadata: VinaCalculationData) -> VinaCalculationData:
+        vinadata = VinaRunner.prepare_receptor(vinadata)
+        vinadata = VinaRunner.prepare_ligand(vinadata)
+
+        return vinadata
+
+    @staticmethod
     def prepare_receptor(
-        receptor: str, path: Union[str, Path], name: Optional[str] = None
+        vinadata: VinaCalculationData
     ) -> Optional[str]:
         """Prepare a receptor PDBQT file from its input file
 
@@ -29,23 +38,31 @@ class VinaRunner(object):
             the filepath of the resulting PDBQT file.
             None if preparation failed
         """
-        name = name or Path(receptor).stem
-        receptor_pdbqt = (Path(path) / name).with_suffix('.pdbqt')
+        # name = name or Path(vinadata.receptor).stem
+        receptor_pdbqt = Path(vinadata.receptor).with_suffix('.pdbqt')
+        receptor_pdbqt = Path(vinadata.in_path) / receptor_pdbqt.name
         # receptor_pdbqt = name or Path(receptor).with_suffix('.pdbqt').name
         # receptor_pdbqt = str(self.receptors_dir / receptor_pdbqt)
 
-        argv = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
+        argv = [
+            'prepare_receptor', '-r', vinadata.receptor, '-o', receptor_pdbqt
+        ]
         try:
             sp.run(argv, stderr=sp.PIPE, check=True)
         except sp.SubprocessError:
-            print(f'ERROR: failed to convert "{receptor}"', file=sys.stderr)
+            print(
+                f'ERROR: failed to convert "{vinadata.receptorreceptor}"', 
+                file=sys.stderr
+            )
             return None
 
-        return receptor_pdbqt
+        # return receptor_pdbqt
+        vinadata.prepared_receptor = receptor_pdbqt
+        return vinadata
 
     @staticmethod
     def prepare_from_smi(
-        smi: str, path: str = '.', name: str = 'ligand', 
+        vinadata: VinaCalculationData
     ) -> Tuple[str, str]:
         """Prepare an input ligand file from the ligand's SMILES string
 
@@ -67,12 +84,9 @@ class VinaRunner(object):
         pdbqt : str
             the filepath of the coresponding input file
         """
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
+        pdbqt = Path(vinadata.in_path) / f'{vinadata.name}_ligand.pdbqt'
 
-        pdbqt = str(path / f'{name}.pdbqt')
-
-        mol = pybel.readstring(format='smi', string=smi)
+        mol = pybel.readstring(format='smi', string=vinadata.smi)
         
         mol.make3D()
         mol.addh()
@@ -81,10 +95,11 @@ class VinaRunner(object):
             mol.calccharges(model='gasteiger')
         except Exception:
             pass
-        mol.write(format='pdbqt', filename=pdbqt,
+        mol.write(format='pdbqt', filename=str(pdbqt),
                 overwrite=True, opt={'h': None})
 
-        return smi, pdbqt
+        vinadata.prepared_ligand = pdbqt
+        return vinadata
 
     @staticmethod
     def prepare_from_file(
@@ -101,8 +116,6 @@ class VinaRunner(object):
             the path under which the output PDBQT files should be written
         offset : int, default=0
             the numbering offset for ligand naming
-        **kwargs
-            additional and unused keyword arguments
 
         Returns
         -------
@@ -111,8 +124,6 @@ class VinaRunner(object):
             the corresponding PDBQT file
         """
         path = Path(path)
-        if not path.is_dir():
-            path.mkdir(parents=True, exist_ok=True)
 
         fmt = Path(filename).suffix.strip('.')
         mols = list(pybel.readfile(fmt, filename))
@@ -140,45 +151,13 @@ class VinaRunner(object):
         return list(zip(smis, pdbqts))
     
     @staticmethod
-    def dock_ligand(ligand: Tuple[str, str], receptor: str,
-                    software: str,
-                    center: Tuple[float, float, float],
-                    size: Tuple[int, int, int] = (10, 10, 10), ncpu: int = 1, 
-                    path: str = '.', extra: Optional[List[str]] = None,
-                    repeats: int = 1, score_mode: str = 'best', k: int = 1
-                    ) -> List[List[Dict]]:
+    def run(vinadata: VinaCalculationData) -> Dict:
         """Dock the given ligand using the specified vina-type docking program 
-        and parameters into the ensemble of receptors repeatedly
+        and parameters
         
-        Parameters
-        ----------
-        software : str
-            the docking program to run
-        ligand : Ligand
-            a tuple containing a ligand's SMILES string and associated docking
-            input file
-        receptors : List[str]
-            the filesnames of PDBQT files corresponding to 
-            various receptor poses
-        center : Tuple[float, float, float]
-            the x-, y-, and z-coordinates, respectively, of the search box 
-            center
-        size : Tuple[int, int, int], default=(10, 10, 10)
-            the x, y, and z-radii, respectively, of the search box
-        path : string, default='.'
-            the path under which both the log and out files should be written to
-        ncpu : int, default=1
-            the number of cores to allocate to the docking program
-        repeats : int, default=1
-            the number of times to repeat a docking run
-        score_mode : str
-            the mode used to calculate a score for an individual docking run 
-            given multiple output scored conformations
-        k : int, default=1
-            the number of top scores to average if using "top-k"score mode
         Returns
         -------
-        ensemble_rowss : List[List[Dict]]
+        result : Dict
             an MxO list of dictionaries where each dictionary is a record of an 
             individual docking run and:
 
@@ -194,23 +173,20 @@ class VinaRunner(object):
             * log: the filename of the output log file
             * score: the ligand's docking score
         """
-        if repeats <= 0:
-            raise ValueError(f'Repeats must be greater than 0! ({repeats})')
+        path = Path(vinadata.out_path)
 
-        path = Path(path)
-        # path.mkdir(parents=True, exist_ok=True)
+        p_ligand = Path(vinadata.prepared_ligand)
+        ligand_name = p_ligand.stem
 
-        smi, pdbqt = ligand
-
-        p_pdbqt = Path(pdbqt)
-        ligand_name = p_pdbqt.stem
-
-        name = f'{Path(receptor).stem}_{ligand_name}'
+        name = f'{Path(vinadata.receptor).stem}_{ligand_name}'
 
         argv, _, log = VinaRunner.build_argv(
-            ligand=pdbqt, receptor=receptor, software=software,
-            name=name, center=center, size=size, ncpu=ncpu, 
-            extra=extra, path=path
+            ligand=vinadata.prepared_ligand,
+            receptor=vinadata.prepared_receptor,
+            software=vinadata.software,
+            center=vinadata.center, size=vinadata.size,
+            ncpu=vinadata.ncpu, extra=vinadata.extra, 
+            name=name, path=path
         )
 
         ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -224,12 +200,16 @@ class VinaRunner(object):
                 f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr
             )
 
-        return {
-            'smiles': smi,
+        vinadata.result = {
+            'smiles': vinadata.smi,
             'name': ligand_name,
             'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-            'score': VinaRunner.parse_log_file(log, score_mode, k)
+            'score': VinaRunner.parse_log_file(
+                log, vinadata.score_mode, vinadata.k
+            )
         }
+
+        return vinadata.score
 
     @staticmethod
     def build_argv(
@@ -243,12 +223,12 @@ class VinaRunner(object):
 
         Parameters
         ----------
+        ligand : str
+            the filename of the input ligand PDBQT file
+        receptor : str
+            the filename of the input receptor PDBQT file
         software : str
             the name of the docking program to run
-        receptor : str
-            the filename of the input receptor file
-        ligand : str
-            the filename of the input ligand file
         center : Tuple[float, float, float]
             the coordinates (x,y,z) of the center of the vina search box
         size : Tuple[int, int, int], default=(10, 10, 10)
@@ -315,8 +295,6 @@ class VinaRunner(object):
         Optional[float]
             the score parsed from the log file. None if no score was parsed
         """
-        # vina-type log files have scoring information between this 
-        # table border and the line: "Writing output ... done."
         TABLE_BORDER = '-----+------------+----------+----------'
         try:
             with open(log_file) as fid:
@@ -325,9 +303,9 @@ class VinaRunner(object):
                         break
 
                 score_lines = takewhile(
-                    lambda line: 'Writing' not in line, fid)
-                scores = [float(line.split()[1])
-                            for line in score_lines]
+                    lambda line: 'Writing' not in line, fid
+                )
+                scores = [float(line.split()[1]) for line in score_lines]
 
             if len(scores) == 0:
                 score = None

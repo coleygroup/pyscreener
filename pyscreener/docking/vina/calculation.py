@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Mapping, Optional, Sequence, Tuple, Union
 
-from pyscreener.docking.simulation import DockingSimulation
-from pyscreener.docking.vinarunner import VinaRunner
-from pyscreener.docking.vinadata import VinaCalculationData
+from pyscreener.docking.calculation import DockingCalculation
+from pyscreener.docking.vina.runner import VinaRunner
+from pyscreener.docking.vina.data import VinaCalculationData
 
-class VinaCalculation(DockingSimulation):
+class VinaCalculation(DockingCalculation):
     def __init__(
         self, smi: str, receptor: str,
         software: str, center: Tuple[float, float, float],
@@ -26,10 +26,10 @@ class VinaCalculation(DockingSimulation):
         self.runner = VinaRunner()
     
     def prepare(self):
-        return super().prepare()
+        return self.runner.prepare(self.data)
     
-    def run(self) -> Sequence[float]:
-        return super().run()
+    def run(self) -> Optional[Sequence[float]]:
+        return self.runner.run(self.data)
     
     def score(self) -> Optional[float]:
         return self.data.score

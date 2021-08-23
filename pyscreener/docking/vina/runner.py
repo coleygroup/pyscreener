@@ -1,17 +1,16 @@
 from itertools import takewhile
 from math import ceil, log10
 from pathlib import Path
-from pyscreener.docking.vina import Vina
-from pyscreener.docking.vinadata import VinaCalculationData
 import re
 import subprocess as sp
 import sys
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from openbabel import pybel
 import ray
 
 from pyscreener import utils
+from pyscreener.docking.vina.data import VinaCalculationData
 
 class VinaRunner(object):
     @staticmethod

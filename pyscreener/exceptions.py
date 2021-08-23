@@ -1,2 +1,5 @@
-class NotSimulatedError(Exception):
+class NotSimulatedException(Exception):
+    pass
+
+class InvalidResultException(Exception):
     pass

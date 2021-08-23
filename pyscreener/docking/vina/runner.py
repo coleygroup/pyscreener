@@ -38,11 +38,8 @@ class VinaRunner(object):
             the filepath of the resulting PDBQT file.
             None if preparation failed
         """
-        # name = name or Path(vinadata.receptor).stem
         receptor_pdbqt = Path(vinadata.receptor).with_suffix('.pdbqt')
         receptor_pdbqt = Path(vinadata.in_path) / receptor_pdbqt.name
-        # receptor_pdbqt = name or Path(receptor).with_suffix('.pdbqt').name
-        # receptor_pdbqt = str(self.receptors_dir / receptor_pdbqt)
 
         argv = [
             'prepare_receptor', '-r', vinadata.receptor, '-o', receptor_pdbqt
@@ -51,7 +48,7 @@ class VinaRunner(object):
             sp.run(argv, stderr=sp.PIPE, check=True)
         except sp.SubprocessError:
             print(
-                f'ERROR: failed to convert "{vinadata.receptorreceptor}"', 
+                f'ERROR: failed to convert "{vinadata.receptor}"', 
                 file=sys.stderr
             )
             return None
@@ -84,19 +81,20 @@ class VinaRunner(object):
         pdbqt : str
             the filepath of the coresponding input file
         """
-        pdbqt = Path(vinadata.in_path) / f'{vinadata.name}_ligand.pdbqt'
+        pdbqt = Path(vinadata.in_path) / f'{vinadata.name}.pdbqt'
 
         mol = pybel.readstring(format='smi', string=vinadata.smi)
         
-        mol.make3D()
-        mol.addh()
-
         try:
+            mol.make3D()
+            mol.addh()
             mol.calccharges(model='gasteiger')
         except Exception:
             pass
-        mol.write(format='pdbqt', filename=str(pdbqt),
-                overwrite=True, opt={'h': None})
+
+        mol.write(
+            format='pdbqt', filename=str(pdbqt), overwrite=True, opt={'h': None}
+        )
 
         vinadata.prepared_ligand = pdbqt
         return vinadata
@@ -151,30 +149,15 @@ class VinaRunner(object):
         return list(zip(smis, pdbqts))
     
     @staticmethod
-    def run(vinadata: VinaCalculationData) -> Dict:
+    def run(vinadata: VinaCalculationData) -> Optional[List[float]]:
         """Dock the given ligand using the specified vina-type docking program 
         and parameters
         
         Returns
         -------
-        result : Dict
-            an MxO list of dictionaries where each dictionary is a record of an 
-            individual docking run and:
-
-            * M is the number of receptors each ligand is docked against
-            * O is the number of times each docking run is repeated.
-
-            Each dictionary contains the following keys:
-
-            * smiles: the ligand's SMILES string
-            * name: the name of the ligand
-            * in: the filename of the input ligand file
-            * out: the filename of the output docked ligand file
-            * log: the filename of the output log file
-            * score: the ligand's docking score
+        scores : Optional[List[float]]
+            the conformer scores parsed from the log file
         """
-        path = Path(vinadata.out_path)
-
         p_ligand = Path(vinadata.prepared_ligand)
         ligand_name = p_ligand.stem
 
@@ -186,7 +169,7 @@ class VinaRunner(object):
             software=vinadata.software,
             center=vinadata.center, size=vinadata.size,
             ncpu=vinadata.ncpu, extra=vinadata.extra, 
-            name=name, path=path
+            name=name, path=Path(vinadata.out_path)
         )
 
         ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -200,24 +183,28 @@ class VinaRunner(object):
                 f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr
             )
 
+        scores = VinaRunner.parse_log_file(log)
+        if scores is None:
+            score = None
+        else:
+            score = utils.calc_score(vinadata.score_mode, vinadata.k)
+
         vinadata.result = {
             'smiles': vinadata.smi,
             'name': ligand_name,
             'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-            'score': VinaRunner.parse_log_file(
-                log, vinadata.score_mode, vinadata.k
-            )
+            'score': score
         }
 
-        return vinadata.score
+        return scores
 
     @staticmethod
     def build_argv(
         ligand: str, receptor: str, software: str, 
         center: Tuple[float, float, float],
-        size: Tuple[int, int, int] = (10, 10, 10),
+        size: Tuple[float, float, float] = (10, 10, 10),
         ncpu: int = 1, name: Optional[str] = None,
-        path: str = '.', extra: Optional[List[str]] = None
+        path: Path = Path('.'), extra: Optional[List[str]] = None
     ) -> Tuple[List[str], str, str]:
         """Builds the argument vector to run a vina-type docking program
 
@@ -230,15 +217,14 @@ class VinaRunner(object):
         software : str
             the name of the docking program to run
         center : Tuple[float, float, float]
-            the coordinates (x,y,z) of the center of the vina search box
-        size : Tuple[int, int, int], default=(10, 10, 10)
-            the size of the vina search box in angstroms for the x, y, and z-
-            dimensions, respectively
+            the x-, y-, and z-coordinates of the center of the search box
+        size : Tuple[float, float, float], default=(10, 10, 10)
+            the  x-, y-, and z-radii, respectively, of the search box
         ncpu : int, default=1
             the number of cores to allocate to the docking program
         name : string, default=<receptor>_<ligand>)
             the base name to use for both the log and out files
-        path : string, default='.'
+        path : Path, default=Path('.')
             the path under which both the log and out files should be written
         extra : Optional[List[str]], default=None
             additional command line arguments to pass to each run
@@ -253,9 +239,6 @@ class VinaRunner(object):
         log : str
             the filepath of the log file which the docking program will write to
         """
-        if software not in ('vina', 'smina', 'psovina', 'qvina'):
-            raise ValueError(f'Invalid docking program: "{software}"')
-
         name = name or (Path(receptor).stem+'_'+Path(ligand).stem)
         extra = extra or []
 
@@ -274,9 +257,7 @@ class VinaRunner(object):
         return argv, out, log
 
     @staticmethod
-    def parse_log_file(
-        log_file: str, score_mode: str = 'best', k: int = 1
-    ) -> Optional[float]:
+    def parse_log_file(log_file: str) -> Optional[List[float]]:
         """parse a Vina-type log file to calculate the overall ligand score
         from a single docking run
 
@@ -284,16 +265,11 @@ class VinaRunner(object):
         ----------
         log_file : str
             the path to a Vina-type log file
-        score_mode : str, default='best'
-            the method by which to calculate a score from multiple scored
-            conformations. Choices include: 'best', 'average', and 'boltzmann'.
-            See Screener.calc_score for further explanation of these choices.
-        k : int, default=1
-            the number of top scores to average if using "top-k" score mode
+
         Returns
         -------
-        Optional[float]
-            the score parsed from the log file. None if no score was parsed
+        Optional[List[float]]
+            the scores parsed from the log file. None if no scores were parsed
         """
         TABLE_BORDER = '-----+------------+----------+----------'
         try:
@@ -308,10 +284,10 @@ class VinaRunner(object):
                 scores = [float(line.split()[1]) for line in score_lines]
 
             if len(scores) == 0:
-                score = None
-            else:
-                score = utils.calc_score(scores, score_mode, k)
+                scores = None
+            # else:
+            #     score = utils.calc_score(scores, score_mode, k)
         except OSError:
-            score = None
+            scores = None
         
-        return score
+        return scores

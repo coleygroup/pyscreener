@@ -1,7 +1,7 @@
 """This module contains the function pdbfix, which is used to fix input PDB
-files or retrieve them based on their pdbID from the PDB"""
+files or retrieve them based on their PDB ID from the PDB"""
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from pdbfixer import PDBFixer
 from simtk.openmm.app import PDBFile
@@ -29,3 +29,6 @@ def pdbfix(receptor: Optional[str] = None, pdbid: Optional[str] = None,
     PDBFile.writeFile(fixer.topology, fixer.positions, open(outfile, 'w'))
     
     return outfile
+
+def get_pdb(pdbid: str, pH: float = 7.0, path: str = '.') -> str:
+    return pdbfix(pdbid=pdbid, pH=pH, path=path)

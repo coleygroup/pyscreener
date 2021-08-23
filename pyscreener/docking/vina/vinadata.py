@@ -3,7 +3,7 @@ from pathlib import Path
 import shlex
 from typing import Mapping, Optional, Tuple, Union
 
-from pyscreener.exceptions import NotSimulatedError
+from pyscreener.exceptions import InvalidResultException, NotSimulatedException
 
 @dataclass(repr=True, eq=False)
 class VinaCalculationData:
@@ -29,6 +29,7 @@ class VinaCalculationData:
         additional command line arguments that will be passed to the
         docking calculation
     name : str
+        the name to use when creating the ligand input file and output files
     input_file : Optional[str]
     in_path: Union[str, Path]
         the path under which input will be placed
@@ -63,7 +64,7 @@ class VinaCalculationData:
     extra : Optional[List[str]], default=None
         additional command line arguments that will be passed to the
         docking calculation
-    name : str
+    name : str, default='ligand'
     input_file : Optional[str]
     in_path: Union[str, Path], default='.'
         the path under which input will be placed
@@ -85,7 +86,7 @@ class VinaCalculationData:
     size: Tuple[float, float, float] = (10., 10., 10.)
     ncpu: int = 1
     extra: Optional[str] = None
-    name: str = None
+    name: str = 'ligand'
     input_file : Optional[str] = None
     in_path: Union[str, Path] = '.'
     out_path: Union[str, Path] = '.'
@@ -96,8 +97,9 @@ class VinaCalculationData:
     result : Optional[Mapping] = None
 
     def __post_init__(self):
-        # if self.software not in ('vina', 'smina', 'psovina', 'qvina'):
-        #     raise ValueError(f'Invalid docking software: "{self.software}"')
+        if self.software not in ('vina', 'smina', 'psovina', 'qvina'):
+            raise ValueError(f'Invalid docking software: "{self.software}"')
+
         self.extra = shlex.split(self.extra) if self.extra else []
         self.in_path = Path(self.in_path)
         self.out_path = Path(self.out_path)
@@ -111,9 +113,14 @@ class VinaCalculationData:
         NotSimulatedError
             if this calculation has not been run yet
         """
+        if self.result is None:
+            raise NotSimulatedException(
+                'Simulation has not been run!'
+            )
+
         try:
             return self.result['score']
-        except TypeError:
-            raise NotSimulatedError(
-                'Simulation has not been run!'
+        except KeyError:
+            raise InvalidResultException(
+                'Invalid result mapping was set. No "score" key detected!'
             )

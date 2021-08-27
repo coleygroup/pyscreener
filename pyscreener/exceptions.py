@@ -1,5 +1,11 @@
-class NotSimulatedException(Exception):
+class MissingEnvironmentVariableError(Exception):
     pass
 
-class InvalidResultException(Exception):
+class MissingFileError(Exception):
+    pass
+
+class NotSimulatedError(Exception):
+    pass
+
+class InvalidResultError(Exception):
     pass

@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess as sp
 import sys
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Optional, Tuple
 
 from pyscreener.exceptions import (
     MissingEnvironmentVariableError, MissingFileError

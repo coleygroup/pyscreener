@@ -10,7 +10,7 @@ from openbabel import pybel
 import ray
 
 from pyscreener import utils
-from pyscreener.docking.vina.data import VinaCalculationData
+from pyscreener.docking.vina.data import Software, VinaCalculationData
 
 class VinaRunner(object):
     @staticmethod
@@ -52,7 +52,6 @@ class VinaRunner(object):
             )
             return None
 
-        # return receptor_pdbqt
         vinadata.prepared_receptor = receptor_pdbqt
         return vinadata
 
@@ -64,27 +63,16 @@ class VinaRunner(object):
 
         Parameters
         ----------
-        smi : str
-            the SMILES string of the ligand
-        name : Optional[str], default='ligand'
-            the name of the ligand.
-        path : str, default='.'
-            the path under which the output PDBQT file should be written
-        **kwargs
-            additional and unused keyword arguments
+        vinadata: VinaCalculationData
 
         Returns
         -------
-        smi : str
-            the ligand's SMILES string
-        pdbqt : str
-            the filepath of the coresponding input file
+        VinaCalculationData
         """
         pdbqt = Path(vinadata.in_path) / f'{vinadata.name}.pdbqt'
-
-        mol = pybel.readstring(format='smi', string=vinadata.smi)
-        
+  
         try:
+            mol = pybel.readstring(format='smi', string=vinadata.smi)
             mol.make3D()
             mol.addh()
             mol.calccharges(model='gasteiger')
@@ -186,7 +174,7 @@ class VinaRunner(object):
         if scores is None:
             score = None
         else:
-            score = utils.calc_score(vinadata.score_mode, vinadata.k)
+            score = utils.calc_score(scores, vinadata.score_mode, vinadata.k)
 
         vinadata.result = {
             'smiles': vinadata.smi,
@@ -199,7 +187,7 @@ class VinaRunner(object):
 
     @staticmethod
     def build_argv(
-        ligand: str, receptor: str, software: str, 
+        ligand: str, receptor: str, software: Software, 
         center: Tuple[float, float, float],
         size: Tuple[float, float, float] = (10, 10, 10),
         ncpu: int = 1, name: Optional[str] = None,
@@ -213,8 +201,8 @@ class VinaRunner(object):
             the filename of the input ligand PDBQT file
         receptor : str
             the filename of the input receptor PDBQT file
-        software : str
-            the name of the docking program to run
+        software : Software
+            the docking program to run
         center : Tuple[float, float, float]
             the x-, y-, and z-coordinates of the center of the search box
         size : Tuple[float, float, float], default=(10, 10, 10)
@@ -241,11 +229,11 @@ class VinaRunner(object):
         name = name or (Path(receptor).stem+'_'+Path(ligand).stem)
         extra = extra or []
 
-        out = path / f'{software}_{name}_out.pdbqt'
-        log = path / f'{software}_{name}.log'
+        out = path / f'{software.value}_{name}_out.pdbqt'
+        log = path / f'{software.value}_{name}.log'
         
         argv = [
-            software, f'--receptor={receptor}', f'--ligand={ligand}',
+            software.value, f'--receptor={receptor}', f'--ligand={ligand}',
             f'--center_x={center[0]}',
             f'--center_y={center[1]}',
             f'--center_z={center[2]}',
@@ -256,23 +244,24 @@ class VinaRunner(object):
         return argv, out, log
 
     @staticmethod
-    def parse_log_file(log_file: str) -> Optional[List[float]]:
-        """parse a Vina-type log file to calculate the overall ligand score
-        from a single docking run
+    def parse_logfile(logfile: str) -> Optional[List[float]]:
+        """parse a Vina-type log file for the scores of the conformations
 
         Parameters
         ----------
-        log_file : str
+        logfile : str
             the path to a Vina-type log file
 
         Returns
         -------
         Optional[List[float]]
-            the scores parsed from the log file. None if no scores were parsed
+            the scores of the docked conformations in the ordering of the
+            log file. None if no scores were parsed or the log file was 
+            unparseable
         """
         TABLE_BORDER = '-----+------------+----------+----------'
         try:
-            with open(log_file) as fid:
+            with open(logfile) as fid:
                 for line in fid:
                     if TABLE_BORDER in line:
                         break
@@ -280,13 +269,15 @@ class VinaRunner(object):
                 score_lines = takewhile(
                     lambda line: 'Writing' not in line, fid
                 )
-                scores = [float(line.split()[1]) for line in score_lines]
-
-            if len(scores) == 0:
-                scores = None
-            # else:
-            #     score = utils.calc_score(scores, score_mode, k)
         except OSError:
-            scores = None
+            pass
         
-        return scores
+        # scores = [float(line.split()[1]) for line in score_lines]
+        scores = []
+        for line in score_lines:
+            try:
+                scores.append(float(line.split()[1]))
+            except ValueError:
+                continue
+
+        return scores or None

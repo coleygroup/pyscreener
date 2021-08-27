@@ -1,24 +1,20 @@
 from dataclasses import dataclass
-from enum import auto, Enum
+from enum import Enum, auto
 from pathlib import Path
-from pyscreener.utils import ScoreMode
-import shlex
 from typing import Mapping, Optional, Tuple, Union
 
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
+from pyscreener.utils import ScoreMode
 from pyscreener.docking.data import CalculationData
+from pyscreener.docking.dock.utils import SphereMode
 
-class Software(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        return name.lower()
-
-    VINA = auto()
-    PSOVINA = auto()
-    QVINA = auto()
-    SMINA = auto()
-
+class SphereMode(Enum):
+    BOX = auto()
+    LARGEST = auto()
+    LIGAND = auto()
+    
 @dataclass(repr=True, eq=False)
-class VinaCalculationData(CalculationData):
+class DOCKCalculationData(CalculationData):
     """
 
     Attributes
@@ -27,17 +23,10 @@ class VinaCalculationData(CalculationData):
         the SMILES string of the ligand that will be docked
     receptor : Optional[str]
         the filepath of a receptor to prepare for docking
-    software : Software
-        the software that will be used
     center : Tuple[float, float, float]
         the center of the docking box
     size : Tuple[float, float, float]
         the x-, y-, and z-radii of the docking box
-    ncpu : int
-        the number of cpu cores to use during the docking calculation
-    extra : Optional[List[str]]
-        additional command line arguments that will be passed to the
-        docking calculation
     name : str
         the name to use when creating the ligand input file and output files
     input_file : Optional[str]
@@ -62,7 +51,7 @@ class VinaCalculationData(CalculationData):
         the SMILES string of the ligand that will be docked
     receptor : Optional[str], default=None
         the filepath of a receptor to prepare for docking
-    software : Software
+    software : str
         the software that will be used
     center : Tuple[float, float, float]
         the center of the docking box
@@ -90,11 +79,16 @@ class VinaCalculationData(CalculationData):
     """
     smi: str
     receptor: str
-    software: Software
     center: Tuple[float, float, float]
     size: Tuple[float, float, float] = (10., 10., 10.)
-    ncpu: int = 1
-    extra: Optional[str] = None
+    probe_radius: float = 1.4
+    steric_clash_dist: float = 0.0,
+    min_radius: float = 1.4
+    max_radius: float = 4.0,
+    sphere_mode: SphereMode = SphereMode.LARGEST
+    docked_ligand_file: Optional[str] = None
+    enclose_spheres: bool = True
+    buffer: float = 10.
     name: str = 'ligand'
     input_file : Optional[str] = None
     in_path: Union[str, Path] = '.'
@@ -106,7 +100,6 @@ class VinaCalculationData(CalculationData):
     result : Optional[Mapping] = None
 
     def __post_init__(self):
-        self.extra = shlex.split(self.extra) if self.extra else []
         self.in_path = Path(self.in_path)
         self.out_path = Path(self.out_path)
     
@@ -120,9 +113,7 @@ class VinaCalculationData(CalculationData):
             if this calculation has not been run yet
         """
         if self.result is None:
-            raise NotSimulatedError(
-                'Simulation has not been run!'
-            )
+            raise NotSimulatedError('Simulation has not been run!')
 
         try:
             return self.result['score']

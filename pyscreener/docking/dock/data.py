@@ -14,7 +14,7 @@ class SphereMode(Enum):
     LIGAND = auto()
     
 @dataclass(repr=True, eq=False)
-class DOCKCalculationData(CalculationData):
+class DOCKCalculationData:
     """
 
     Attributes

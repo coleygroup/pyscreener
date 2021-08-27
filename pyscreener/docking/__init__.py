@@ -1,6 +1,4 @@
-from typing import Dict
-
-from pyscreener.docking.base import Screener
+# from pyscreener.docking.base import Screener
 
 def screener(software, **kwargs):
     if software in ('vina', 'qvina', 'smina', 'psovina'):

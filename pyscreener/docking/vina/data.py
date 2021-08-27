@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from enum import auto, Enum
 from pathlib import Path
-from pyscreener.utils import ScoreMode
 import shlex
 from typing import Mapping, Optional, Tuple, Union
 
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
-from pyscreener.docking.data import CalculationData
+from pyscreener.utils import ScoreMode
 
 class Software(Enum):
     def _generate_next_value_(name, start, count, last_values):
@@ -18,7 +17,7 @@ class Software(Enum):
     SMINA = auto()
 
 @dataclass(repr=True, eq=False)
-class VinaCalculationData(CalculationData):
+class VinaCalculationData:
     """
 
     Attributes

@@ -1,9 +1,14 @@
+from pyscreener.docking.runner import DockingRunner
+from pyscreener.docking.data import CalculationData
+from typing import Iterable
 from pyscreener.base import VirtualScreen
 
 import ray
 
 class DockingVirtualScreen(VirtualScreen):
-    def __init__(self) -> None:
+    def __init__(
+        self, template: CalculationData, runner: DockingRunner
+    ):
         super().__init__()
 
         if not ray.is_initialized():

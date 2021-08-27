@@ -14,7 +14,7 @@ from pyscreener.exceptions import (
 )
 from pyscreener.docking import DockingRunner
 from pyscreener.docking import dock
-from pyscreener.docking.dock.data import DOCKCalculationData
+from pyscreener.docking.dock.data import CalculationData
 
 try:
     DOCK6 = Path(os.environ['DOCK6'])
@@ -38,14 +38,14 @@ for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
 
 class DOCKRunner(DockingRunner):
     @staticmethod
-    def prepare(dockdata: DOCKCalculationData) -> DOCKCalculationData:
-        vinadata = DOCKRunner.prepare_receptor(dockdata)
-        vinadata = DOCKRunner.prepare_ligand(dockdata)
+    def prepare(data: CalculationData) -> CalculationData:
+        data = DOCKRunner.prepare_receptor(data)
+        data = DOCKRunner.prepare_ligand(data)
 
-        return vinadata
+        return data
 
     @staticmethod
-    def prepare_receptor(dockdata: DOCKCalculationData) -> DOCKCalculationData:
+    def prepare_receptor(data: CalculationData) -> CalculationData:
         """Prepare the files necessary to dock ligands against the input
         receptor using this Screener's parameters
         
@@ -64,68 +64,68 @@ class DOCKRunner(DockingRunner):
         None
             if receptor preparation fails at any point
         """
-        # receptor_pdbqt = Path(dockdata.receptor).with_suffix('.pdbqt')
-        # receptor_pdbqt = Path(dockdata.in_path) / receptor_pdbqt.name
-
-        rec_mol2 = dock.utils.prepare_mol2(dockdata.receptor, dockdata.in_path)
-        rec_pdb = dock.utils.prepare_pdb(dockdata.receptor, dockdata.in_path)
+        # receptor_pdbqt = Path(data.receptor).with_suffix('.pdbqt')
+        # receptor_pdbqt = Path(data.in_path) / receptor_pdbqt.name
+        metadata = data.metadata
+        rec_mol2 = dock.utils.prepare_mol2(data.receptor, data.in_path)
+        rec_pdb = dock.utils.prepare_pdb(data.receptor, data.in_path)
         if rec_mol2 is None or rec_pdb is None:
-            return dockdata
+            return data
 
         rec_dms = dock.utils.prepare_dms(
-            rec_pdb, dockdata.probe_radius, dockdata.in_path
+            rec_pdb, metadata.probe_radius, data.in_path
         )
         if rec_dms is None:
-            return dockdata
+            return data
 
         rec_sph = dock.utils.prepare_sph(
-            rec_dms, dockdata.steric_clash_dist,
-            dockdata.min_radius, dockdata.max_radius, dockdata.in_path
+            rec_dms, metadata.steric_clash_dist,
+            metadata.min_radius, metadata.max_radius, data.in_path
         )
         if rec_sph is None:
-            return dockdata
+            return data
 
         rec_sph = dock.utils.select_spheres(
-            rec_sph, dockdata.sphere_mode,
-            dockdata.center, dockdata.size,
-            dockdata.docked_ligand_file, dockdata.buffer,
-            dockdata.in_path
+            rec_sph, metadata.sphere_mode,
+            metadata.center, metadata.size,
+            metadata.docked_ligand_file, metadata.buffer,
+            metadata.in_path
         )
 
         rec_box = dock.utils.prepare_box(
-            rec_sph, dockdata.center, dockdata.size,
-            dockdata.enclose_spheres, dockdata.buffer, dockdata.in_path
+            rec_sph, metadata.center, metadata.size,
+            metadata.enclose_spheres, metadata.buffer, data.in_path
         )
         if rec_box is None:
-            return dockdata
+            return data
 
         grid_stem = dock.utils.prepare_grid(
-            rec_mol2, rec_box, dockdata.in_path
+            rec_mol2, rec_box, data.in_path
         )
         if grid_stem is None:
-            return dockdata
+            return data
 
-        dockdata.prepared_ligand = rec_sph, grid_stem
-        return dockdata
+        data.prepared_receptor = rec_sph, grid_stem
+        return data
     
     @staticmethod
     def prepare_from_smi(
-        dockdata: DOCKCalculationData
-    ) -> DOCKCalculationData:
+        data: CalculationData
+    ) -> CalculationData:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
         ----------
-        dockdata: DOCKCalculationData
+        data: CalculationData
 
         Returns
         -------
-        DOCKCalculationData
+        CalculationData
         """
-        mol2 = Path(dockdata.in_path) / f'{dockdata.name}.mol2'
+        mol2 = Path(data.in_path) / f'{data.name}.mol2'
     
         try:
-            mol = pybel.readstring(format='smi', string=dockdata.smi)
+            mol = pybel.readstring(format='smi', string=data.smi)
             mol.make3D()
             mol.addh()
             mol.calccharges(model='gasteiger')
@@ -136,8 +136,8 @@ class DOCKRunner(DockingRunner):
             format='mol2', filename=str(mol2), overwrite=True, opt={'h': None}
         )
 
-        dockdata.prepared_ligand = mol2
-        return dockdata
+        data.prepared_ligand = mol2
+        return data
 
     @staticmethod
     def prepare_from_file(
@@ -205,7 +205,7 @@ class DOCKRunner(DockingRunner):
         return list(zip(smis, mol2s))
     
     @staticmethod
-    def run(dockdata: DOCKCalculationData) -> Optional[Sequence[float]]:
+    def run(data: CalculationData) -> Optional[Sequence[float]]:
         """Dock this ligand into the ensemble of receptors
 
         Parameters
@@ -238,15 +238,15 @@ class DOCKRunner(DockingRunner):
             - log: the filename of the output log file
             - score: the ligand's docking score
         """
-        p_ligand = Path(dockdata.prepared_ligand)
+        p_ligand = Path(data.prepared_ligand)
         ligand_name = p_ligand.stem
-        sph_file, grid_prefix = dockdata.prepared_receptor
+        sph_file, grid_prefix = data.prepared_receptor
 
         name = f'{Path(sph_file).stem}_{ligand_name}'
 
         infile, outfile_prefix = DOCKRunner.prepare_input_file(
             p_ligand, sph_file, grid_prefix, name,
-            dockdata.in_path, dockdata.out_path
+            data.in_path, data.out_path
         )
 
         # out = Path(f'{outfile_prefix}_scored.mol2')
@@ -264,10 +264,10 @@ class DOCKRunner(DockingRunner):
         if scores is None:
             score = None
         else:
-            score = utils.calc_score(scores, dockdata.score_mode, dockdata.k)
+            score = utils.calc_score(scores, data.score_mode, data.k)
 
-        dockdata.result = {
-            'smiles': dockdata.smi,
+        data.result = {
+            'smiles': data.smi,
             'name': name,
             'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
             'score': score

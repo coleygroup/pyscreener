@@ -10,19 +10,21 @@ from openbabel import pybel
 import ray
 
 from pyscreener import utils
-from pyscreener.docking.vina.data import Software, VinaCalculationData
+from pyscreener.docking.data import CalculationData
+from pyscreener.docking.vina.metadata import Software
 
 class VinaRunner(object):
     @staticmethod
-    def prepare(vinadata: VinaCalculationData) -> VinaCalculationData:
-        vinadata = VinaRunner.prepare_receptor(vinadata)
-        vinadata = VinaRunner.prepare_ligand(vinadata)
+    def prepare(data: CalculationData) -> CalculationData:
+        data = VinaRunner.prepare_receptor(data)
+        #TODO(degraff): fix this to accept input ligand files
+        data = VinaRunner.prepare_from_smi(data)
 
-        return vinadata
+        return data
 
     @staticmethod
     def prepare_receptor(
-        vinadata: VinaCalculationData
+        data: CalculationData
     ) -> Optional[str]:
         """Prepare a receptor PDBQT file from its input file
 
@@ -37,42 +39,42 @@ class VinaRunner(object):
             the filepath of the resulting PDBQT file.
             None if preparation failed
         """
-        receptor_pdbqt = Path(vinadata.receptor).with_suffix('.pdbqt')
-        receptor_pdbqt = Path(vinadata.in_path) / receptor_pdbqt.name
+        receptor_pdbqt = Path(data.receptor).with_suffix('.pdbqt')
+        receptor_pdbqt = Path(data.in_path) / receptor_pdbqt.name
 
         argv = [
-            'prepare_receptor', '-r', vinadata.receptor, '-o', receptor_pdbqt
+            'prepare_receptor', '-r', data.receptor, '-o', receptor_pdbqt
         ]
         try:
             sp.run(argv, stderr=sp.PIPE, check=True)
         except sp.SubprocessError:
             print(
-                f'ERROR: failed to convert "{vinadata.receptor}"', 
+                f'ERROR: failed to convert "{data.receptor}"', 
                 file=sys.stderr
             )
             return None
 
-        vinadata.prepared_receptor = receptor_pdbqt
-        return vinadata
+        data.prepared_receptor = receptor_pdbqt
+        return data
 
     @staticmethod
     def prepare_from_smi(
-        vinadata: VinaCalculationData
+        data: CalculationData
     ) -> Tuple[str, str]:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
         ----------
-        vinadata: VinaCalculationData
+        data: CalculationData
 
         Returns
         -------
-        VinaCalculationData
+        CalculationData
         """
-        pdbqt = Path(vinadata.in_path) / f'{vinadata.name}.pdbqt'
+        pdbqt = Path(data.in_path) / f'{data.name}.pdbqt'
   
         try:
-            mol = pybel.readstring(format='smi', string=vinadata.smi)
+            mol = pybel.readstring(format='smi', string=data.smi)
             mol.make3D()
             mol.addh()
             mol.calccharges(model='gasteiger')
@@ -83,8 +85,8 @@ class VinaRunner(object):
             format='pdbqt', filename=str(pdbqt), overwrite=True, opt={'h': None}
         )
 
-        vinadata.prepared_ligand = pdbqt
-        return vinadata
+        data.prepared_ligand = pdbqt
+        return data
 
     @staticmethod
     def prepare_from_file(
@@ -136,7 +138,7 @@ class VinaRunner(object):
         return list(zip(smis, pdbqts))
     
     @staticmethod
-    def run(vinadata: VinaCalculationData) -> Optional[List[float]]:
+    def run(data: CalculationData) -> Optional[List[float]]:
         """Dock the given ligand using the specified vina-type docking program 
         and parameters
         
@@ -145,18 +147,20 @@ class VinaRunner(object):
         scores : Optional[List[float]]
             the conformer scores parsed from the log file
         """
-        p_ligand = Path(vinadata.prepared_ligand)
+        p_ligand = Path(data.prepared_ligand)
         ligand_name = p_ligand.stem
 
-        name = f'{Path(vinadata.receptor).stem}_{ligand_name}'
+        name = f'{Path(data.receptor).stem}_{ligand_name}'
 
         argv, _, log = VinaRunner.build_argv(
-            ligand=vinadata.prepared_ligand,
-            receptor=vinadata.prepared_receptor,
-            software=vinadata.software,
-            center=vinadata.center, size=vinadata.size,
-            ncpu=vinadata.ncpu, extra=vinadata.extra, 
-            name=name, path=Path(vinadata.out_path)
+            ligand=data.prepared_ligand,
+            receptor=data.prepared_receptor,
+            software=data.metadata.software,
+            center=data.metadata.center,
+            size=data.metadata.size,
+            ncpu=data.metadata.ncpu,
+            extra=data.metadata.extra, 
+            name=name, path=Path(data.out_path)
         )
 
         ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -170,14 +174,14 @@ class VinaRunner(object):
                 f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr
             )
 
-        scores = VinaRunner.parse_log_file(log)
+        scores = VinaRunner.parse_logfile(log)
         if scores is None:
             score = None
         else:
-            score = utils.calc_score(scores, vinadata.score_mode, vinadata.k)
+            score = utils.calc_score(scores, data.score_mode, data.k)
 
-        vinadata.result = {
-            'smiles': vinadata.smi,
+        data.result = {
+            'smiles': data.smi,
             'name': ligand_name,
             'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
             'score': score
@@ -266,13 +270,12 @@ class VinaRunner(object):
                     if TABLE_BORDER in line:
                         break
 
-                score_lines = takewhile(
+                score_lines = list(takewhile(
                     lambda line: 'Writing' not in line, fid
-                )
+                ))
         except OSError:
             pass
         
-        # scores = [float(line.split()[1]) for line in score_lines]
         scores = []
         for line in score_lines:
             try:

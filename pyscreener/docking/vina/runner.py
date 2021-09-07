@@ -88,7 +88,7 @@ class VinaRunner(DockingRunner):
             format='pdbqt', filename=str(pdbqt), overwrite=True, opt={'h': None}
         )
 
-        data.prepared_ligand = pdbqt
+        data.metadata.prepared_ligand = pdbqt
         return data
 
     @staticmethod
@@ -150,14 +150,14 @@ class VinaRunner(DockingRunner):
         scores : Optional[List[float]]
             the conformer scores parsed from the log file
         """
-        p_ligand = Path(data.prepared_ligand)
+        p_ligand = Path(data.metadata.prepared_ligand)
         ligand_name = p_ligand.stem
 
         name = f'{Path(data.receptor).stem}_{ligand_name}'
 
         argv, _, log = VinaRunner.build_argv(
-            ligand=data.prepared_ligand,
-            receptor=data.prepared_receptor,
+            ligand=data.metadata.prepared_ligand,
+            receptor=data.metadata.prepared_receptor,
             software=data.metadata.software,
             center=data.center,
             size=data.size,

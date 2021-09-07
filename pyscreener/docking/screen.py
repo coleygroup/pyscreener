@@ -1,65 +1,58 @@
+from copy import copy
 from dataclasses import replace
 from datetime import datetime
-from enum import auto, Enum
 from pathlib import Path
+import re
+import shutil
+import tarfile
 import tempfile
 from typing import Iterable, List, Optional, Tuple, Union
 
 import ray
 
-from pyscreener.base import VirtualScreen
+# from pyscreener.base import VirtualScreen
 from pyscreener.utils import ScoreMode
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
-# from pyscreener.docking.utils import ScreenType
-# from pyscreener.docking.dock.runner import DOCKRunner
-from pyscreener.docking.vina.runner import VinaRunner
+from pyscreener.docking.runner import DockingRunner
+from pyscreener.docking.utils import run_on_all_nodes
 
-class ScreenType(Enum):
-    VINA = auto()
-    DOCK = auto()
-
-class DockingVirtualScreen(VirtualScreen):
+class DockingVirtualScreen:
     def __init__(
-        self, receptors: Iterable[str],
+        self, runner: DockingRunner,
+        receptors: Iterable[str],
         center: Optional[Tuple],
         size: Optional[Tuple],
         metadata_template: CalculationMetadata,
         ncpu: int = 1,
         base_name: str = 'ligand',
-        in_path: Union[str, Path] = '.',
-        out_path: Union[str, Path] = '.',
+        path: Union[str, Path] = '.',
         score_mode : ScoreMode = ScoreMode.BEST,
         repeat_score_mode : ScoreMode = ScoreMode.BEST,
         ensemble_score_mode : ScoreMode = ScoreMode.BEST,
         k : int = 1,
-        screen_type: ScreenType = ScreenType.VINA
     ):
         # super().__init__()
 
+        self.runner = runner
         self.receptors = receptors
         self.center = center
         self.size = size
         self.metadata = metadata_template
-        self.in_path = Path(in_path)
-        self.out_path = Path(out_path)
+        self.base_name = base_name
+        self.path = path
         self.score_mode = score_mode
         self.repeat_score_mode = repeat_score_mode
         self.ensemble_score_mode = ensemble_score_mode
         self.k = k
-
-        self.runner ={
-            ScreenType.VINA: VinaRunner,
-            # ScreenType.DOCK: DOCKRunner
-        }[screen_type]
         
         self.tmp_dir = tempfile.gettempdir()
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(
             self.runner.prepare_and_run
         )
         self.data_templates = [CalculationData(
-            '', receptor, center, size, metadata_template, ncpu, base_name,
-            None, self.tmp_in, self.tmp_out, score_mode, self.k
+            None, receptor, center, size, copy(metadata_template),
+            ncpu, base_name, None, self.tmp_in, self.tmp_out, score_mode, k
         ) for receptor in receptors]
 
         if not ray.is_initialized():
@@ -68,44 +61,32 @@ class DockingVirtualScreen(VirtualScreen):
             except ConnectionError:
                 ray.init()
     
-        refs = []
-        for n in ray.nodes():
-            @ray.remote(resources={f'node:{n["NodeManagerAddress"]}': 0.01})
-            def prepare_templates(runner, templates):
-                templates = [
-                    runner.prepare_receptor(template) for template in templates
-                ]
-                return templates
-
-            refs.append(prepare_templates.remote(
-                self.runner, self.data_templates
-            ))
-        self.data_templates = ray.get(refs[-1])
+        self.data_templates = self.prepare_receptors()
 
         self.planned_simulationss = []
         self.completed_simulationss = []
+        self.num_simulations = 0
+
+    def __len__(self):
+        return self.num_simulations
+
+    @run_on_all_nodes
+    def prepare_receptors(self):
+        return [
+            self.runner.prepare_receptor(template)
+            for template in self.data_templates
+        ]
 
     @property
-    def in_path(self):
-        return self.__in_path
+    def path(self):
+        return self.__path
 
-    @in_path.setter
-    def in_path(self, path):
+    @path.setter
+    def path(self, path):
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        self.__in_path = path
-    
-    @property
-    def out_path(self):
-        return self.__out_path
-    
-    @out_path.setter
-    def out_path(self, path):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__out_path = path
+        self.__path = path
 
     @property
     def tmp_dir(self) -> Path:
@@ -142,15 +123,21 @@ class DockingVirtualScreen(VirtualScreen):
         self.__tmp_out = path
     
     def __call__(self, *smis: Iterable[str]) -> List[float]:
-        planned_simulationss = [
-            [replace(data_template, smi=smi) for smi in smis]
-            for data_template in self.data_templates
-        ]
+        planned_simulationss = [[
+            replace(
+                data_template, smi=smi, name=f'{self.base_name}_{i+len(self)}'
+            ) for i, smi in enumerate(smis)
+        ] for data_template in self.data_templates]
         refss = [
             [self.prepare_and_run.remote(s) for s in simulations]
             for simulations in planned_simulationss
         ]
         completed_simulationss = [ray.get(refs) for refs in refss]
+
+        self.num_simulations += sum(
+            sum(1 for _ in simulations)
+            for simulations in completed_simulationss
+        )
         self.completed_simulationss.extend(completed_simulationss)
 
         return completed_simulationss
@@ -170,9 +157,50 @@ class DockingVirtualScreen(VirtualScreen):
         pass
 
     def run(self) -> List[List[CalculationData]]:
-        completed_simulations = [
+        completed_simulationss = [
             [self.prepare_and_run(s) for s in simulations]
             for simulations in self.planned_simulationss
         ]
-        return completed_simulations
+
+        self.num_simulations += sum(
+            sum(1 for _ in simulations)
+            for simulations in completed_simulationss
+        )
+        self.completed_simulationss.extend(completed_simulationss)
+        
+        return completed_simulationss
     
+    @run_on_all_nodes
+    def collect_files(self, path: Optional[Union[str, Path]] = None):
+        """Collect all the files from the local disks of the respective nodes
+
+        For I/O purposes, input and output files for each simulation are 
+        created on the local disk of each node. If these files are desired at 
+        the end, they must be copied over from the node's local file system to 
+        the final destination.
+        
+        This is achieved by creating a gzipped tar file of the temp directory 
+        (the one that contains all of the input and output files for 
+        simulations conducted on that node) and moving these tar files under 
+        the desired path. Each tar file is named according the node ID from 
+        which it originates.
+
+        This function should ideally only be called once during the lifetime
+        of a Screener because it is slow and early calls will yield nothing
+        over a single, final call.
+
+        Parameters
+        ----------
+        out_path : Optional[Union[str, Path]], default=None
+            the path under which the tar files should be collected to.
+            If None, use self.path
+        """
+        out_path = Path(path or self.path)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        output_id = re.sub(r'[:,.]', '', ray.state.current_node_id())
+        tmp_tar = (self.tmp_dir / output_id).with_suffix('.tar.gz')
+        with tarfile.open(tmp_tar, 'w:gz') as tar:
+            tar.add(self.tmp_in, arcname='inputs')
+            tar.add(self.tmp_out, arcname='outputs')
+        shutil.copy(str(tmp_tar), str(out_path))

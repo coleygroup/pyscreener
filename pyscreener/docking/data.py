@@ -1,18 +1,11 @@
 from dataclasses import dataclass
-from enum import Enum, auto
 from pathlib import Path
-from typing import Mapping, Optional, Tuple, TypeVar, Union
+from typing import Optional, Tuple, Union
 
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
 from pyscreener.utils import ScoreMode
 from pyscreener.docking.metadata import CalculationMetadata
-
-class CalculationType(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        return name.upper()
-
-    VINA = auto()
-    DOCK = auto()
+from pyscreener.docking.result import Result
 
 @dataclass(repr=True, eq=False)
 class CalculationData:
@@ -71,7 +64,7 @@ class CalculationData:
     out_path: Union[str, Path] = '.'
     score_mode : ScoreMode = ScoreMode.BEST
     k : int = 1
-    result : Optional[Mapping] = None
+    result : Optional[Result] = None
 
     def __post_init__(self):
         self.in_path = Path(self.in_path)
@@ -92,8 +85,8 @@ class CalculationData:
             )
 
         try:
-            return self.result['score']
-        except KeyError:
+            return self.result.score
+        except AttributeError:
             raise InvalidResultError(
-                'No key: "score" in result dictionary (self.result)!'
+                'No attribute: "score" in Result object (self.result)!'
             )

@@ -104,7 +104,7 @@ class DOCKRunner(DockingRunner):
         if grid_stem is None:
             return data
 
-        data.prepared_receptor = rec_sph, grid_stem
+        data.metadata.prepared_receptor = rec_sph, grid_stem
         return data
     
     @staticmethod
@@ -135,7 +135,7 @@ class DOCKRunner(DockingRunner):
             format='mol2', filename=str(mol2), overwrite=True, opt={'h': None}
         )
 
-        data.prepared_ligand = mol2
+        data.metadata.prepared_ligand = mol2
         return data
 
     @staticmethod
@@ -237,9 +237,9 @@ class DOCKRunner(DockingRunner):
             - log: the filename of the output log file
             - score: the ligand's docking score
         """
-        p_ligand = Path(data.prepared_ligand)
+        p_ligand = Path(data.metadata.prepared_ligand)
         ligand_name = p_ligand.stem
-        sph_file, grid_prefix = data.prepared_receptor
+        sph_file, grid_prefix = data.metadata.prepared_receptor
 
         name = f'{Path(sph_file).stem}_{ligand_name}'
 

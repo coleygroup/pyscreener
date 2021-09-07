@@ -5,15 +5,14 @@ import re
 import shutil
 import tarfile
 import tempfile
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Union
 
-import numpy as np
 import ray
 
 class VirtualScreen(ABC):
     def __init__(self, path: Union[str, Path]):
         self.path = path
-        self.tmp = Path(tempfile.gettempdir())
+        self.tmp = tempfile.gettempdir()
 
     @property
     def path(self) -> Path:
@@ -26,19 +25,19 @@ class VirtualScreen(ABC):
         self.__path = path
 
     @property
-    def tmp(self) -> Path:
+    def tmp_dir(self) -> Path:
         """the Screener's temp directory"""
-        return self.__tmp
+        return self.__tmp_dir
 
-    @tmp.setter
-    def tmp(self, tmp: Union[str, Path]):
+    @tmp_dir.setter
+    def tmp_dir(self, path: Union[str, Path]):
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        tmp = Path(tmp) / 'pyscreener' / f'session_{timestamp}'
-        tmp.mkdir(parents=True, exist_ok=True)
+        path = Path(path) / 'pyscreener' / f'session_{timestamp}'
+        path.mkdir(parents=True, exist_ok=True)
 
-        self.__tmp = tmp
-        self.tmp_in = tmp / 'inputs'
-        self.tmp_out = tmp / 'outputs'
+        self.__tmp_dir = path
+        self.tmp_in = path / 'inputs'
+        self.tmp_out = path / 'outputs'
 
     @property
     def tmp_in(self) -> Path:
@@ -94,7 +93,7 @@ class VirtualScreen(ABC):
             @ray.remote(resources={f'node:{address}': 0.1})
             def zip_and_move_tmp():
                 output_id = re.sub(r'[:,.]', '', ray.state.current_node_id())
-                tmp_tar = (self.tmp / output_id).with_suffix('.tar.gz')
+                tmp_tar = (self.tmp_dir / output_id).with_suffix('.tar.gz')
                 with tarfile.open(tmp_tar, 'w:gz') as tar:
                     tar.add(self.tmp_in, arcname='inputs')
                     tar.add(self.tmp_out, arcname='outputs')

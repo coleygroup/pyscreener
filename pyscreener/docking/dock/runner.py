@@ -7,14 +7,13 @@ from typing import Optional, Sequence, Tuple, Union
 
 from openbabel import pybel
 import ray
-from pyscreener import utils
 
 from pyscreener.exceptions import (
     MissingEnvironmentVariableError, MissingFileError
 )
-from pyscreener.docking import DockingRunner
+from pyscreener import utils
+from pyscreener.docking import CalculationData, DockingRunner, Result
 from pyscreener.docking import dock
-from pyscreener.docking.dock.data import CalculationData
 
 try:
     DOCK6 = Path(os.environ['DOCK6'])
@@ -266,12 +265,12 @@ class DOCKRunner(DockingRunner):
         else:
             score = utils.calc_score(scores, data.score_mode, data.k)
 
-        data.result = {
-            'smiles': data.smi,
-            'name': name,
-            'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-            'score': score
-        }
+        data.result = Result(
+            data.smi,
+            name,
+            re.sub('[:,.]', '', ray.state.current_node_id()),
+            score
+        )
 
         return scores
     

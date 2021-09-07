@@ -1,19 +1,10 @@
 from dataclasses import dataclass
-from enum import auto, Enum
 from pathlib import Path
 import shlex
-from typing import Optional, Tuple
+from typing import Optional, Union
 
 from pyscreener.docking.metadata import CalculationMetadata
-
-class Software(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        return name.lower()
-
-    VINA = auto()
-    PSOVINA = auto()
-    QVINA = auto()
-    SMINA = auto()
+from pyscreener.docking.vina.utils import Software
 
 @dataclass(repr=True, eq=False)
 class VinaMetadata(CalculationMetadata):
@@ -48,16 +39,13 @@ class VinaMetadata(CalculationMetadata):
     extra : Optional[List[str]], default=None
         additional command line arguments that will be passed to the
         docking calculation
-    prepared_ligand: Optional[S] = None,
-    prepared_receptor: Optional[T] = None
+    prepared_ligand: Optional[Union[str, Path]] = None,
+    prepared_receptor: Optional[Union[str, Path]] = None
     """
     software: Software
-    center: Tuple[float, float, float]
-    size: Tuple[float, float, float] = (10., 10., 10.)
-    ncpu: int = 1
     extra: Optional[str] = None
-    prepared_ligand: Optional[Path] = None,
-    prepared_receptor: Optional[Path] = None
+    prepared_ligand: Optional[Union[str, Path]] = None
+    prepared_receptor: Optional[Union[str, Path]] = None
 
     def __post_init__(self):
         self.extra = shlex.split(self.extra) if self.extra else []

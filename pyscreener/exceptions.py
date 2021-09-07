@@ -1,7 +1,7 @@
 class MissingEnvironmentVariableError(Exception):
     pass
 
-class MissingFileError(Exception):
+class MisconfiguredDirectoryError(Exception):
     pass
 
 class NotSimulatedError(Exception):

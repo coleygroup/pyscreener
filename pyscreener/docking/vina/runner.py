@@ -10,10 +10,10 @@ from openbabel import pybel
 import ray
 
 from pyscreener import utils
-from pyscreener.docking.data import CalculationData
-from pyscreener.docking.vina.metadata import Software
+from pyscreener.docking import CalculationData, DockingRunner, Result
+from pyscreener.docking.vina.utils import Software
 
-class VinaRunner(object):
+class VinaRunner(DockingRunner):
     @staticmethod
     def prepare(data: CalculationData) -> CalculationData:
         data = VinaRunner.prepare_receptor(data)
@@ -23,9 +23,7 @@ class VinaRunner(object):
         return data
 
     @staticmethod
-    def prepare_receptor(
-        data: CalculationData
-    ) -> Optional[str]:
+    def prepare_receptor(data: CalculationData) -> CalculationData:
         """Prepare a receptor PDBQT file from its input file
 
         Parameters
@@ -54,13 +52,18 @@ class VinaRunner(object):
             )
             return None
 
-        data.prepared_receptor = receptor_pdbqt
+        data.metadata.prepared_receptor = receptor_pdbqt
         return data
 
     @staticmethod
-    def prepare_from_smi(
-        data: CalculationData
-    ) -> Tuple[str, str]:
+    def prepare_and_run(data: CalculationData) -> CalculationData:
+        data = VinaRunner.prepare_ligand(data)
+        VinaRunner.run(data)
+
+        return data
+
+    @staticmethod
+    def prepare_ligand(data: CalculationData) -> CalculationData:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
@@ -73,8 +76,8 @@ class VinaRunner(object):
         """
         pdbqt = Path(data.in_path) / f'{data.name}.pdbqt'
   
+        mol = pybel.readstring(format='smi', string=data.smi)
         try:
-            mol = pybel.readstring(format='smi', string=data.smi)
             mol.make3D()
             mol.addh()
             mol.calccharges(model='gasteiger')
@@ -156,9 +159,9 @@ class VinaRunner(object):
             ligand=data.prepared_ligand,
             receptor=data.prepared_receptor,
             software=data.metadata.software,
-            center=data.metadata.center,
-            size=data.metadata.size,
-            ncpu=data.metadata.ncpu,
+            center=data.center,
+            size=data.size,
+            ncpu=data.ncpu,
             extra=data.metadata.extra, 
             name=name, path=Path(data.out_path)
         )
@@ -180,12 +183,12 @@ class VinaRunner(object):
         else:
             score = utils.calc_score(scores, data.score_mode, data.k)
 
-        data.result = {
-            'smiles': data.smi,
-            'name': ligand_name,
-            'node_id': re.sub('[:,.]', '', ray.state.current_node_id()),
-            'score': score
-        }
+        data.result = Result(
+            data.smi,
+            name,
+            re.sub('[:,.]', '', ray.state.current_node_id()),
+            score
+        )
 
         return scores
 

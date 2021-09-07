@@ -1,15 +1,10 @@
 from dataclasses import dataclass
-from enum import Enum, auto
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Optional, Tuple, Union
 
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.dock.utils import SphereMode
 
-class SphereMode(Enum):
-    BOX = auto()
-    LARGEST = auto()
-    LIGAND = auto()
-    
 @dataclass(repr=True, eq=False)
 class DOCKMetadata(CalculationMetadata):
     """
@@ -36,3 +31,6 @@ class DOCKMetadata(CalculationMetadata):
     docked_ligand_file: Optional[str] = None
     enclose_spheres: bool = True
     buffer: float = 10.
+    prepared_ligand: Optional[Union[str, Path]] = None
+    prepared_receptor: Optional[Tuple[str, str]] = None
+    

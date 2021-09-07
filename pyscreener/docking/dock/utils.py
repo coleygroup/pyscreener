@@ -2,6 +2,7 @@ try:
     from importlib import resources
 except ModuleNotFoundError:
     import importlib_resources as resources
+from enum import Enum, auto
 from itertools import takewhile
 import os
 from pathlib import Path
@@ -11,9 +12,8 @@ import sys
 from typing import Optional, Tuple
 
 from pyscreener.exceptions import (
-    MissingEnvironmentVariableError, MissingFileError
+    MissingEnvironmentVariableError, MisconfiguredDirectoryError
 )
-from pyscreener.docking.dock.data import SphereMode
 
 with resources.path('pyscreener.docking.dock', '.') as p_module:
     PREP_REC = p_module / 'scripts' / 'prep_rec.py'
@@ -35,11 +35,20 @@ VDW_DEFN_FILE = DOCK6 / 'parameters' / 'vdw_AMBER_parm99.defn'
 
 for f in (SPHGEN, SPHERE_SELECTOR, SHOWBOX, GRID, VDW_DEFN_FILE):
     if not f.exists():
-        raise MissingFileError(
-            f'File: "{f}" is missing! DOCK parent folder not configured '
-            'properly. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information'
+        raise MisconfiguredDirectoryError(
+            'DOCK6 directory not configured properly! '
+            f'DOCK6 path is set as "{DOCK6}", but there is no '
+            f'"{f.name}" located in the "{f.parents[0].name}" subdirectory '
+            'under the DOCK6 path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information'
         )
 
+
+class SphereMode(Enum):
+    BOX = auto()
+    LARGEST = auto()
+    LIGAND = auto()
+
+    
 def prepare_receptor(
     receptor: str, probe_radius: float = 1.4,
     steric_clash_dist: float = 0.0,

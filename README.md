@@ -25,7 +25,7 @@ To avoid having to do this every time you start a new shell, you can add whateve
 ## Installation
 
 ### General requirements
-- python>=3.6 and the packages in `environment.yml`, `requirements.txt` and [`pdbfixer`](https://github.com/openmm/pdbfixer)
+- python>=3.6 and the packages in `environment.yml`
 - all corresponding software downloaded and located on your PATH or under the corresponding environment variable PATH (see [external software](#external-software) for more details.)
 - (if using DOCK6-based HTVS) the location of the DOCK6 parent directory in your environment variables
 
@@ -46,7 +46,7 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
   1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and ensure the desired software executable is in a folder that is located on your path
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
-  0. obtain a license for [DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)
+  1. obtain a license for [DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)
   1. install DOCK6 from the download link and follow the [installation directions](http://dock.compbio.ucsf.edu/DOCK_6/dock6_manual.htm#Installation)
   1. after ensuring the installation was installed properly, specify the DOCK6 environment variable as the path of the DOCK6 parent directory as detailed [below](#specifying-an-environment-variable). This is the directory that was unzipped from the tarball and is usually named `dock6`. It is the folder that contains the `bin`, `install`, etc. subdirectories.)
   1. install [sphgen_cpp](http://dock.compbio.ucsf.edu/Contributed_Code/sphgen_cpp.htm). On linux systems, this can be done:

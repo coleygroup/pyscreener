@@ -8,29 +8,26 @@ import tarfile
 import tempfile
 from typing import Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 import ray
 
 # from pyscreener.base import VirtualScreen
-from pyscreener.utils import ScoreMode
+from pyscreener.utils import ScoreMode, calc_score
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import run_on_all_nodes
+from pyscreener.docking.utils import run_on_all_nodes, calc_ligand_score
 
 class DockingVirtualScreen:
     def __init__(
-        self, runner: DockingRunner,
-        receptors: Iterable[str],
-        center: Optional[Tuple],
-        size: Optional[Tuple],
-        metadata_template: CalculationMetadata,
-        ncpu: int = 1,
-        base_name: str = 'ligand',
-        path: Union[str, Path] = '.',
-        score_mode : ScoreMode = ScoreMode.BEST,
-        repeat_score_mode : ScoreMode = ScoreMode.BEST,
-        ensemble_score_mode : ScoreMode = ScoreMode.BEST,
-        k : int = 1,
+        self, runner: DockingRunner, receptors: Iterable[str],
+        center: Optional[Tuple], size: Optional[Tuple],
+        metadata_template: CalculationMetadata, ncpu: int = 1,
+        base_name: str = 'ligand', path: Union[str, Path] = '.',
+        score_mode: ScoreMode = ScoreMode.BEST,
+        repeat_score_mode: ScoreMode = ScoreMode.BEST,
+        ensemble_score_mode: ScoreMode = ScoreMode.BEST,
+        repeats: int =1, k: int = 1,
     ):
         # super().__init__()
 
@@ -44,6 +41,7 @@ class DockingVirtualScreen:
         self.score_mode = score_mode
         self.repeat_score_mode = repeat_score_mode
         self.ensemble_score_mode = ensemble_score_mode
+        self.repeats = repeats
         self.k = k
         
         self.tmp_dir = tempfile.gettempdir()
@@ -63,8 +61,8 @@ class DockingVirtualScreen:
     
         self.data_templates = self.prepare_receptors()
 
-        self.planned_simulationss = []
-        self.completed_simulationss = []
+        self.planned_simulationsss = []
+        self.completed_simulationsss = []
         self.num_simulations = 0
 
     def __len__(self):
@@ -122,53 +120,55 @@ class DockingVirtualScreen:
         path.mkdir(parents=True, exist_ok=True)
         self.__tmp_out = path
     
-    def __call__(self, *smis: Iterable[str]) -> List[float]:
-        planned_simulationss = [[
-            replace(
-                data_template, smi=smi, name=f'{self.base_name}_{i+len(self)}'
-            ) for i, smi in enumerate(smis)
-        ] for data_template in self.data_templates]
-        refss = [
-            [self.prepare_and_run.remote(s) for s in simulations]
-            for simulations in planned_simulationss
+    def __call__(self, *smis: Iterable[str]) -> np.array:
+        planned_simulationsss = self.plan(smis)
+        completed_simulationsss = self.run(planned_simulationsss)
+
+        self.completed_simulationsss.extend(completed_simulationsss)
+        S = np.array([
+            [
+                [
+                    s.result.score for s in sims
+                ] for sims in simss
+            ] for simss in completed_simulationsss
+        ], dtype=float)
+        self.num_simulations += len(S)
+
+        return np.nanmean(np.nanmean(S, axis=2), axis=1, dtype=float)
+
+    def plan(self, smis: Iterable[str]) -> List[List[List[CalculationData]]]:
+        planned_simulationsss = [
+            [
+                [
+                    replace(
+                        data_template, smi=smi,
+                        name=f'{self.base_name}_{i+len(self)}_{j}'
+                    ) for j in range(self.repeats)
+                ] for data_template in self.data_templates
+            ] for i, smi in enumerate(smis)
         ]
-        completed_simulationss = [ray.get(refs) for refs in refss]
 
-        self.num_simulations += sum(
-            sum(1 for _ in simulations)
-            for simulations in completed_simulationss
-        )
-        self.completed_simulationss.extend(completed_simulationss)
-
-        return completed_simulationss
-
-    def plan(
-        self, smis: Iterable[str]
-    ) -> List[List[CalculationData]]:
-        planned_simulationss = [
-            [replace(data_template, smi=smi) for smi in smis]
-            for data_template in self.data_templates
-        ]
-        self.planned_simulationss.extend(planned_simulationss)
-
-        return planned_simulationss
+        return planned_simulationsss
 
     def prepare(self):
         pass
 
-    def run(self) -> List[List[CalculationData]]:
-        completed_simulationss = [
-            [self.prepare_and_run(s) for s in simulations]
-            for simulations in self.planned_simulationss
+    def run(
+        self, planned_simulationsss: List[List[List[CalculationData]]]
+    ) -> List[List[List[CalculationData]]]:
+        refsss = [
+            [
+                [
+                    self.prepare_and_run.remote(s)
+                    for s in sims
+                ] for sims in simss
+            ] for simss in planned_simulationsss
         ]
-
-        self.num_simulations += sum(
-            sum(1 for _ in simulations)
-            for simulations in completed_simulationss
-        )
-        self.completed_simulationss.extend(completed_simulationss)
-        
-        return completed_simulationss
+        return [
+            [
+                ray.get(refs) for refs in refss
+            ] for refss in refsss
+        ]
     
     @run_on_all_nodes
     def collect_files(self, path: Optional[Union[str, Path]] = None):

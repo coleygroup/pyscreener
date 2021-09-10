@@ -46,23 +46,23 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
   1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and ensure the desired software executable is in a folder that is located on your path
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
-  1. obtain a license for [DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)
+  1. [obtain a license for DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)
   1. install DOCK6 from the download link and follow the [installation directions](http://dock.compbio.ucsf.edu/DOCK_6/dock6_manual.htm#Installation)
   1. after ensuring the installation was installed properly, specify the DOCK6 environment variable as the path of the DOCK6 parent directory as detailed [below](#specifying-an-environment-variable). This is the directory that was unzipped from the tarball and is usually named `dock6`. It is the folder that contains the `bin`, `install`, etc. subdirectories.)
   1. install [sphgen_cpp](http://dock.compbio.ucsf.edu/Contributed_Code/sphgen_cpp.htm). On linux systems, this can be done:
-    1. `wget http://dock.compbio.ucsf.edu/Contributed_Code/code/sphgen_cpp.1.2.tar.gz`
-    1. `tar -xzvf sphgen_cpp.1.2.tar.gz`
-    1. `cd sphgen_cpp.1.2`
-    1. `make`
+      1. `wget http://dock.compbio.ucsf.edu/Contributed_Code/code/sphgen_cpp.1.2.tar.gz`
+      1. `tar -xzvf sphgen_cpp.1.2.tar.gz`
+      1. `cd sphgen_cpp.1.2`
+      1. `make`
   1. place the sphgen_cpp executable (it should be `sphgen_cpp`) inside the `bin` subdirectory of the DOCK6 parent directory. If you've configured the environment variable already, you can run: `mv sphgen_cpp $DOCK6/bin`
-  1. install [chimera](https://www.cgl.ucsf.edu/chimera/) and place the file on your PATH as detailed [below](#adding-an-executable-to-your-path)
+  1. [install chimera](https://www.cgl.ucsf.edu/chimera/download.html) and place the file on your PATH as detailed [below](#adding-an-executable-to-your-path)
 
 #### adding an executable to your PATH
 <!-- `pyscreener` is not a virtual screening software in itself. Rather, it is a wrapper around common VS software to enable a simple and common interface between them without having to learn the ins and outs of the preparation and simulation pipeline for each different software. With that in mind, it is up to the user to install the appropriate virtual screening software and place them on their PATH. -->
 
 To add a file to your PATH, you have two options:
 1. append the directory containing the file to your PATH: `export PATH=$PATH:<DIR>`, where `<DIR>` is the directory containing the file in question. As your PATH must be configured each time run pyscreener, this command should also be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
-1. copy the software to a directory that is already on your path. Typically this will be either `~/bin` or `~/.local/bin`. To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory (`$HOME` on most *nix-based systems)
+1. copy the software to a directory that is already on your path. Typically, these directories will include `~/bin` or `~/.local/bin`. To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory (`$HOME` on most *nix-based systems)
 
 #### specifying an environment variable
 To set the `DOCK6` environment variable, run the following command: `export DOCK6=<path/to/dock6>`, where `<path/to/dock6>` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
@@ -71,12 +71,16 @@ To set the `DOCK6` environment variable, run the following command: `export DOCK
 pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, you need only run `ray start --head` __before__ running pyscreener. However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster.
 
 #### Limiting the number of cores
-To do this, simply type `ray start --head --num-cpus <N>` before starting pyscreener (where `N` is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
+To do this, simply type `ray start --head --num-cpus <N>` before starting pyscreener (where `<N>` is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
 
 #### Distributing across many nodes
 While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([run_pyscreener_distributed_example.batch](run_pyscreener_distributed_example.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html)
 
-pyscreener writes a lot of intermediate input and output files (due to the inherent specifications of the underlying docking software.) Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to each node's temporary directory (determined by `tempfile.gettempdir()`) and discarded at the end. If you wish to collect these files, pass the `--collect-all` flag in the program arguments or run the `collect_files()` method of your `Screener` object when your screen is complete. *Note*: the `collect_files()` method is **slow** due to the need to send possibly a **bunch** of files over the network. This method should only be run **once** over the lifetime of a `Screener` object, as several intermediate calls will yield the same result as a single, final call.
+pyscreener writes a lot of intermediate input and output files (due to the inherent specifications of the underlying docking software.) Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to each node's temporary directory (determined by `tempfile.gettempdir()`) and discarded at the end. If you wish to collect these files, pass the `--collect-all` flag in the program arguments or run the `collect_files()` method of your `Screener` object when your screen is complete.
+
+*Note*: the `collect_files()` method is **slow** due to the need to send possibly a **bunch** of files over the network. This method should only be run **once** over the lifetime of a `Screener` object, as several intermediate calls will yield the same result as a single, final call.
+
+*Note*: `tempfile.gettempdir()` returns a path that depends the values of specific environment variables (see [here](https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir).) It is possible that the value returned on your system is not actually a valid path for you! In this case you will likely get file permissions errors and must ask your system administrator where this value should point to and then set `TMPDIR` accordingly before running pyscreener! 
 
 ## Running pyscreener as a software
 __!!please read the entire section before running pyscreener!!__
@@ -104,21 +108,20 @@ To perform docking calls inside your python code using `pyscreener`, you must fi
     
 `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.
 
-For example, the following code snippet will dock benzene (SMILES string c1ccccc1) against the D4 dopamine receptor (PDB ID: 5WIU) using the site of a previously docked ligand.
+### Example
+the following code snippet will dock benzene (SMILES string c1ccccc1) against the D4 dopamine receptor (PDB ID: 5WIU) using the site of a previously docked ligand and Autodock Vina
+
 ```python
 >>> import ray
 >>> ray.init()
 [...]
->>> from pyscreener import docking
->>> vina_screener = docking.screener(software='vina', receptors=['testing_inputs/5WIU.pdb'], docked_ligand_file='testing_inputs/5WIU_with_ligand.pdb', buffer=10., path='testing_outputs', ncpu=4)
-Autoboxing ... Done!
-Autoboxed ligand from "testing_inputs/5WIU_with_ligand.pdb" with center=(-18.2, 14.4, -16.1) and size=(15.4, 13.9, 14.5)
->>> results = vina_screener('c1ccccc1')
->>> results
-{'c1ccccc1': -4.4}
->>> results = vina_screener('testing_inputs/test_ligands.csv')
->>> results
+>>> from pyscreener.docking import screen, vina
+>>> metadata = vina.VinaMetadata(vina.Software.VINA)
+>>> vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, 8)
 {...}
+>>> scores = vs('c1ccccc1')
+>>> scores
+array([-4.4])
 ```
     
 A few notes from the above example:

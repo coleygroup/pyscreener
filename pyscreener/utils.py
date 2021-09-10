@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import Any, Callable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, List, Sequence
 
 import numpy as np
 import ray
@@ -33,62 +33,6 @@ def run_on_all_nodes(f: Callable[[], Any]) -> List:
         refs.append(g.remote())
 
     return ray.get(refs)
-
-def calc_ligand_score(
-    resultss: Sequence[Sequence[Mapping]],
-    receptor_score_mode: str = 'best',
-    ensemble_score_mode: str = 'best',
-    k: int = 1,
-) -> Optional[float]:
-    """Calculate the overall score of a ligand given all of its simulations
-
-    Parameters
-    ----------
-    ligand_results : Sequence[Sequence[Mapping]]
-        an MxN list of list of mappings where each individual mapping is the
-        result of an individual simulation and
-        
-        * M is the number of receptors the ligand was docked against
-        * N is the number of times each docking run was repeated
-    receptor_score_mode : str, default='best'
-        the mode used to calculate the overall score for a given receptor
-        pose with multiple, repeated runs
-    ensemble_score_mode : str, default='best'
-        the mode used to calculate the overall score for a given ensemble
-        of receptors
-    k : int, default=1
-        the number of scores to consider, if averaging the top-k
-    Returns
-    -------
-    ensemble_score : Optional[float]
-        the overall score of a ligand's ensemble docking. None if no such
-        score was calculable
-    
-    See also
-    --------
-    calc_score
-        for documentation on possible values for receptor_score_mode
-        and ensemble_score_mode
-    """
-    receptor_scores = []
-    for results in resultss:
-        rep_scores = [
-            repeat['score']
-            for repeat in results if repeat['score'] is not None
-        ]
-        if len(rep_scores) > 0:
-            receptor_scores.append(calc_score(
-                rep_scores, receptor_score_mode, k
-            ))
-
-    if len(receptor_scores) > 0:
-        ensemble_score = calc_score(
-            receptor_scores, ensemble_score_mode, k
-        )
-    else:
-        ensemble_score = None
-    
-    return ensemble_score
 
 def calc_score(
     scores: Sequence[float],

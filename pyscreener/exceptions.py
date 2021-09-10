@@ -1,6 +1,9 @@
 class MissingEnvironmentVariableError(Exception):
     pass
 
+class MissingFileError(Exception):
+    pass
+
 class MisconfiguredDirectoryError(Exception):
     pass
 

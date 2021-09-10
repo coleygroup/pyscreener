@@ -1,4 +1,6 @@
 from .data import CalculationData
+from .result import Result
+from .runner import DockingRunner
 from .screen import DockingVirtualScreen
 
 def screener(software, **kwargs):

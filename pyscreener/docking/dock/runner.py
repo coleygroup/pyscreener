@@ -9,11 +9,11 @@ from openbabel import pybel
 import ray
 
 from pyscreener.exceptions import (
-    MissingEnvironmentVariableError, MissingFileError
+    MisconfiguredDirectoryError, MissingEnvironmentVariableError
 )
-from pyscreener import utils
+from pyscreener.utils import calc_score
 from pyscreener.docking import CalculationData, DockingRunner, Result
-from pyscreener.docking import dock
+from pyscreener.docking.dock import utils
 
 try:
     DOCK6 = Path(os.environ['DOCK6'])
@@ -26,13 +26,15 @@ except KeyError:
 VDW_DEFN_FILE =  DOCK6 / 'parameters' / 'vdw_AMBER_parm99.defn'
 FLEX_DEFN_FILE =  DOCK6 / 'parameters' / 'flex.defn'
 FLEX_DRIVE_FILE =  DOCK6 / 'parameters' / 'flex_drive.tbl'
-DOCK = str(DOCK6 / 'bin' / 'dock6')
+DOCK = DOCK6 / 'bin' / 'dock6'
 
 for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
     if not f.exists():
-        raise MissingFileError(
-            f'File: "{f}" is missing! DOCK parent folder not configured '
-            'properly. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information'
+       raise MisconfiguredDirectoryError(
+            'DOCK6 directory not configured properly! '
+            f'DOCK6 path is set as "{DOCK6}", but there is no '
+            f'"{f.name}" located in the "{f.parents[0].name}" subdirectory '
+            'under the DOCK6 path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information'
         )
 
 class DOCKRunner(DockingRunner):
@@ -65,40 +67,38 @@ class DOCKRunner(DockingRunner):
         """
         # receptor_pdbqt = Path(data.receptor).with_suffix('.pdbqt')
         # receptor_pdbqt = Path(data.in_path) / receptor_pdbqt.name
-        metadata = data.metadata
-        rec_mol2 = dock.utils.prepare_mol2(data.receptor, data.in_path)
-        rec_pdb = dock.utils.prepare_pdb(data.receptor, data.in_path)
+        rec_mol2 = utils.prepare_mol2(data.receptor, data.in_path)
+        rec_pdb = utils.prepare_pdb(data.receptor, data.in_path)
         if rec_mol2 is None or rec_pdb is None:
             return data
 
-        rec_dms = dock.utils.prepare_dms(
-            rec_pdb, metadata.probe_radius, data.in_path
+        rec_dms = utils.prepare_dms(
+            rec_pdb, data.metadata.probe_radius, data.in_path
         )
         if rec_dms is None:
             return data
 
-        rec_sph = dock.utils.prepare_sph(
-            rec_dms, metadata.steric_clash_dist,
-            metadata.min_radius, metadata.max_radius, data.in_path
+        rec_sph = utils.prepare_sph(
+            rec_dms, data.metadata.steric_clash_dist,
+            data.metadata.min_radius, data.metadata.max_radius, data.in_path
         )
         if rec_sph is None:
             return data
 
-        rec_sph = dock.utils.select_spheres(
-            rec_sph, metadata.sphere_mode,
-            metadata.center, metadata.size,
-            metadata.docked_ligand_file, metadata.buffer,
-            metadata.in_path
+        rec_sph = utils.select_spheres(
+            rec_sph, data.metadata.sphere_mode, data.center, data.size,
+            data.metadata.docked_ligand_file, data.metadata.buffer,
+            data.metadata.in_path
         )
 
-        rec_box = dock.utils.prepare_box(
-            rec_sph, metadata.center, metadata.size,
-            metadata.enclose_spheres, metadata.buffer, data.in_path
+        rec_box = utils.prepare_box(
+            rec_sph, data.center, data.size,
+            data.metadata.enclose_spheres, data.metadata.buffer, data.in_path
         )
         if rec_box is None:
             return data
 
-        grid_stem = dock.utils.prepare_grid(
+        grid_stem = utils.prepare_grid(
             rec_mol2, rec_box, data.in_path
         )
         if grid_stem is None:
@@ -250,7 +250,7 @@ class DOCKRunner(DockingRunner):
 
         # out = Path(f'{outfile_prefix}_scored.mol2')
         log = Path(outfile_prefix).parent / f'{name}.out'
-        argv = [DOCK, '-i', infile, '-o', log]
+        argv = [str(DOCK), '-i', infile, '-o', log]
 
         ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
         try:
@@ -263,7 +263,7 @@ class DOCKRunner(DockingRunner):
         if scores is None:
             score = None
         else:
-            score = utils.calc_score(scores, data.score_mode, data.k)
+            score = calc_score(scores, data.score_mode, data.k)
 
         data.result = Result(
             data.smi,

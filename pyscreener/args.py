@@ -23,9 +23,6 @@ def add_general_args(parser: ArgumentParser):
     
     parser.add_argument('--root', default='.',
                         help='the root directory under which to organize all program outputs. I.e., the final output directory will be located at <root>/<name>')
-    parser.add_argument('--tmp-dir', '--tmp', '--temp',
-                        default=tempfile.gettempdir(),
-                        help='The filepath of the temporary directory under which to write all input and output files. NOTE: on some systems you may not have write access under the default directory for this argument and this will usually manifest itself as a PermissionError. In this case, contact your system administrator to obtain an appropriate value for this argument.')
     parser.add_argument('--no-sort', action='store_true', default=False,
                         help='do not sort the output scores CSV file by score')
     parser.add_argument('--collect-all', action='store_true', default=False,

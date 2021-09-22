@@ -75,8 +75,7 @@ def add_docking_args(parser: ArgumentParser):
     # DOCK args
     parser.add_argument('--use-largest', action='store_true', default=False,
                         help='whether to use the largest cluster of spheres when preparing the .sph file for DOCK docking')
-    parser.add_argument('--dont-enclose-spheres', action='store_true',
-                        default=False,
+    parser.add_argument('--dont-enclose-spheres', action='store_true', default=False,
                         help='whether to not enclose the selected spheres during DOCK docking box construction. Using this flag will manually construct the docking box using the input center and size arguments. Enclosing selected spheres is the typical way in which docking boxes are constructed for DOCK.')
                         
 def add_screening_args(parser: ArgumentParser):

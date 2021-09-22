@@ -34,7 +34,7 @@ def main():
         else:
             ray.init(address='auto')
     except ConnectionError:
-        ray.init(_temp_dir=args.tmp_dir)
+        ray.init()
     except PermissionError:
         print('Failed to create a temporary directory for ray')
         raise

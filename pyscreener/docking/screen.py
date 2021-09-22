@@ -27,7 +27,7 @@ class DockingVirtualScreen:
         score_mode: ScoreMode = ScoreMode.BEST,
         repeat_score_mode: ScoreMode = ScoreMode.BEST,
         ensemble_score_mode: ScoreMode = ScoreMode.BEST,
-        repeats: int =1, k: int = 1,
+        repeats: int = 1, k: int = 1,
     ):
         # super().__init__()
 
@@ -44,10 +44,14 @@ class DockingVirtualScreen:
         self.repeats = repeats
         self.k = k
         
+        if pdbids is not None:
+            receptors.extend([
+                pdbfix.pdbfix(pdbid=pdbid, path=self.receptors_dir)
+                for pdbid in pdbids
+            ])
         self.tmp_dir = tempfile.gettempdir()
-        self.prepare_and_run = ray.remote(num_cpus=ncpu)(
-            self.runner.prepare_and_run
-        )
+        self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
+
         self.data_templates = [CalculationData(
             None, receptor, center, size, copy(metadata_template),
             ncpu, base_name, None, self.tmp_in, self.tmp_out, score_mode, k

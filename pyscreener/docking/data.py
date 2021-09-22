@@ -22,6 +22,7 @@ class CalculationData:
     name : str
         the name to use when creating the ligand input file and output files
     input_file : Optional[str]
+        the filepath of an arbitrary molecular input file containing a single molecule
     in_path: Union[str, Path]
         the path under which input will be placed
     out_path: Union[str, Path]

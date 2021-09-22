@@ -5,6 +5,7 @@ channels:
   - defaults
 
 dependencies:
+  - openbabel
   - openmm
   - pip
   - python=3.8

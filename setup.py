@@ -48,11 +48,10 @@ setup(
         'configargparse',
         'importlib_resources; python_version < "3.7.0"',
         'h5py',
-        'openbabel',
         'numpy',
         'ray',
         'pandas',
-        'pdbfixer @ git+https://github.com/openmm/pdbfixer.git'
+        'pdbfixer @ git+https://github.com/openmm/pdbfixer.git',
         'scikit_learn',
         'scipy',
         'tqdm'

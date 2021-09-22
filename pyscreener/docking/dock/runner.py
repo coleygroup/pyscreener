@@ -139,69 +139,60 @@ class DOCKRunner(DockingRunner):
         return data
 
     @staticmethod
-    def prepare_from_file(
-        filename: str, use_3d: bool = False,
-        name: Optional[str] = None, path: str = '.', 
-    ) -> Optional[Tuple]:
-        """Convert a single ligand to the appropriate input format
+    def prepare_from_file(data: CalculationData) -> Optional[Tuple]:
+        """Convert a single ligand to the appropriate input format with specified geometry"""
+        fmt = Path(data.input_file).suffix.strip('.')
+        mols = list(pybel.readfile(fmt, data.input_file))
+        mol = mols[0]
 
-        Parameters
-        ----------
-        filename : str
-            the name of the file containing the ligand
-        use_3d : bool (Default = False)
-            whether to use the 3D information in the input file (if possible)
-        prepare_from_smi: Callable[..., Tuple[str, str]]
-            a function that prepares an input ligand file from a SMILES string
-        name : Optional[str] (Default = None)
-            the name of the ligand. If None, use the stem of the input file
-        path : str (Default = '.')
-            the path under which the output .pdbqt file should be written
-        **kwargs
-            additional and unused keyword arguments
-
-        Returns
-        -------
-        Optional[List[Tuple]]
-            a tuple of the SMILES string the prepared input file corresponding
-            to the molecule contained in filename
-        """
-        name = name or Path(filename).stem
-
-        ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
-        lines = ret.stdout.decode('utf-8').splitlines()
-        smis = [line.split()[0] for line in lines]
-
-        if not use_3d:
-            ligands = [
-                DOCKRunner.prepare_from_smi(smi, f'{name}_{i}', path)
-                for i, smi in enumerate(smis)
-            ]
-            return [lig for lig in ligands if lig]
-        
-        path = Path(path)
-        if not path.is_dir():
-            path.mkdir()
-
-        mol2 = f'{path}/{name}_.mol2'
-        argv = ['obabel', filename, '-omol2', '-O', mol2, '-m',
-                '-h', '--partialcharge', 'gasteiger']
-
-        ret = sp.run(argv, check=False, stderr=sp.PIPE)
+        mol2 = Path(data.in_path) / f'{mol.title or data.name}.mol2'
+        data.smi = mol.write()
         try:
-            ret.check_returncode()
-        except sp.SubprocessError:
-            return None
+            mol.addh()
+            mol.calccharges(model='gasteiger')
+        except Exception:
+            pass
 
-        stderr = ret.stderr.decode('utf-8')
-        for line in stderr.splitlines():
-            if 'converted' not in line:
-                continue
-            n_mols = int(line.split()[0])
+        mol.write(format='mol2', filename=mol2, overwrite=True, opt={'h': None})
+        data.metadata.prepared_ligand = mol2
+        
+        return data
+        # name = name or Path(filename).stem
 
-        mol2s = [f'{path}/{name}_{i}.mol2' for i in range(1, n_mols)]
+        # ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
+        # lines = ret.stdout.decode('utf-8').splitlines()
+        # smis = [line.split()[0] for line in lines]
 
-        return list(zip(smis, mol2s))
+        # if not use_3d:
+        #     ligands = [
+        #         DOCKRunner.prepare_from_smi(smi, f'{name}_{i}', path)
+        #         for i, smi in enumerate(smis)
+        #     ]
+        #     return [lig for lig in ligands if lig]
+        
+        # path = Path(path)
+        # if not path.is_dir():
+        #     path.mkdir()
+
+        # mol2 = f'{path}/{name}_.mol2'
+        # argv = ['obabel', filename, '-omol2', '-O', mol2, '-m',
+        #         '-h', '--partialcharge', 'gasteiger']
+
+        # ret = sp.run(argv, check=False, stderr=sp.PIPE)
+        # try:
+        #     ret.check_returncode()
+        # except sp.SubprocessError:
+        #     return None
+
+        # stderr = ret.stderr.decode('utf-8')
+        # for line in stderr.splitlines():
+        #     if 'converted' not in line:
+        #         continue
+        #     n_mols = int(line.split()[0])
+
+        # mol2s = [f'{path}/{name}_{i}.mol2' for i in range(1, n_mols)]
+
+        # return list(zip(smis, mol2s))
     
     @staticmethod
     def run(data: CalculationData) -> Optional[Sequence[float]]:

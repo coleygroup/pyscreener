@@ -84,61 +84,62 @@ class VinaRunner(DockingRunner):
         except Exception:
             pass
 
-        mol.write(
-            format='pdbqt', filename=str(pdbqt), overwrite=True, opt={'h': None}
-        )
-
+        mol.write(format='pdbqt', filename=str(pdbqt), overwrite=True, opt={'h': None})
         data.metadata.prepared_ligand = pdbqt
+
         return data
 
     @staticmethod
-    def prepare_from_file(
-        filename: str, path: str = '.',  offset: int = 0
-    ) -> List[Tuple[str, str]]:
-        """Convert the molecules contained in the arbitrary chemical file to
-        indidvidual PDBQT files with their same geometry
+    def prepare_from_file(data: CalculationData) -> CalculationData:
+        """Convert the molecule contained in the arbitrary chemical file to a PDBQT file with the
+        same geometry
 
         Parameters
         ----------
-        filename : str
-            the name of the file containing the molecules
-        path : str, default='.'
-            the path under which the output PDBQT files should be written
-        offset : int, default=0
-            the numbering offset for ligand naming
+        data: CalculationData
 
         Returns
         -------
-        List[Tuple[str, str]]
-            a list of tuples of the SMILES string and the filepath of
-            the corresponding PDBQT file
+        CalculationData
         """
-        path = Path(path)
+        fmt = Path(data.input_file).suffix.strip('.')
+        mols = list(pybel.readfile(fmt, data.input_file))
+        # width = ceil(log10(len(mols) + offset)) + 1
+        mol = mols[0]
 
-        fmt = Path(filename).suffix.strip('.')
-        mols = list(pybel.readfile(fmt, filename))
-        width = ceil(log10(len(mols) + offset)) + 1
-
-        smis = []
-        pdbqts = []
-        for i, mol in enumerate(mols):
-            if mol.title:
-                name = mol.title
-            else:
-                name = f'ligand_{i+offset:0{width}}'
-            
-            smi = mol.write()
-            pdbqt = str(path / f'{name}.pdbqt')
+        pdbqt = Path(data.in_path) / f'{mol.title or data.name}.pdbqt'
+        data.smi = mol.write()
+        try:
             mol.addh()
-            # mol.make3D()
             mol.calccharges(model='gasteiger')
-            mol.write(format='pdbqt', filename=pdbqt,
-                      overwrite=True, opt={'h': None})
+        except Exception:
+            pass
 
-            smis.append(smi)
-            pdbqts.append(pdbqt)
+        mol.write(format='pdbqt', filename=pdbqt, overwrite=True, opt={'h': None})
+        data.metadata.prepared_ligand = pdbqt
+        
+        return data
+        # smis = []
+        # pdbqts = []
 
-        return list(zip(smis, pdbqts))
+        # for i, mol in enumerate(mols):
+        #     if mol.title:
+        #         name = mol.title
+        #     else:
+        #         name = f'ligand_{i+offset:0{width}}'
+            
+        #     smi = mol.write()
+        #     pdbqt = str(path / f'{name}.pdbqt')
+        #     mol.addh()
+        #     # mol.make3D()
+        #     mol.calccharges(model='gasteiger')
+        #     mol.write(format='pdbqt', filename=pdbqt,
+        #               overwrite=True, opt={'h': None})
+
+        #     smis.append(smi)
+        #     pdbqts.append(pdbqt)
+
+        # return list(zip(smis, pdbqts))
     
     @staticmethod
     def run(data: CalculationData) -> Optional[List[float]]:

@@ -6,7 +6,7 @@ import re
 import shutil
 import tarfile
 import tempfile
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import ray
@@ -20,14 +20,21 @@ from pyscreener.docking.utils import run_on_all_nodes, calc_ligand_score
 
 class DockingVirtualScreen:
     def __init__(
-        self, runner: DockingRunner, receptors: Iterable[str],
-        center: Optional[Tuple], size: Optional[Tuple],
-        metadata_template: CalculationMetadata, ncpu: int = 1,
-        base_name: str = 'ligand', path: Union[str, Path] = '.',
+        self,
+        runner: DockingRunner,
+        receptors: Iterable[str],
+        center: Optional[Tuple],
+        size: Optional[Tuple], 
+        metadata_template: CalculationMetadata,
+        pdbids: Optional[Sequence[str]] = None,
+        ncpu: int = 1,
+        base_name: str = 'ligand',
+        path: Union[str, Path] = '.',
         score_mode: ScoreMode = ScoreMode.BEST,
         repeat_score_mode: ScoreMode = ScoreMode.BEST,
         ensemble_score_mode: ScoreMode = ScoreMode.BEST,
-        repeats: int = 1, k: int = 1,
+        repeats: int = 1,
+        k: int = 1,
     ):
         # super().__init__()
 
@@ -46,7 +53,7 @@ class DockingVirtualScreen:
         
         if pdbids is not None:
             receptors.extend([
-                pdbfix.pdbfix(pdbid=pdbid, path=self.receptors_dir)
+                pdbfix.pdbfix(pdbid=pdbid, path=self.path)
                 for pdbid in pdbids
             ])
         self.tmp_dir = tempfile.gettempdir()
@@ -147,9 +154,12 @@ class DockingVirtualScreen:
                     replace(
                         data_template, smi=smi,
                         name=f'{self.base_name}_{i+len(self)}_{j}'
-                    ) for j in range(self.repeats)
-                ] for data_template in self.data_templates
-            ] for i, smi in enumerate(smis)
+                    )
+                    for j in range(self.repeats)
+                ]
+                for data_template in self.data_templates
+            ]
+            for i, smi in enumerate(smis)
         ]
 
         return planned_simulationsss

@@ -1,8 +1,8 @@
 from enum import Enum, auto
-from typing import Any, Callable, List, Sequence
+from typing import Sequence
 
 import numpy as np
-import ray
+from numpy.lib.nanfunctions import nanmean
 
 class ScoreMode(Enum):
     """The method by which to calculate a score from multiple possible scores.
@@ -12,27 +12,6 @@ class ScoreMode(Enum):
     BEST = auto()
     BOLTZMANN = auto()
     TOP_K_AVG = auto()
-
-def run_on_all_nodes(f: Callable[[], Any]) -> List:
-    """Run a function on all nodes in the ray cluster
-
-    Parameters
-    ----------
-    f : Callable[[], Any]
-        the function to run
-
-    Returns
-    -------
-    List
-        a list of the function's result on each node
-    """        
-    refs = []
-    for node in ray.nodes():
-        address = node["NodeManagerAddress"]
-        g = ray.remote(resources={f'node:{address}': 0.1})(f)
-        refs.append(g.remote())
-
-    return ray.get(refs)
 
 def calc_score(
     scores: Sequence[float],
@@ -58,12 +37,12 @@ def calc_score(
     if score_mode == ScoreMode.BEST:
         return Y.min()
     elif score_mode == ScoreMode.AVG:
-        return Y.mean()
+        return np.nanmean(Y)
     elif score_mode == ScoreMode.BOLTZMANN:
         Y_e = np.exp(-Y)
-        Z = Y_e / Y_e.sum()
-        return (Y * Z).sum()
+        Z = Y_e / np.nansum(Y_e)
+        return np.nansum(Y * Z)
     elif score_mode == ScoreMode.TOP_K_AVG:
-        return Y.sort()[:k].mean()
+        return np.nanmean(Y.sort()[:k])
         
     return Y.min()

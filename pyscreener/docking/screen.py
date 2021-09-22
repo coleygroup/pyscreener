@@ -13,23 +13,25 @@ import ray
 
 # from pyscreener.base import VirtualScreen
 from pyscreener.utils import ScoreMode, calc_score
+from pyscreener.preprocessing import pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import run_on_all_nodes, calc_ligand_score
+from pyscreener.docking.utils import reduce_scores, run_on_all_nodes, calc_ligand_score
+
 
 class DockingVirtualScreen:
     def __init__(
         self,
         runner: DockingRunner,
-        receptors: Iterable[str],
+        receptors: Optional[Iterable[str]],
         center: Optional[Tuple],
-        size: Optional[Tuple], 
+        size: Optional[Tuple],
         metadata_template: CalculationMetadata,
         pdbids: Optional[Sequence[str]] = None,
         ncpu: int = 1,
-        base_name: str = 'ligand',
-        path: Union[str, Path] = '.',
+        base_name: str = "ligand",
+        path: Union[str, Path] = ".",
         score_mode: ScoreMode = ScoreMode.BEST,
         repeat_score_mode: ScoreMode = ScoreMode.BEST,
         ensemble_score_mode: ScoreMode = ScoreMode.BEST,
@@ -39,7 +41,6 @@ class DockingVirtualScreen:
         # super().__init__()
 
         self.runner = runner
-        self.receptors = receptors
         self.center = center
         self.size = size
         self.metadata = metadata_template
@@ -50,26 +51,30 @@ class DockingVirtualScreen:
         self.ensemble_score_mode = ensemble_score_mode
         self.repeats = repeats
         self.k = k
-        
+
+        self.receptors = receptors or []
         if pdbids is not None:
-            receptors.extend([
-                pdbfix.pdbfix(pdbid=pdbid, path=self.path)
-                for pdbid in pdbids
-            ])
+            receptors.extend(
+                [pdbfix.pdbfix(pdbid=pdbid, path=self.path) for pdbid in pdbids]
+            )
+
         self.tmp_dir = tempfile.gettempdir()
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
 
-        self.data_templates = [CalculationData(
-            None, receptor, center, size, copy(metadata_template),
-            ncpu, base_name, None, self.tmp_in, self.tmp_out, score_mode, k
-        ) for receptor in receptors]
+        self.data_templates = [
+            CalculationData(
+                None, receptor, center, size, copy(metadata_template), ncpu,
+                base_name, None, self.tmp_in, self.tmp_out, score_mode, k,
+            )
+            for receptor in receptors
+        ]
 
         if not ray.is_initialized():
             try:
-                ray.init('auto')
+                ray.init("auto")
             except ConnectionError:
                 ray.init()
-    
+
         self.data_templates = self.prepare_receptors()
 
         self.planned_simulationsss = []
@@ -82,8 +87,7 @@ class DockingVirtualScreen:
     @run_on_all_nodes
     def prepare_receptors(self):
         return [
-            self.runner.prepare_receptor(template)
-            for template in self.data_templates
+            self.runner.prepare_receptor(template) for template in self.data_templates
         ]
 
     @property
@@ -101,15 +105,15 @@ class DockingVirtualScreen:
     def tmp_dir(self) -> Path:
         """the Screener's temp directory"""
         return self.__tmp_dir
-        
+
     @tmp_dir.setter
     def tmp_dir(self, path: Union[str, Path]):
-        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        tmp_dir = Path(path) / 'pyscreener' / f'session_{timestamp}'
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        tmp_dir = Path(path) / "pyscreener" / f"session_{timestamp}"
         tmp_dir.mkdir(exist_ok=True, parents=True)
         self.__tmp_dir = tmp_dir
-        self.tmp_in = tmp_dir / 'inputs'
-        self.tmp_out = tmp_dir / 'outputs'
+        self.tmp_in = tmp_dir / "inputs"
+        self.tmp_out = tmp_dir / "outputs"
 
     @property
     def tmp_in(self) -> Path:
@@ -120,7 +124,7 @@ class DockingVirtualScreen:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
         self.__tmp_in = path
-    
+
     @property
     def tmp_out(self) -> Path:
         return self.__tmp_out
@@ -130,30 +134,33 @@ class DockingVirtualScreen:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
         self.__tmp_out = path
-    
-    def __call__(self, *smis: Iterable[str]) -> np.array:
+
+    def __call__(self, *smis: Iterable[str]) -> np.ndarray:
         planned_simulationsss = self.plan(smis)
         completed_simulationsss = self.run(planned_simulationsss)
 
         self.completed_simulationsss.extend(completed_simulationsss)
-        S = np.array([
+        S = np.array(
             [
-                [
-                    s.result.score for s in sims
-                ] for sims in simss
-            ] for simss in completed_simulationsss
-        ], dtype=float)
+                [[s.result.score for s in sims] for sims in simss]
+                for simss in completed_simulationsss
+            ],
+            dtype=float,
+        )
         self.num_simulations += len(S)
 
-        return np.nanmean(np.nanmean(S, axis=2), axis=1, dtype=float)
+        return reduce_scores(
+            S, self.repeat_score_mode, self.ensemble_score_mode, self.k
+        )
 
     def plan(self, smis: Iterable[str]) -> List[List[List[CalculationData]]]:
         planned_simulationsss = [
             [
                 [
                     replace(
-                        data_template, smi=smi,
-                        name=f'{self.base_name}_{i+len(self)}_{j}'
+                        data_template,
+                        smi=smi,
+                        name=f"{self.base_name}_{i+len(self)}_{j}",
                     )
                     for j in range(self.repeats)
                 ]
@@ -172,31 +179,26 @@ class DockingVirtualScreen:
     ) -> List[List[List[CalculationData]]]:
         refsss = [
             [
-                [
-                    self.prepare_and_run.remote(s)
-                    for s in sims
-                ] for sims in simss
-            ] for simss in planned_simulationsss
+                [self.prepare_and_run.remote(s) for s in sims]
+                for sims in simss
+            ]
+            for simss in planned_simulationsss
         ]
-        return [
-            [
-                ray.get(refs) for refs in refss
-            ] for refss in refsss
-        ]
-    
+        return [[ray.get(refs) for refs in refss] for refss in refsss]
+
     @run_on_all_nodes
     def collect_files(self, path: Optional[Union[str, Path]] = None):
         """Collect all the files from the local disks of the respective nodes
 
-        For I/O purposes, input and output files for each simulation are 
-        created on the local disk of each node. If these files are desired at 
-        the end, they must be copied over from the node's local file system to 
+        For I/O purposes, input and output files for each simulation are
+        created on the local disk of each node. If these files are desired at
+        the end, they must be copied over from the node's local file system to
         the final destination.
-        
-        This is achieved by creating a gzipped tar file of the temp directory 
-        (the one that contains all of the input and output files for 
-        simulations conducted on that node) and moving these tar files under 
-        the desired path. Each tar file is named according the node ID from 
+
+        This is achieved by creating a gzipped tar file of the temp directory
+        (the one that contains all of the input and output files for
+        simulations conducted on that node) and moving these tar files under
+        the desired path. Each tar file is named according the node ID from
         which it originates.
 
         This function should ideally only be called once during the lifetime
@@ -212,9 +214,9 @@ class DockingVirtualScreen:
         out_path = Path(path or self.path)
         out_path.mkdir(parents=True, exist_ok=True)
 
-        output_id = re.sub(r'[:,.]', '', ray.state.current_node_id())
-        tmp_tar = (self.tmp_dir / output_id).with_suffix('.tar.gz')
-        with tarfile.open(tmp_tar, 'w:gz') as tar:
-            tar.add(self.tmp_in, arcname='inputs')
-            tar.add(self.tmp_out, arcname='outputs')
+        output_id = re.sub(r"[:,.]", "", ray.state.current_node_id())
+        tmp_tar = (self.tmp_dir / output_id).with_suffix(".tar.gz")
+        with tarfile.open(tmp_tar, "w:gz") as tar:
+            tar.add(self.tmp_in, arcname="inputs")
+            tar.add(self.tmp_out, arcname="outputs")
         shutil.copy(str(tmp_tar), str(out_path))

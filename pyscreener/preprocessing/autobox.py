@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
+
 class PDBRecord(Enum):
     NAME = slice(0, 6)
     ATOM = slice(12, 16)
@@ -14,26 +15,28 @@ class PDBRecord(Enum):
     Y_COORD = slice(38, 46)
     Z_COORD = slice(46, 54)
 
+
 def autobox(
     receptors: Optional[List[str]] = None,
     residues: Optional[List[int]] = None,
     docked_ligand_file: Optional[str] = None,
-    buffer: int = 10
+    buffer: int = 10,
 ) -> Tuple[Tuple, Tuple]:
     if residues:
         center, size = residues(receptors[0], residues)
-        print('Autoboxing from residues with', end=' ')
+        print("Autoboxing from residues with", end=" ")
     else:
         # allow user to only specify one receptor file
         docked_ligand_file = docked_ligand_file or receptors[0]
         center, size = docked_ligand(docked_ligand_file, buffer)
-        print('Autoboxing from docked ligand with', end=' ')
+        print("Autoboxing from docked ligand with", end=" ")
 
-    s_center = f'({center[0]:0.1f}, {center[1]:0.1f}, {center[2]:0.1f})'
-    s_size = f'({size[0]:0.1f}, {size[1]:0.1f}, {size[2]:0.1f})'
-    print(f'center={s_center} and size={s_size}')
+    s_center = f"({center[0]:0.1f}, {center[1]:0.1f}, {center[2]:0.1f})"
+    s_size = f"({size[0]:0.1f}, {size[1]:0.1f}, {size[2]:0.1f})"
+    print(f"center={s_center} and size={s_size}")
 
     return center, size
+
 
 def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a list of protein residues
@@ -56,29 +59,26 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    # ATOM_RECORD_COLUMNS = slice(1, 5)
-    # ATOM_NAME_COLUMNS = slice(13, 17)
-    # RES_NUMBER_COLUMNS = slice(23, 27)
-
     residues = set(residues)
     residue_coords = []
 
     with open(pdbfile) as fid:
         for line in fid:
-            if 'ATOM' == line[PDBRecord.NAME.value].strip():
+            if "ATOM" == line[PDBRecord.NAME.value].strip():
                 break
         lines = chain([line], fid)
         for line in lines:
-            if 'ATOM' != line[PDBRecord.NAME.value].strip():
+            if "ATOM" != line[PDBRecord.NAME.value].strip():
                 break
 
             if (
-                line[PDBRecord.ATOM.value] == 'CA'
+                line[PDBRecord.ATOM.value] == "CA"
                 and line[PDBRecord.RES_SEQ.value] in residues
             ):
                 residue_coords.append(parse_coordinates(line))
-    
+
     return minimum_bounding_box(residue_coords)
+
 
 def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a PDB file containing a docked ligand
@@ -104,28 +104,29 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
     """
     with open(docked_ligand_file) as fid:
         for line in fid:
-            if 'HETATM' == line[PDBRecord.NAME.value].strip():
+            if "HETATM" == line[PDBRecord.NAME.value].strip():
                 break
         fid = chain([line], fid)
         coords = [
             parse_coordinates(line)
-            for line in takewhile(lambda line: 'HETATM' == line[PDBRecord.NAME.value].strip(), fid)
+            for line in takewhile(
+                lambda line: "HETATM" == line[PDBRecord.NAME.value].strip(), fid
+            )
         ]
 
     return minimum_bounding_box(np.array(coords), buffer)
 
+
 def parse_coordinates(line: str) -> Tuple[float, float, float]:
     """Parse the x-, y-, and z-coordinates from an ATOM record in a PDB file"""
-    # X_COORD_COLUMNS = slice(31, 39)
-    # Y_COORD_COLUMNS = slice(39, 47)
-    # Z_COORD_COLUMNS = slice(47, 55)
     x = float(line[PDBRecord.X_COORD.value])
     y = float(line[PDBRecord.Y_COORD.value])
     z = float(line[PDBRecord.Y_COORD.value])
 
     return x, y, z
 
-def minimum_bounding_box(X: np.ndarray, buffer: float = 10.) -> Tuple[Tuple, Tuple]:
+
+def minimum_bounding_box(X: np.ndarray, buffer: float = 10.0) -> Tuple[Tuple, Tuple]:
     """Calculate the minimum bounding box for a list of coordinates
 
     Parameters
@@ -143,23 +144,6 @@ def minimum_bounding_box(X: np.ndarray, buffer: float = 10.) -> Tuple[Tuple, Tup
     radii: Tuple[float, float, float]
         the x-, y-, and z-radii of the minimum bounding box
     """
-    # xs, ys, zs = zip(*X)
-    # min_x, max_x = min(xs), max(xs)
-    # min_y, max_y = min(ys), max(ys)
-    # min_z, max_z = min(zs), max(zs)
-
-    # center_x = (max_x + min_x) / 2
-    # center_y = (max_y + min_y) / 2
-    # center_z = (max_z + min_z) / 2
-
-    # size_x = max_x - center_x + buffer
-    # size_y = max_y - center_y + buffer
-    # size_z = max_z - center_z + buffer
-
-    # center = center_x, center_y, center_z
-    # size = size_x, size_y, size_z
-
-    # return center, size
     center = (X.max(axis=0) + X.min(axis=0)) / 2
     radii = X.max(axis=0) - center + buffer
 

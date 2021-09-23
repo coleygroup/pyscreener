@@ -50,8 +50,7 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     pdbfile : str
         a PDB-format file containing the protein of interest
     residues: List[int]
-        the residue number corresponding to the residues from which to
-        calculate the autobox
+        the residue numbers corresponding to the residues from which to calculate the autobox
 
     Returns
     -------
@@ -64,7 +63,7 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     if len(residues) == 0:
         raise ValueError("No residues were specified!")
 
-    residue_coords = []
+    coords = []
 
     with open(pdbfile) as fid:
         for line in fid:
@@ -76,12 +75,17 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
                 break
 
             if (
-                line[PDBRecord.ATOM.value] == "CA"
-                and line[PDBRecord.RES_SEQ.value] in residues
+                line[PDBRecord.ATOM.value].strip() == "CA"
+                and line[PDBRecord.RES_SEQ.value].strip() in residues
             ):
-                residue_coords.append(parse_coordinates(line))
+                coords.append(parse_coordinates(line))
 
-    return minimum_bounding_box(residue_coords)
+    if len(coords) == 0:
+        raise ValueError(
+            f'PDB file "{pdbfile} does not contain any of the residue numbers: {residues}!"'
+        )
+
+    return minimum_bounding_box(np.array(coords))
 
 
 def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tuple]:
@@ -96,7 +100,7 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
     ----------
     docked_ligand_file : str
         a PDB-format file containing the coordinates of a docked ligand
-    buffer : int (Default = 10)
+    buffer : int, default=10.
         the buffer to add around the ligand autobox, in Angstroms
 
     Returns
@@ -144,7 +148,7 @@ def minimum_bounding_box(X: np.ndarray, buffer: float = 10.0) -> Tuple[Tuple, Tu
     X : np.ndarray
         an `n x 3` array of x-, y-, z-coordinates, respectively, of points from which to construct
         a minimum bounding box
-    buffer : float (Default = 10.)
+    buffer : float, default=10.
         the amount of buffer to add to the minimum bounding box
 
     Returns

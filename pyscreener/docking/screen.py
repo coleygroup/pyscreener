@@ -12,7 +12,7 @@ import numpy as np
 import ray
 
 # from pyscreener.base import VirtualScreen
-from pyscreener.utils import ScoreMode, calc_score
+from pyscreener.utils import ScoreMode
 from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata

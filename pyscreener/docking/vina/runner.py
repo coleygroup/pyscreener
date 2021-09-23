@@ -53,13 +53,13 @@ class VinaRunner(DockingRunner):
 
     @staticmethod
     def prepare_and_run(data: CalculationData) -> CalculationData:
-        data = VinaRunner.prepare_ligand(data)
+        VinaRunner.prepare_from_smi(data)
         VinaRunner.run(data)
 
         return data
 
     @staticmethod
-    def prepare_ligand(data: CalculationData) -> CalculationData:
+    def prepare_from_smi(data: CalculationData) -> CalculationData:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters

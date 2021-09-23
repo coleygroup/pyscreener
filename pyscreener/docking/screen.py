@@ -13,11 +13,11 @@ import ray
 
 # from pyscreener.base import VirtualScreen
 from pyscreener.utils import ScoreMode, calc_score
-from pyscreener.preprocessing import pdbfix
+from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import reduce_scores, run_on_all_nodes, calc_ligand_score
+from pyscreener.docking.utils import reduce_scores, run_on_all_nodes
 
 
 class DockingVirtualScreen:
@@ -29,6 +29,8 @@ class DockingVirtualScreen:
         size: Optional[Tuple],
         metadata_template: CalculationMetadata,
         pdbids: Optional[Sequence[str]] = None,
+        docked_ligand_file: Optional[str] = None,
+        buffer = 10.,
         ncpu: int = 1,
         base_name: str = "ligand",
         path: Union[str, Path] = ".",
@@ -46,25 +48,43 @@ class DockingVirtualScreen:
         self.metadata = metadata_template
         self.base_name = base_name
         self.path = path
-        self.score_mode = score_mode
-        self.repeat_score_mode = repeat_score_mode
-        self.ensemble_score_mode = ensemble_score_mode
+
+        self.score_mode = (
+            score_mode if isinstance(score_mode, ScoreMode)
+            else ScoreMode.from_str(score_mode)
+        )
+        self.repeat_score_mode = (
+            repeat_score_mode if isinstance(repeat_score_mode, ScoreMode)
+            else ScoreMode.from_str(repeat_score_mode)
+        )
+        self.ensemble_score_mode = (
+            ensemble_score_mode if isinstance(ensemble_score_mode, ScoreMode)
+            else ScoreMode.from_str(ensemble_score_mode)
+        )
+
         self.repeats = repeats
         self.k = k
 
         self.receptors = receptors or []
         if pdbids is not None:
-            receptors.extend(
+            self.receptors.extend(
                 [pdbfix.pdbfix(pdbid=pdbid, path=self.path) for pdbid in pdbids]
             )
 
+        if center is None and size is None:
+            self.center, self.size = autobox.docked_ligand(docked_ligand_file, buffer)
+            print(
+                f'Autoboxed ligand from "{docked_ligand_file}" with', 
+                f'center={self.center} and size={self.size}', flush=True
+            )
+            
         self.tmp_dir = tempfile.gettempdir()
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
 
         self.data_templates = [
             CalculationData(
-                None, receptor, center, size, copy(metadata_template), ncpu,
-                base_name, None, self.tmp_in, self.tmp_out, score_mode, k,
+                None, receptor, self.center, self.size, copy(metadata_template), ncpu,
+                base_name, None, self.tmp_in, self.tmp_out, self.score_mode, k,
             )
             for receptor in receptors
         ]
@@ -79,10 +99,13 @@ class DockingVirtualScreen:
 
         self.planned_simulationsss = []
         self.completed_simulationsss = []
-        self.num_simulations = 0
+
+        self.num_ligands = 0
+        self.total_simulations = 0
 
     def __len__(self):
-        return self.num_simulations
+        """the number of ligands that have been simulated. NOT the total number of simulations"""
+        return self.num_ligands
 
     @run_on_all_nodes
     def prepare_receptors(self):
@@ -123,6 +146,7 @@ class DockingVirtualScreen:
     def tmp_in(self, path: Union[str, Path]):
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
+
         self.__tmp_in = path
 
     @property
@@ -133,6 +157,7 @@ class DockingVirtualScreen:
     def tmp_out(self, path: Union[str, Path]):
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
+
         self.__tmp_out = path
 
     def __call__(self, *smis: Iterable[str]) -> np.ndarray:
@@ -147,7 +172,8 @@ class DockingVirtualScreen:
             ],
             dtype=float,
         )
-        self.num_simulations += len(S)
+        self.num_ligands += len(S)
+        self.total_simulations += S.size
 
         return reduce_scores(
             S, self.repeat_score_mode, self.ensemble_score_mode, self.k

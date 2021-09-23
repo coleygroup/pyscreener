@@ -7,12 +7,12 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 class PDBRecord(Enum):
-    ATOM_TYPE = slice(1, 5)
-    ATOM_NAME = slice(13, 17)
-    RES_NUMBER = slice(23, 27)
-    X_COORD = slice(31, 39)
-    Y_COORD = slice(39, 47)
-    Z_COORD = slice(47, 55)
+    NAME = slice(0, 6)
+    ATOM = slice(12, 16)
+    RES_SEQ = slice(22, 26)
+    X_COORD = slice(30, 38)
+    Y_COORD = slice(38, 46)
+    Z_COORD = slice(46, 54)
 
 def autobox(
     receptors: Optional[List[str]] = None,
@@ -65,16 +65,16 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
 
     with open(pdbfile) as fid:
         for line in fid:
-            if 'ATOM' == line[PDBRecord.ATOM_TYPE.value]:
+            if 'ATOM' == line[PDBRecord.NAME.value].strip():
                 break
         lines = chain([line], fid)
         for line in lines:
-            if 'ATOM' != line[PDBRecord.ATOM_TYPE.value]:
+            if 'ATOM' != line[PDBRecord.NAME.value].strip():
                 break
 
             if (
-                line[PDBRecord.ATOM_NAME.value] == 'CA'
-                and line[PDBRecord.RES_NUMBER.value] in residues
+                line[PDBRecord.ATOM.value] == 'CA'
+                and line[PDBRecord.RES_SEQ.value] in residues
             ):
                 residue_coords.append(parse_coordinates(line))
     
@@ -104,12 +104,12 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
     """
     with open(docked_ligand_file) as fid:
         for line in fid:
-            if 'HETATM' == line[PDBRecord.ATOM_TYPE.value]:
+            if 'HETATM' == line[PDBRecord.NAME.value].strip():
                 break
         fid = chain([line], fid)
         coords = [
             parse_coordinates(line)
-            for line in takewhile(lambda line: 'HETATM' == line[PDBRecord.ATOM_TYPE.value], fid)
+            for line in takewhile(lambda line: 'HETATM' == line[PDBRecord.NAME.value].strip(), fid)
         ]
 
     return minimum_bounding_box(np.array(coords), buffer)
@@ -119,7 +119,6 @@ def parse_coordinates(line: str) -> Tuple[float, float, float]:
     # X_COORD_COLUMNS = slice(31, 39)
     # Y_COORD_COLUMNS = slice(39, 47)
     # Z_COORD_COLUMNS = slice(47, 55)
-
     x = float(line[PDBRecord.X_COORD.value])
     y = float(line[PDBRecord.Y_COORD.value])
     z = float(line[PDBRecord.Y_COORD.value])
@@ -161,8 +160,7 @@ def minimum_bounding_box(X: np.ndarray, buffer: float = 10.) -> Tuple[Tuple, Tup
     # size = size_x, size_y, size_z
 
     # return center, size
-
-    center = (X.max(axis=0) - X.min(axis=0)) / 2
-    radii = X.max(0) - center + buffer
+    center = (X.max(axis=0) + X.min(axis=0)) / 2
+    radii = X.max(axis=0) - center + buffer
 
     return tuple(center), tuple(radii)

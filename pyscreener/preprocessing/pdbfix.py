@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from pdbfixer import PDBFixer
-from simtk.openmm.app import PDBFile
+from openmm.app import PDBFile
 
 def pdbfix(receptor: Optional[str] = None, pdbid: Optional[str] = None, 
            pH: float = 7.0, path: str = '.', **kwargs) -> str:

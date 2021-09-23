@@ -1,11 +1,15 @@
 import functools
 from typing import Callable, Optional
-import numpy as np
 
+import numpy as np
 import ray
 
 from pyscreener.utils import ScoreMode
+from pyscreener.docking.metadata import CalculationMetadata
 
+
+def build_metadata(**kwargs) -> CalculationMetadata:
+    pass
 
 def run_on_all_nodes(func: Callable) -> Callable:
     """Run a function on all nodes in the ray cluster"""
@@ -59,7 +63,7 @@ def reduce_scores(
         S_e = np.exp(-S)
         Z = S_e / np.nansum(S_e, axis=2)[:, :, None]
         S = np.nansum((S * Z), axis=2)
-    elif repeat_score_mode == ScoreMode.TOP_K_AVG:
+    elif repeat_score_mode == ScoreMode.TOP_K:
         S = np.nanmean(np.sort(S, axis=2)[:, :k], axis=2)
 
     if ensemble_score_mode == ScoreMode.BEST:
@@ -70,7 +74,7 @@ def reduce_scores(
         S_e = np.exp(-S)
         Z = S_e / np.nansum(S_e, axis=1)[:, None]
         S = np.nansum((S * Z), axis=1)
-    elif ensemble_score_mode == ScoreMode.TOP_K_AVG:
+    elif ensemble_score_mode == ScoreMode.TOP_K:
         S = np.nanmean(np.sort(S, axis=1)[:, :, :k], axis=1)
 
     return S

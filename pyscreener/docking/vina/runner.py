@@ -18,8 +18,7 @@ class VinaRunner(DockingRunner):
     @staticmethod
     def prepare(data: CalculationData) -> CalculationData:
         data = VinaRunner.prepare_receptor(data)
-        # TODO(degraff): fix this to accept input ligand files
-        data = VinaRunner.prepare_from_smi(data)
+        data = VinaRunner.prepare_ligand(data)
 
         return data
 
@@ -35,8 +34,7 @@ class VinaRunner(DockingRunner):
         Returns
         -------
         receptor_pdbqt : Optional[str]
-            the filepath of the resulting PDBQT file.
-            None if preparation failed
+            the filepath of the resulting PDBQT file. None if preparation failed
         """
         receptor_pdbqt = Path(data.receptor).with_suffix(".pdbqt")
         receptor_pdbqt = Path(data.in_path) / receptor_pdbqt.name
@@ -53,8 +51,17 @@ class VinaRunner(DockingRunner):
 
     @staticmethod
     def prepare_and_run(data: CalculationData) -> CalculationData:
-        VinaRunner.prepare_from_smi(data)
+        VinaRunner.prepare_ligand(data)
         VinaRunner.run(data)
+
+        return data
+
+    @staticmethod
+    def prepare_ligand(data: CalculationData) -> CalculationData:
+        if data.smi is not None:
+            VinaRunner.prepare_from_smi(data)
+        else:
+            VinaRunner.prepare_from_file(data)
 
         return data
 

@@ -1,12 +1,14 @@
+from collections.abc import Iterable
 from copy import copy
 from dataclasses import replace
 from datetime import datetime
+from itertools import chain
 from pathlib import Path
 import re
 import shutil
 import tarfile
 import tempfile
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import ray
@@ -32,7 +34,7 @@ class DockingVirtualScreen:
         metadata_template: CalculationMetadata,
         pdbids: Optional[Sequence[str]] = None,
         docked_ligand_file: Optional[str] = None,
-        buffer=10.0,
+        buffer: float = 10.0,
         ncpu: int = 1,
         base_name: str = "ligand",
         path: Union[str, Path] = ".",
@@ -192,8 +194,39 @@ class DockingVirtualScreen:
 
         self.__tmp_out = path
 
-    def __call__(self, *smis: Iterable[str]) -> np.ndarray:
-        planned_simulationsss = self.plan(smis)
+    def __call__(self, *sources: Iterable[Union[str, Iterable[str]]]) -> np.ndarray:
+        """dock all of the ligands and return an array of their scores
+
+        This function may be called with invidual ligand sources, lists of ligand sources, or a
+        combination thereof, where a "source" is either an invidual SMILES string or the path
+        to a chemical supply file. E.g.,
+
+        >>> vs = DockingVirtualScreen(...)
+        >>> vs('c1ccccc1', 'CCCC', 'CC(=O)')
+        ...
+        >>> vs(['c1ccccc1', 'CCCC', 'CC(=O)'])
+        ...
+        >>> vs('c1ccccc1', ['CCCC', 'CC(=O)'])
+        ...
+        >>> vs(['c1ccccc1', ...], 'CCCC', ['CC(=O)', ...])
+        ...
+
+        Parameters
+        ----------
+        *sources : Iterable[Union[str, Iterable[str]]]
+            the SMILES strings of the ligands to dock
+
+        Returns
+        -------
+        np.ndarray
+            a vector of length `n`, where `n` is the total number of ligands ligands that were
+            supplied
+        """
+        sources = list(
+            chain(*([s] if not isinstance(s, Iterable) else s for s in sources))
+        )
+
+        planned_simulationsss = self.plan(sources)
         completed_simulationsss = self.run(planned_simulationsss)
 
         self.completed_simulationsss.extend(completed_simulationsss)
@@ -211,22 +244,40 @@ class DockingVirtualScreen:
             S, self.repeat_score_mode, self.ensemble_score_mode, self.k
         )
 
-    def plan(self, smis: Iterable[str]) -> List[List[List[CalculationData]]]:
-        planned_simulationsss = [
-            [
+    def plan(
+        self, sources: Iterable[str], smiles: bool = True
+    ) -> List[List[List[CalculationData]]]:
+        if smiles:
+            planned_simulationsss = [
                 [
-                    replace(
-                        data_template,
-                        smi=smi,
-                        name=f"{self.base_name}_{i+len(self)}_{j}",
-                    )
-                    for j in range(self.repeats)
+                    [
+                        replace(
+                            data_template,
+                            smi=smi,
+                            name=f"{self.base_name}_{i+len(self)}_{j}",
+                        )
+                        for j in range(self.repeats)
+                    ]
+                    for data_template in self.data_templates
                 ]
-                for data_template in self.data_templates
+                for i, smi in enumerate(sources)
             ]
-            for i, smi in enumerate(smis)
-        ]
-
+        else:
+            planned_simulationsss = [
+                [
+                    [
+                        replace(
+                            data_template,
+                            input_file=filepath,
+                            name=f"{self.base_name}_{i+len(self)}_{j}",
+                        )
+                        for j in range(self.repeats)
+                    ]
+                    for data_template in self.data_templates
+                ]
+                for i, filepath in enumerate(sources)
+            ]
+            
         return planned_simulationsss
 
     def prepare(self):
@@ -271,7 +322,9 @@ class DockingVirtualScreen:
 
         output_id = re.sub(r"[:,.]", "", ray.state.current_node_id())
         tmp_tar = (self.tmp_dir / output_id).with_suffix(".tar.gz")
+
         with tarfile.open(tmp_tar, "w:gz") as tar:
             tar.add(self.tmp_in, arcname="inputs")
             tar.add(self.tmp_out, arcname="outputs")
+
         shutil.copy(str(tmp_tar), str(out_path))

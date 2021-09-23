@@ -50,7 +50,7 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
       1. `tar -xzvf sphgen_cpp.1.2.tar.gz`
       1. `cd sphgen_cpp.1.2`
       1. `make`
-  1. place the sphgen_cpp executable (it should be `sphgen_cpp`) inside the `bin` subdirectory of the DOCK6 parent directory. If you've configured the environment variable already, you can run: `mv sphgen_cpp $DOCK6/bin`
+  1. place the sphgen_cpp executable (it should be `sphgen_cpp`) inside the `bin` subdirectory of the DOCK6 parent directory. If you've configured the environment variable already, (on linux) you can run: `mv sphgen_cpp $DOCK6/bin`
   1. [install chimera](https://www.cgl.ucsf.edu/chimera/download.html) and place the file on your PATH as detailed [below](#adding-an-executable-to-your-path)
 
 #### adding an executable to your PATH
@@ -59,7 +59,7 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 To add an executable to your PATH, you have three options:
 1. create a symbolic link to the executable inside a directory that is already on your path: `ln -s FILE -t DIR`. Typically, `~/bin` or `~/.local/bin` are good target directories (i.e., `DIR`). To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory (`$HOME` on most *nix-based systems)
 1. copy the software to a directory that is already on your path. Similar, though less preferred than the above: `cp FILE DIR`
-1. append the directory containing the file to your PATH: `export PATH=$PATH:<DIR>`, where `<DIR>` is the directory containing the file in question. As your PATH must be configured each time run pyscreener, this command should also be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
+1. append the directory containing the file to your PATH: `export PATH=$PATH:DIR`, where `DIR` is the directory containing the file in question. As your PATH must be configured each time run pyscreener, this command should also be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
 #### specifying an environment variable
 To set the `DOCK6` environment variable, run the following command: `export DOCK6=<path/to/dock6>`, where `<path/to/dock6>` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.

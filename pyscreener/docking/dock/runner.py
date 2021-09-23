@@ -67,8 +67,6 @@ class DOCKRunner(DockingRunner):
         None
             if receptor preparation fails at any point
         """
-        # receptor_pdbqt = Path(data.receptor).with_suffix('.pdbqt')
-        # receptor_pdbqt = Path(data.in_path) / receptor_pdbqt.name
         rec_mol2 = utils.prepare_mol2(data.receptor, data.in_path)
         rec_pdb = utils.prepare_pdb(data.receptor, data.in_path)
         if rec_mol2 is None or rec_pdb is None:
@@ -118,9 +116,18 @@ class DOCKRunner(DockingRunner):
 
     @staticmethod
     def prepare_and_run(data: CalculationData) -> CalculationData:
-        DOCKRunner.prepare_from_smi(data)
+        DOCKRunner.prepare_ligand(data)
         DOCKRunner.run(data)
 
+        return data
+
+    @staticmethod
+    def prepare_ligand(data: CalculationData) -> CalculationData:
+        if data.smi is not None:
+            DOCKRunner.prepare_from_smi(data)
+        else:
+            DOCKRunner.prepare_from_file(data)
+        
         return data
 
     @staticmethod

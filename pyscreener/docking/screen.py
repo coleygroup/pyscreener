@@ -17,32 +17,44 @@ from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import reduce_scores, run_on_all_nodes
+from pyscreener.docking.utils import ScreenType, reduce_scores, run_on_all_nodes
+from pyscreener.docking.vina import VinaRunner
+from pyscreener.docking.dock import DOCKRunner
 
 
 class DockingVirtualScreen:
     def __init__(
         self,
-        runner: DockingRunner,
+        screen_type: Union[ScreenType, str],
         receptors: Optional[Iterable[str]],
         center: Optional[Tuple],
         size: Optional[Tuple],
         metadata_template: CalculationMetadata,
         pdbids: Optional[Sequence[str]] = None,
         docked_ligand_file: Optional[str] = None,
-        buffer = 10.,
+        buffer=10.0,
         ncpu: int = 1,
         base_name: str = "ligand",
         path: Union[str, Path] = ".",
-        score_mode: ScoreMode = ScoreMode.BEST,
-        repeat_score_mode: ScoreMode = ScoreMode.BEST,
-        ensemble_score_mode: ScoreMode = ScoreMode.BEST,
+        score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
+        repeat_score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
+        ensemble_score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
         repeats: int = 1,
         k: int = 1,
     ):
         # super().__init__()
+        screen_type = (
+            screen_type
+            if isinstance(screen_type, ScreenType)
+            else ScreenType.from_str(screen_type)
+        )
+        if screen_type == ScreenType.DOCK:
+            self.runner = DOCKRunner
+        elif screen_type == ScreenType.VINA:
+            self.runner = VinaRunner
+        else:
+            raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
 
-        self.runner = runner
         self.center = center
         self.size = size
         self.metadata = metadata_template
@@ -50,15 +62,18 @@ class DockingVirtualScreen:
         self.path = path
 
         self.score_mode = (
-            score_mode if isinstance(score_mode, ScoreMode)
+            score_mode
+            if isinstance(score_mode, ScoreMode)
             else ScoreMode.from_str(score_mode)
         )
         self.repeat_score_mode = (
-            repeat_score_mode if isinstance(repeat_score_mode, ScoreMode)
+            repeat_score_mode
+            if isinstance(repeat_score_mode, ScoreMode)
             else ScoreMode.from_str(repeat_score_mode)
         )
         self.ensemble_score_mode = (
-            ensemble_score_mode if isinstance(ensemble_score_mode, ScoreMode)
+            ensemble_score_mode
+            if isinstance(ensemble_score_mode, ScoreMode)
             else ScoreMode.from_str(ensemble_score_mode)
         )
 
@@ -71,20 +86,37 @@ class DockingVirtualScreen:
                 [pdbfix.pdbfix(pdbid=pdbid, path=self.path) for pdbid in pdbids]
             )
 
-        if center is None and size is None:
-            self.center, self.size = autobox.docked_ligand(docked_ligand_file, buffer)
+        if self.center is None:
+            try:
+                self.center, size = autobox.docked_ligand(docked_ligand_file, buffer)
+            except TypeError:
+                raise ValueError(
+                    '"center" and "docked_ligand_file" are both None! Cannot compute docking box.'
+                )
+            self.size = self.size or size
             print(
-                f'Autoboxed ligand from "{docked_ligand_file}" with', 
-                f'center={self.center} and size={self.size}', flush=True
+                f'Autoboxed ligand from "{docked_ligand_file}" with',
+                f"center={self.center} and size={self.size}",
+                flush=True,
             )
-            
+
         self.tmp_dir = tempfile.gettempdir()
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
 
         self.data_templates = [
             CalculationData(
-                None, receptor, self.center, self.size, copy(metadata_template), ncpu,
-                base_name, None, self.tmp_in, self.tmp_out, self.score_mode, k,
+                None,
+                receptor,
+                self.center,
+                self.size,
+                copy(metadata_template),
+                ncpu,
+                base_name,
+                None,
+                self.tmp_in,
+                self.tmp_out,
+                self.score_mode,
+                k,
             )
             for receptor in receptors
         ]
@@ -204,10 +236,7 @@ class DockingVirtualScreen:
         self, planned_simulationsss: List[List[List[CalculationData]]]
     ) -> List[List[List[CalculationData]]]:
         refsss = [
-            [
-                [self.prepare_and_run.remote(s) for s in sims]
-                for sims in simss
-            ]
+            [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
             for simss in planned_simulationsss
         ]
         return [[ray.get(refs) for refs in refss] for refss in refsss]

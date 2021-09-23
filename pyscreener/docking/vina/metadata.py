@@ -42,7 +42,7 @@ class VinaMetadata(CalculationMetadata):
     prepared_ligand: Optional[Union[str, Path]] = None,
     prepared_receptor: Optional[Union[str, Path]] = None
     """
-    software: Software
+    software: Software = Software.VINA
     extra: Optional[str] = None
     prepared_ligand: Optional[Union[str, Path]] = None
     prepared_receptor: Optional[Union[str, Path]] = None

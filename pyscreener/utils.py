@@ -3,25 +3,29 @@ from typing import Sequence
 
 import numpy as np
 
-class ScoreMode(Enum):
+
+class AutoName(Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    @classmethod
+    def from_str(cls, s):
+        return cls[s.replace("-", "_").upper()]
+
+
+class ScoreMode(AutoName):
     """The method by which to calculate a score from multiple possible scores.
     Used when calculating an overall docking score from multiple conformations,
     multiple repeated runs, or docking against an ensemble of receptors."""
-    def _generate_next_value_(name, start, count, last_values):
-        return name
 
     AVG = auto()
     BEST = auto()
     BOLTZMANN = auto()
     TOP_K = auto()
 
-    @classmethod
-    def from_str(cls, s):
-        return cls[s.replace('-','_').upper()]
 
 def calc_score(
-    scores: Sequence[float],
-    score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
+    scores: Sequence[float], score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
 ) -> float:
     """Calculate an overall score from a sequence of scores
 
@@ -50,5 +54,5 @@ def calc_score(
         return np.nansum(Y * Z)
     elif score_mode == ScoreMode.TOP_K:
         return np.nanmean(Y.sort()[:k])
-        
-    raise ValueError(f'Invalid ScoreMode! got: {score_mode}')
+
+    raise ValueError(f"Invalid ScoreMode! got: {score_mode}")

@@ -1,3 +1,6 @@
+class BadPDBFileError(Exception):
+    pass
+
 class MissingEnvironmentVariableError(Exception):
     pass
 

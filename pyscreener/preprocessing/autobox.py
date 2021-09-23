@@ -2,6 +2,7 @@
 simulations"""
 from enum import Enum
 from itertools import chain, takewhile
+from pyscreener.exceptions import BadPDBFileError
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -60,6 +61,9 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
         the x-, y-, and z-radii of the ligand autobox
     """
     residues = set(residues)
+    if len(residues) == 0:
+        raise ValueError("No residues were specified!")
+
     residue_coords = []
 
     with open(pdbfile) as fid:
@@ -114,14 +118,20 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
             )
         ]
 
+    if len(coords == 0):
+        raise BadPDBFileError(f'No HETATM coordinates could be parsed from "{docked_ligand_file}"')
+
     return minimum_bounding_box(np.array(coords), buffer)
 
 
 def parse_coordinates(line: str) -> Tuple[float, float, float]:
-    """Parse the x-, y-, and z-coordinates from an ATOM record in a PDB file"""
-    x = float(line[PDBRecord.X_COORD.value])
-    y = float(line[PDBRecord.Y_COORD.value])
-    z = float(line[PDBRecord.Y_COORD.value])
+    """Parse the x-, y-, and z-coordinates from an ATOM/HETATM record in a PDB file"""
+    try:
+        x = float(line[PDBRecord.X_COORD.value])
+        y = float(line[PDBRecord.Y_COORD.value])
+        z = float(line[PDBRecord.Y_COORD.value])
+    except:
+        raise BadPDBFileError(f'could not parse line: "{line}"')
 
     return x, y, z
 

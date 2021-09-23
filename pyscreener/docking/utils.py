@@ -1,15 +1,34 @@
+from dataclasses import asdict
+from enum import auto
 import functools
 from typing import Callable, Optional
 
 import numpy as np
 import ray
 
-from pyscreener.utils import ScoreMode
+from pyscreener.utils import AutoName, ScoreMode
 from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.docking import dock, vina
 
 
-def build_metadata(**kwargs) -> CalculationMetadata:
-    pass
+class ScreenType(AutoName):
+    DOCK = auto()
+    VINA = auto()
+
+
+def build_metadata(screen_type: ScreenType, **kwargs) -> CalculationMetadata:
+    if screen_type == ScreenType.DOCK:
+        d_md = asdict(dock.DOCKMetadata())
+        d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
+        return dock.DOCKMetadata(**d_md)
+
+    elif screen_type == ScreenType.DOCK:
+        d_md = asdict(vina.VinaMetadata())
+        d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
+        return vina.VinaMetadata(**d_md)
+
+    raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
+
 
 def run_on_all_nodes(func: Callable) -> Callable:
     """Run a function on all nodes in the ray cluster"""

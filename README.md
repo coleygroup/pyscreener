@@ -56,18 +56,19 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 #### adding an executable to your PATH
 <!-- `pyscreener` is not a virtual screening software in itself. Rather, it is a wrapper around common VS software to enable a simple and common interface between them without having to learn the ins and outs of the preparation and simulation pipeline for each different software. With that in mind, it is up to the user to install the appropriate virtual screening software and place them on their PATH. -->
 
-To add a file to your PATH, you have two options:
+To add an executable to your PATH, you have three options:
+1. create a symbolic link to the executable inside a directory that is already on your path: `ln -s FILE -t DIR`. Typically, `~/bin` or `~/.local/bin` are good target directories (i.e., `DIR`). To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory (`$HOME` on most *nix-based systems)
+1. copy the software to a directory that is already on your path. Similar, though less preferred than the above: `cp FILE DIR`
 1. append the directory containing the file to your PATH: `export PATH=$PATH:<DIR>`, where `<DIR>` is the directory containing the file in question. As your PATH must be configured each time run pyscreener, this command should also be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
-1. copy the software to a directory that is already on your path. Typically, these directories will include `~/bin` or `~/.local/bin`. To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory (`$HOME` on most *nix-based systems)
 
 #### specifying an environment variable
 To set the `DOCK6` environment variable, run the following command: `export DOCK6=<path/to/dock6>`, where `<path/to/dock6>` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
 ## Setup
-pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, you need only run `ray start --head` __before__ running pyscreener. However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster.
+pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, don't need to do anything . However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster __before__ running pyscreener.
 
 #### Limiting the number of cores
-To do this, simply type `ray start --head --num-cpus <N>` before starting pyscreener (where `<N>` is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
+To do this, simply type `ray start --head --num-cpus N` before starting pyscreener (where `N` is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
 
 #### Distributing across many nodes
 While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([run_pyscreener_distributed_example.batch](run_pyscreener_distributed_example.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html)

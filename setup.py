@@ -49,7 +49,7 @@ setup(
         'importlib_resources; python_version < "3.7.0"',
         'h5py',
         'numpy',
-        'ray',
+        'ray[default]',
         'pandas',
         'pdbfixer @ git+https://github.com/openmm/pdbfixer.git',
         'scikit_learn',

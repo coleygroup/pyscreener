@@ -43,14 +43,6 @@ class DOCKRunner(DockingRunner):
     @staticmethod
     def prepare(data: CalculationData) -> CalculationData:
         data = DOCKRunner.prepare_receptor(data)
-        # TODO(degraff): fix this to accept input ligand files
-        data = DOCKRunner.prepare_from_smi(data)
-
-        return data
-
-    @staticmethod
-    def prepare(data: CalculationData) -> CalculationData:
-        data = DOCKRunner.prepare_receptor(data)
         data = DOCKRunner.prepare_ligand(data)
 
         return data
@@ -103,7 +95,7 @@ class DOCKRunner(DockingRunner):
             data.size,
             data.metadata.docked_ligand_file,
             data.metadata.buffer,
-            data.metadata.in_path,
+            data.in_path,
         )
 
         rec_box = utils.prepare_box(
@@ -122,6 +114,13 @@ class DOCKRunner(DockingRunner):
             return data
 
         data.metadata.prepared_receptor = rec_sph, grid_stem
+        return data
+
+    @staticmethod
+    def prepare_and_run(data: CalculationData) -> CalculationData:
+        DOCKRunner.prepare_from_smi(data)
+        DOCKRunner.run(data)
+
         return data
 
     @staticmethod
@@ -252,8 +251,8 @@ class DOCKRunner(DockingRunner):
         )
 
         # out = Path(f'{outfile_prefix}_scored.mol2')
-        log = Path(outfile_prefix).parent / f"{name}.out"
-        argv = [str(DOCK), "-i", infile, "-o", log]
+        outfile = Path(outfile_prefix).parent / f"{name}.out"
+        argv = [str(DOCK), "-i", infile, "-o", outfile]
 
         ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
         try:
@@ -262,7 +261,7 @@ class DOCKRunner(DockingRunner):
             print(f"ERROR: docking failed. argv: {argv}", file=sys.stderr)
             print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
 
-        scores = DOCKRunner.parse_log_file(log)
+        scores = DOCKRunner.parse_outfile(outfile)
         if scores is None:
             score = None
         else:
@@ -299,7 +298,7 @@ class DOCKRunner(DockingRunner):
         scores = []
         for line in score_lines:
             try:
-                scores.append(float(line.split()[2]))
+                scores.append(float(line.split()[1]))
             except ValueError:
                 continue
         # scores = [float(line.split()[2]) for line in score_lines]

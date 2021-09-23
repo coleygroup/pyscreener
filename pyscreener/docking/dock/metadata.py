@@ -21,13 +21,11 @@ class DOCKMetadata(CalculationMetadata):
     center : Optional[Tuple[float, float, float]], default=None
     size : Tuple[float, float, float], default=(10., 10., 10.)
     """
-    center: Optional[Tuple[float, float, float]] = None
-    size: Tuple[float, float, float] = (10., 10., 10.)
     probe_radius: float = 1.4
-    steric_clash_dist: float = 0.0,
+    steric_clash_dist: float = 0.0
     min_radius: float = 1.4
-    max_radius: float = 4.0,
-    sphere_mode: SphereMode = SphereMode.LARGEST
+    max_radius: float = 4.0
+    sphere_mode: SphereMode = SphereMode.BOX
     docked_ligand_file: Optional[str] = None
     enclose_spheres: bool = True
     buffer: float = 10.

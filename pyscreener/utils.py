@@ -2,16 +2,22 @@ from enum import Enum, auto
 from typing import Sequence
 
 import numpy as np
-from numpy.lib.nanfunctions import nanmean
 
 class ScoreMode(Enum):
     """The method by which to calculate a score from multiple possible scores.
     Used when calculating an overall docking score from multiple conformations,
     multiple repeated runs, or docking against an ensemble of receptors."""
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
     AVG = auto()
     BEST = auto()
     BOLTZMANN = auto()
-    TOP_K_AVG = auto()
+    TOP_K = auto()
+
+    @classmethod
+    def from_str(cls, s):
+        return cls[s.replace('-','_').upper()]
 
 def calc_score(
     scores: Sequence[float],
@@ -42,7 +48,7 @@ def calc_score(
         Y_e = np.exp(-Y)
         Z = Y_e / np.nansum(Y_e)
         return np.nansum(Y * Z)
-    elif score_mode == ScoreMode.TOP_K_AVG:
+    elif score_mode == ScoreMode.TOP_K:
         return np.nanmean(Y.sort()[:k])
         
-    return Y.min()
+    raise ValueError(f'Invalid ScoreMode! got: {score_mode}')

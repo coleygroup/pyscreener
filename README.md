@@ -18,16 +18,12 @@ This repository contains the source of pyscreener, both a library and software f
 - [Running pyscreener](#running-pyscreener-as-a-software)
 - [Using pyscreener](#using-pyscreener-as-a-library)
 
-__Note: both of the above steps must be satisifed before using `pyscreener`__
-
-To avoid having to do this every time you start a new shell, you can add whatever commands you typed to your respective shell's startup file (e.g., .bash_profile for a bash shell) (you can also add them to the non-login shell startup file, but it's not good a idea to edit your PATH in these files)
-
 ## Installation
 
 ### General requirements
-- python>=3.6 and the packages in `environment.yml`
-- all corresponding software downloaded and located on your PATH or under the corresponding environment variable PATH (see [external software](#external-software) for more details.)
-- (if using DOCK6-based HTVS) the location of the DOCK6 parent directory in your environment variables
+- python >= 3.6
+- `numpy`, `openbabel`, `openmm`, [`pdbfixer`](git+https://github.com/openmm/pdbfixer.git), `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
+- all corresponding software downloaded and located on your PATH or under the path of a specific environment variable (see [external software](#external-software) for more details.)
 
 ### environment setup with conda
 
@@ -43,7 +39,7 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 ### external software
 * vina-type software
   1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation and follow the directions to add the resulting `bin` folder to your path (you should see a command at the end of the installation process)
-  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and ensure the desired software executable is in a folder that is located on your path
+  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
   1. [obtain a license for DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)
@@ -76,9 +72,9 @@ To do this, simply type `ray start --head --num-cpus <N>` before starting pyscre
 #### Distributing across many nodes
 While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([run_pyscreener_distributed_example.batch](run_pyscreener_distributed_example.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html)
 
-pyscreener writes a lot of intermediate input and output files (due to the inherent specifications of the underlying docking software.) Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to each node's temporary directory (determined by `tempfile.gettempdir()`) and discarded at the end. If you wish to collect these files, pass the `--collect-all` flag in the program arguments or run the `collect_files()` method of your `Screener` object when your screen is complete.
+pyscreener writes a lot of intermediate input and output files (due to the inherent specifications of the underlying docking software.) Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to each node's temporary directory (determined by `tempfile.gettempdir()`) and discarded at the end. If you wish to collect these files, pass the `--collect-all` flag in the program arguments or run the `collect_files()` method of your `VirtualScreen` object when your screen is complete.
 
-*Note*: the `collect_files()` method is **slow** due to the need to send possibly a **bunch** of files over the network. This method should only be run **once** over the lifetime of a `Screener` object, as several intermediate calls will yield the same result as a single, final call.
+*Note*: the `VirtualScreen.collect_files()` method is **slow** due to the need to send possibly a **bunch** of files over the network. This method should only be run **once** over the lifetime of a `VirtualScreen` object, as several intermediate calls will yield the same result as a single, final call.
 
 *Note*: `tempfile.gettempdir()` returns a path that depends the values of specific environment variables (see [here](https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir).) It is possible that the value returned on your system is not actually a valid path for you! In this case you will likely get file permissions errors and must ask your system administrator where this value should point to and then set `TMPDIR` accordingly before running pyscreener! 
 
@@ -97,7 +93,7 @@ All of these options may be specified on the command line, but they may also be 
 ## Using pyscreener as a library
 The object model of pyscreener relies on four classes:
 * [`CalculationData`](pyscreener.docking.data.py): a simple object containing the broadstrokes specifications of a docking calculation common to all types of docking calculations (e.g., Vina, DOCK6, etc.): the SMILES string, the target receptor, the center/size of a docking box, the metadata, and the result.
-* [`CalculationMetadata`](pyscreener.docking.metadata.py): a non-descript object that contains software-specific fields. For example, a Vina-type calculation requires a `software` parameter, whereas a DOCK6 calculation requires a number of different parameters for receptor preparation. Most importantly, the metadata will always contain two fields of abstract type: `prepared_ligand` and `prepared_receptor`. You can inspect the respective metadata classes to learn the concrete type, but the intent is that a user will not be inspecting the metadata object
+* [`CalculationMetadata`](pyscreener.docking.metadata.py): a nondescript object that contains software-specific fields. For example, a Vina-type calculation requires a `software` parameter, whereas a DOCK6 calculation requires a number of different parameters for receptor preparation. Most importantly, the metadata will always contain two fields of abstract type: `prepared_ligand` and `prepared_receptor`. You can inspect the respective metadata classes to learn the concrete type, but the intent is that a user will not be inspecting the metadata object
 * [`DockingRunner`](pyscreener.docking.runner.py): a static object that takes defines an interface to prepare and run docking calculations. Each calculation type defines its own `DockingRunner` implementation.
 * [`DockingVirtualScreen`](pyscreener.docking.screen.py): an object that organizes a virtual screen. At a high level, a virtual is a series of docking calculations with some template set of parameters performed for a collection of molecules and distributed over some set of computational resources. A `DockingVirtualScreen` takes as arguments a `DockingRunner`, a list of receptors (for possible ensemble docking) and a set of template values for a `CalculationData` template. It defines a `__call__(*args)` method that takes an unzipped list of SMILES strings, builds the `CalculationData` objects for each molecule, and submits these objects for preparation and calculation to various resources in the ray cluster (see [setup](#setup)).
 
@@ -117,7 +113,7 @@ the following code snippet will dock benzene (SMILES string c1ccccc1) against th
 [...]
 >>> from pyscreener.docking import screen, vina
 >>> metadata = vina.VinaMetadata(vina.Software.VINA)
->>> vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, 8)
+>>> vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
 >>> scores = vs('c1ccccc1')
 >>> scores
@@ -128,12 +124,11 @@ A few notes from the above example:
 - the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=['5WIU']) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
 - you can manually input the center and size of your docking box, but this must be manually determined before runtime. e.g.
     ```python
-    screener = docking.Vina(software='vina', receptors=['testing_inputs/5WIU.pdb'], center=(-18.2, 14.4, -16.1), size=(15.4, 13.9, 14.5), path='testing_outputs', ncpu=4)
+    vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
     ```
-- the prepared input/output files are stored in $TMPDIR by default. You can manually specify this via the `tmp_dir` argument during the `Vina` intialization. If you want these files at the end of execution, call the function `Screener.collect_all()`. This will collect all the input and output folders and move them under the directory specified by the `path` argument.
 - If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight that you can initialize ray according to your own needs (i.e., distributed setup).
-- you can call the `screener` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`)
+- you can call the `vs` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`)
     
 ## Copyright
 Copyright (c) 2020, david graff

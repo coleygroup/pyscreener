@@ -1,1 +1,2 @@
-from . import metadata, runner
+from .metadata import DOCKMetadata
+from .runner import DOCKRunner

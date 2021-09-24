@@ -1,4 +1,5 @@
-from collections.abc import Iterable
+
+import collections
 from copy import copy
 from dataclasses import replace
 from datetime import datetime
@@ -8,10 +9,11 @@ import re
 import shutil
 import tarfile
 import tempfile
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import ray
+from pyscreener.docking import dock
 
 # from pyscreener.base import VirtualScreen
 from pyscreener.utils import ScoreMode
@@ -89,12 +91,12 @@ class DockingVirtualScreen:
             )
 
         if self.center is None:
-            try:
-                self.center, size = autobox.docked_ligand(docked_ligand_file, buffer)
-            except TypeError:
+            if docked_ligand_file is None:
                 raise ValueError(
                     '"center" and "docked_ligand_file" are both None! Cannot compute docking box.'
                 )
+
+            self.center, size = autobox.docked_ligand(docked_ligand_file, buffer)
             self.size = self.size or size
             print(
                 f'Autoboxed ligand from "{docked_ligand_file}" with',
@@ -223,7 +225,7 @@ class DockingVirtualScreen:
             supplied
         """
         sources = list(
-            chain(*([s] if not isinstance(s, Iterable) else s for s in sources))
+            chain(*([s] if isinstance(s, str) else s for s in sources))
         )
 
         planned_simulationsss = self.plan(sources)
@@ -277,7 +279,7 @@ class DockingVirtualScreen:
                 ]
                 for i, filepath in enumerate(sources)
             ]
-            
+
         return planned_simulationsss
 
     def prepare(self):

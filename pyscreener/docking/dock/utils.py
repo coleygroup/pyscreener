@@ -2,7 +2,7 @@ try:
     from importlib import resources
 except ModuleNotFoundError:
     import importlib_resources as resources
-from enum import Enum, auto
+from enum import auto
 from itertools import takewhile
 import os
 from pathlib import Path
@@ -15,6 +15,7 @@ from pyscreener.exceptions import (
     MissingEnvironmentVariableError,
     MisconfiguredDirectoryError,
 )
+from pyscreener.utils import AutoName
 
 with resources.path("pyscreener.docking.dock", ".") as p_module:
     PREP_REC = p_module / "scripts" / "prep_rec.py"
@@ -44,7 +45,7 @@ for f in (SPHGEN, SPHERE_SELECTOR, SHOWBOX, GRID, VDW_DEFN_FILE):
         )
 
 
-class SphereMode(Enum):
+class SphereMode(AutoName):
     BOX = auto()
     LARGEST = auto()
     LIGAND = auto()
@@ -229,7 +230,7 @@ def prepare_sph(
 
 def select_spheres(
     sph_file: str,
-    sphere_mode: SphereMode = SphereMode.LARGEST,
+    sphere_mode: SphereMode = SphereMode.BOX,
     center: Optional[Tuple[float, float, float]] = None,
     size: Optional[Tuple[float, float, float]] = None,
     docked_ligand_file: Optional[str] = None,
@@ -243,7 +244,7 @@ def select_spheres(
     ----------
     sph_file : str
         the sphere cluster file to select from
-    sphere_mode : SphereMode, default=SphereMode.LARGEST
+    sphere_mode : SphereMode, default=SphereMode.BOX
         the method by which to select spheres
     center : Optional[Tuple[float, float, float]], default=None
         the x-, y-, and z-coordinates of the box center to use

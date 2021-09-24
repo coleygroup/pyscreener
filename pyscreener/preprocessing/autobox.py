@@ -1,5 +1,4 @@
-"""This module contains functions for ligand autoboxing in docking
-simulations"""
+"""This module contains functions for ligand autoboxing in docking simulations"""
 from enum import Enum
 from itertools import chain, takewhile
 from pyscreener.exceptions import BadPDBFileError
@@ -122,7 +121,7 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
             )
         ]
 
-    if len(coords == 0):
+    if len(coords) == 0:
         raise BadPDBFileError(f'No HETATM coordinates could be parsed from "{docked_ligand_file}"')
 
     return minimum_bounding_box(np.array(coords), buffer)

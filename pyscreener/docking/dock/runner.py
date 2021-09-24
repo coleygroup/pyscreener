@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 import subprocess as sp
 import sys
-from typing import Optional, Sequence, Tuple, Union
+from typing import Mapping, Optional, Tuple, Union
 
 from openbabel import pybel
 import ray
@@ -21,7 +21,8 @@ try:
 except KeyError:
     raise MissingEnvironmentVariableError(
         "DOCK6 environment variable not set! "
-        "See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information"
+        "See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable "
+        "for more information"
     )
 
 VDW_DEFN_FILE = DOCK6 / "parameters" / "vdw_AMBER_parm99.defn"
@@ -32,10 +33,9 @@ DOCK = DOCK6 / "bin" / "dock6"
 for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
     if not f.exists():
         raise MisconfiguredDirectoryError(
-            "DOCK6 directory not configured properly! "
-            f'DOCK6 path is set as "{DOCK6}", but there is no '
-            f'"{f.name}" located in the "{f.parents[0].name}" subdirectory '
-            "under the DOCK6 path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information"
+            f'DOCK6 directory not configured properly! DOCK6 path is set as "{DOCK6}", but there '
+            f'is no "{f.name}" located in the "{f.parents[0].name}" subdirectory under the DOCK6 '
+            "path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information"
         )
 
 
@@ -49,14 +49,14 @@ class DOCKRunner(DockingRunner):
 
     @staticmethod
     def prepare_receptor(data: CalculationData) -> CalculationData:
-        """Prepare the files necessary to dock ligands against the input
-        receptor using this Screener's parameters
+        """Prepare the files necessary to dock ligands against the input receptor using this
+        Screener's parameters
 
         Parameter
         ---------
         receptor : str
-            the filepath of a file containing a receptor. Must be in a format
-            that is readable by Chimera
+            the filepath of a file containing a receptor. Must be in a format that is readable by
+            Chimera
 
         Returns
         -------
@@ -127,7 +127,7 @@ class DOCKRunner(DockingRunner):
             DOCKRunner.prepare_from_smi(data)
         else:
             DOCKRunner.prepare_from_file(data)
-        
+
         return data
 
     @staticmethod
@@ -176,76 +176,15 @@ class DOCKRunner(DockingRunner):
         data.metadata.prepared_ligand = mol2
 
         return data
-        # name = name or Path(filename).stem
-
-        # ret = sp.run(['obabel', filename, '-osmi'], stdout=sp.PIPE, check=True)
-        # lines = ret.stdout.decode('utf-8').splitlines()
-        # smis = [line.split()[0] for line in lines]
-
-        # if not use_3d:
-        #     ligands = [
-        #         DOCKRunner.prepare_from_smi(smi, f'{name}_{i}', path)
-        #         for i, smi in enumerate(smis)
-        #     ]
-        #     return [lig for lig in ligands if lig]
-
-        # path = Path(path)
-        # if not path.is_dir():
-        #     path.mkdir()
-
-        # mol2 = f'{path}/{name}_.mol2'
-        # argv = ['obabel', filename, '-omol2', '-O', mol2, '-m',
-        #         '-h', '--partialcharge', 'gasteiger']
-
-        # ret = sp.run(argv, check=False, stderr=sp.PIPE)
-        # try:
-        #     ret.check_returncode()
-        # except sp.SubprocessError:
-        #     return None
-
-        # stderr = ret.stderr.decode('utf-8')
-        # for line in stderr.splitlines():
-        #     if 'converted' not in line:
-        #         continue
-        #     n_mols = int(line.split()[0])
-
-        # mol2s = [f'{path}/{name}_{i}.mol2' for i in range(1, n_mols)]
-
-        # return list(zip(smis, mol2s))
 
     @staticmethod
-    def run(data: CalculationData) -> Optional[Sequence[float]]:
+    def run(data: CalculationData) -> Optional[float]:
         """Dock this ligand into the ensemble of receptors
-
-        Parameters
-        ----------
-        ligand : Tuple[str, str]
-            a tuple containing the ligand's SMILES string and its prepared
-            .mol2 file that will be docked against each receptor
-        receptors : List[Tuple[str, str]]
-            a list of tuples containing the sphere file and grid file prefix
-            corresponding to each receptor in the ensemble.
-        in_path : Union[str, os.PathLike] (Default = 'inputs')
-            the path under which to write the input files
-        out_path : Union[str, os.PathLike] (Default = 'outputs')
-            the path under which to write the output files
-        repeats : int (Default = 1)
-            the number of times each docking run should be repeated
 
         Returns
         -------
-        ensemble_rowss : List[List[Dict]]
-            an MxO list of dictionaries where each dictionary is a record of an
-            individual docking run and:
-            - M is the number of receptors each ligand is docked against
-            - O is the number of times each docking run is repeated.
-            Each dictionary contains the following keys:
-            - smiles: the ligand's SMILES string
-            - name: the name of the ligand
-            - in: the filename of the input ligand file
-            - out: the filename of the output docked ligand file
-            - log: the filename of the output log file
-            - score: the ligand's docking score
+        score : Optional[float]
+            the ligand's docking score. None if DOCKing failed.
         """
         p_ligand = Path(data.metadata.prepared_ligand)
         ligand_name = p_ligand.stem
@@ -257,7 +196,6 @@ class DOCKRunner(DockingRunner):
             p_ligand, sph_file, grid_prefix, name, data.in_path, data.out_path
         )
 
-        # out = Path(f'{outfile_prefix}_scored.mol2')
         outfile = Path(outfile_prefix).parent / f"{name}.out"
         argv = [str(DOCK), "-i", infile, "-o", outfile]
 
@@ -280,6 +218,7 @@ class DOCKRunner(DockingRunner):
 
         return scores
 
+    @staticmethod
     def parse_outfile(outfile: Union[str, Path]) -> Optional[float]:
         """parse a DOCK out file for the scores of the conformations
 
@@ -291,9 +230,8 @@ class DOCKRunner(DockingRunner):
 
         Returns
         -------
-        Optional[List[float]]
-            the scores of the docked conformations in the ordering of the
-            out file. None if no scores were parsed or the log file was
+        Optional[float]
+            the DOCKing score of the ligand. None if no scores were parsed or the log file was
             unparseable
         """
         try:
@@ -308,10 +246,10 @@ class DOCKRunner(DockingRunner):
                 scores.append(float(line.split()[1]))
             except ValueError:
                 continue
-        # scores = [float(line.split()[2]) for line in score_lines]
 
         return scores or None
 
+    @staticmethod
     def prepare_input_file(
         ligand_file: Union[str, Path],
         sph_file: str,
@@ -319,15 +257,16 @@ class DOCKRunner(DockingRunner):
         name: Optional[str] = None,
         in_path: Union[str, Path] = ".",
         out_path: Union[str, Path] = ".",
+        **kwargs,
     ) -> Tuple[str, str]:
-        """Prepare the input file with which to run DOCK
+        """Prepare an input file with which to run DOCK
 
         Parameters
         ----------
         ligand_file : str
             the MOL2 file corresponding to the ligand that will be docked
         sph_file : str
-            the .sph file containing the DOCK spheres of the receptor
+            the SPH file containing the DOCK spheres of the receptor
         grid_prefix : str
             the prefix of the prepared grid files (as was passed to
             the grid program)
@@ -338,6 +277,8 @@ class DOCKRunner(DockingRunner):
             both the input file and output
         out_path : Union[str, os.PathLike] (Default = 'outputs')
             the path under which to write the output files
+        **kwargs
+            keyword options DOCKing parameters
 
         Returns
         -------
@@ -386,18 +327,16 @@ class DOCKRunner(DockingRunner):
             fid.write("chemical_matching no\n")
             fid.write("use_ligand_spheres no\n")
             fid.write("bump_filter no\n")
-            fid.write("score_molecules yes\n")
 
+            fid.write("score_molecules yes\n")
             fid.write("contact_score_primary no\n")
             fid.write("contact_score_secondary no\n")
-
             fid.write("grid_score_primary yes\n")
             fid.write("grid_score_secondary no\n")
             fid.write("grid_score_rep_rad_scale 1\n")
             fid.write("grid_score_vdw_scale 1\n")
             fid.write("grid_score_es_scale 1\n")
             fid.write(f"grid_score_grid_prefix {grid_prefix}\n")
-
             fid.write("multigrid_score_secondary no\n")
             fid.write("dock3.5_score_secondary no\n")
             fid.write("continuous_score_secondary no\n")
@@ -437,4 +376,90 @@ class DOCKRunner(DockingRunner):
             fid.write("write_conformations no\n")
             fid.write("rank_ligands no\n")
 
+            # fid.write(DOCKRunner.infile_line(kwargs, "conformer_search_type", "flex"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "write_fragment_libraries", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "user_specified_anchor", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "limit_max_anchors", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "min_anchor_size", "5"))
+
+            # fid.write(DOCKRunner.infile_line(kwargs, "pruning_use_clustering", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "pruning_max_orients", "100"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "pruning_clustering_cutoff", "100"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "pruning_conformer_score_cutoff", "100"))
+            # fid.write(DOCKRunner.infile_line(kwargs,"pruning_conformer_score_scaling_factor","1"))
+
+            # fid.write(DOCKRunner.infile_line(kwargs, "use_clash_overlap", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "write_growth_tree", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "use_internal_energy", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "internal_energy_rep_exp", "12"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "internal_energy_cutoff", "100"))
+
+            # fid.write(f"ligand_atom_file {ligand_file}\n")
+            # fid.write(DOCKRunner.infile_line(kwargs, "limit_max_ligands", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "skip_molecule", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "read_mol_solvation", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "calculate_rmsd", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "use_rmsd_reference_mol", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "use_database_filter", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "orient_ligand", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "automated_matching", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "max_orientations", "1000"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "critical_points", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "chemical_matching", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "use_ligand_spheres", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "bump_filter", "no"))
+
+            # fid.write(DOCKRunner.infile_line(kwargs, "score_molecules", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "contact_score_primary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "contact_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "grid_score_primary", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "grid_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "grid_score_rep_rad_scale", "1"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "grid_score_vdw_scale", "1"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "grid_score_es_scale", "1"))
+            # fid.write(f"grid_score_grid_prefix {grid_prefix}\n")
+            # fid.write(DOCKRunner.infile_line(kwargs, "multigrid_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "5_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "continuous_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs,"footprint_similarity_score_secondary","no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "pharmacophore_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "descriptor_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "gbsa_zou_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "gbsa_hawkins_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "SASA_score_secondary", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "amber_score_secondary", "no"))
+
+            # fid.write(DOCKRunner.infile_line(kwargs, "minimize_ligand", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "minimize_anchor", "yes"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "minimize_flexible_growth", "yes"))
+
+            # fid.write(DOCKRunner.infile_line(kwargs, "use_advanced_simplex_parameters", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_max_cycles", "1"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_score_converge", "0"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_cycle_converge", "1"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_trans_step", "1"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_rot_step", "0"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_tors_step", "10"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_anchor_max_iterations", "500"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_grow_max_iterations", "500"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_grow_tors_premin_iterations", "0"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_random_seed", "0"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "simplex_restraint_min", "no"))
+
+            # fid.write(DOCKRunner.infile_line(kwargs, "atom_model", "all"))
+            # fid.write(f"vdw_defn_file {VDW_DEFN_FILE}\n")
+            # fid.write(f"flex_defn_file {FLEX_DEFN_FILE}\n")
+            # fid.write(f"flex_drive_file {FLEX_DRIVE_FILE}\n")
+        
+            # fid.write(f"ligand_outfile_prefix {outfile_prefix}\n")
+            # fid.write(DOCKRunner.infile_line(kwargs, "write_orientations", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "num_scored_conformers", "5"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "write_conformations", "no"))
+            # fid.write(DOCKRunner.infile_line(kwargs, "rank_ligands", "no"))
+
         return infile, outfile_prefix
+
+    def infile_line(options: Mapping, param: str, default: str) -> str:
+        """generate a line in the infile for the parameter and its default value. If the parameter
+        is present in the options dictionary, substitute that value."""
+        return f"{param} {options.get(param, default)}\n"

@@ -22,7 +22,7 @@ except KeyError:
     raise MissingEnvironmentVariableError(
         "DOCK6 environment variable not set! "
         "See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable "
-        "for more information"
+        "for more information."
     )
 
 VDW_DEFN_FILE = DOCK6 / "parameters" / "vdw_AMBER_parm99.defn"
@@ -35,7 +35,7 @@ for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
         raise MisconfiguredDirectoryError(
             f'DOCK6 directory not configured properly! DOCK6 path is set as "{DOCK6}", but there '
             f'is no "{f.name}" located in the "{f.parents[0].name}" subdirectory under the DOCK6 '
-            "path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information"
+            "path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information."
         )
 
 

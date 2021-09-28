@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections import abc# import Iterable
 from copy import copy
 from dataclasses import replace
 from datetime import datetime
@@ -8,7 +8,7 @@ import re
 import shutil
 import tarfile
 import tempfile
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import ray
@@ -51,9 +51,11 @@ class DockingVirtualScreen:
             else ScreenType.from_str(screen_type)
         )
         if screen_type == ScreenType.DOCK:
-            self.runner = DOCKRunner
+            from pyscreener.docking import dock
+            self.runner = dock.DOCKRunner
         elif screen_type == ScreenType.VINA:
-            self.runner = VinaRunner
+            from pyscreener.docking import vina
+            self.runner = vina.VinaRunner
         else:
             raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
 
@@ -223,7 +225,7 @@ class DockingVirtualScreen:
             supplied
         """
         sources = list(
-            chain(*([s] if not isinstance(s, Iterable) else s for s in sources))
+            chain(*([s] if not isinstance(s, abc.Iterable) else s for s in sources))
         )
 
         planned_simulationsss = self.plan(sources)

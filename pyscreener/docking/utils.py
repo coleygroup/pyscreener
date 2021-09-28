@@ -8,7 +8,7 @@ import ray
 
 from pyscreener.utils import AutoName, ScoreMode
 from pyscreener.docking.metadata import CalculationMetadata
-from pyscreener.docking import dock, vina
+# from pyscreener.docking import dock, vina
 
 
 class ScreenType(AutoName):

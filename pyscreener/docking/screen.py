@@ -21,7 +21,7 @@ from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.runner import DockingRunner
 from pyscreener.docking.utils import ScreenType, reduce_scores, run_on_all_nodes
 from pyscreener.docking.vina import VinaRunner
-from pyscreener.docking.dock import DOCKRunner
+# from pyscreener.docking.dock import DOCKRunner
 
 
 class DockingVirtualScreen:

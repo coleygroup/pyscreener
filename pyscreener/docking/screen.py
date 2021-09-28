@@ -1,5 +1,3 @@
-
-import collections
 from copy import copy
 from dataclasses import replace
 from datetime import datetime
@@ -13,16 +11,17 @@ from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import ray
-from pyscreener.docking import dock
 
-# from pyscreener.base import VirtualScreen
 from pyscreener.utils import ScoreMode
 from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
-from pyscreener.docking.utils import ScreenType, reduce_scores, run_on_all_nodes
-# from pyscreener.docking.vina import VinaRunner
-# from pyscreener.docking.dock import DOCKRunner
+from pyscreener.docking.utils import (
+    ScreenType,
+    reduce_scores,
+    run_on_all_nodes,
+    valiate_metadata,
+)
 
 
 class DockingVirtualScreen:
@@ -53,12 +52,16 @@ class DockingVirtualScreen:
         )
         if screen_type == ScreenType.DOCK:
             from pyscreener.docking import dock
+
             self.runner = dock.DOCKRunner
         elif screen_type == ScreenType.VINA:
             from pyscreener.docking import vina
+
             self.runner = vina.VinaRunner
         else:
             raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
+
+        valiate_metadata(screen_type, metadata_template)
 
         self.center = center
         self.size = size
@@ -225,9 +228,7 @@ class DockingVirtualScreen:
             a vector of length `n`, where `n` is the total number of ligands ligands that were
             supplied
         """
-        sources = list(
-            chain(*([s] if isinstance(s, str) else s for s in sources))
-        )
+        sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
         planned_simulationsss = self.plan(sources)
         completed_simulationsss = self.run(planned_simulationsss)

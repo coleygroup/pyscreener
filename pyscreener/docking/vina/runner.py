@@ -1,7 +1,8 @@
 from itertools import takewhile
-from math import ceil, log10
 from pathlib import Path
+from pyscreener.exceptions import MissingExecutableError
 import re
+import shutil
 import subprocess as sp
 import sys
 from typing import List, Optional, Tuple
@@ -12,6 +13,12 @@ import ray
 from pyscreener import utils
 from pyscreener.docking import CalculationData, DockingRunner, Result
 from pyscreener.docking.vina.utils import Software
+
+if shutil.which("prepare_receptor") is None:
+    raise MissingExecutableError(
+        'Could not find "prepare_receptor" on PATH! '
+        "See https://github.com/coleygroup/pyscreener/tree/refactor#adding-an-executable-to-your-path for more information."
+    )
 
 
 class VinaRunner(DockingRunner):

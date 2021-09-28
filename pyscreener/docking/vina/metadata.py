@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from pyscreener.exceptions import UnsupportedSoftwareError
 import shlex
 from typing import Optional, Union
 
@@ -50,9 +51,10 @@ class VinaMetadata(CalculationMetadata):
     prepared_receptor: Optional[Union[str, Path]] = None
 
     def __post_init__(self):
-        self.software = (
-            self.software
-            if isinstance(self.software, Software)
-            else Software.from_str(self.software)
-        )
+        if isinstance(self.software, str):
+            try:
+                self.software = Software.from_str(self.software)
+            except KeyError:
+                raise UnsupportedSoftwareError(f'Software "{self.software}" is not supported!')
+                
         self.extra = shlex.split(self.extra) if self.extra else []

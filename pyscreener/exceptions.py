@@ -24,3 +24,7 @@ class NotSimulatedError(Exception):
 
 class InvalidResultError(Exception):
     pass
+
+
+class UnsupportedSoftwareError(Exception):
+    pass

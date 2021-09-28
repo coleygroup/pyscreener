@@ -5,8 +5,9 @@ pythonic interface to virtual screening software
 from typing import Dict, List, Tuple
 
 from pyscreener._version import __version__
-from pyscreener.preprocessing import preprocess
-from pyscreener.postprocessing import postprocess
+# from pyscreener.preprocessing import preprocess
+# from pyscreener.postprocessing import postprocess
+from . import docking
 
 # Handle versioneer
 from pyscreener._version import get_versions

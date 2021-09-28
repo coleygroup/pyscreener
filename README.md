@@ -100,9 +100,9 @@ The object model of pyscreener relies on four classes:
 
 
 To perform docking calls inside your python code using `pyscreener`, you must first initialize a `Screener` object using either of the derived classes: [`Vina`](pyscreener/docking/vina.py) or [`DOCK`](pyscreener/docking/dock.py).
-    
+
 `Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina.
-    
+
 `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are.
 
 ### Example
@@ -120,7 +120,7 @@ the following code snippet will dock benzene (SMILES string c1ccccc1) against th
 >>> scores
 array([-4.4])
 ```
-    
+
 A few notes from the above example:
 - the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=['5WIU']) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
 - you can manually input the center and size of your docking box, but this must be manually determined before runtime. e.g.

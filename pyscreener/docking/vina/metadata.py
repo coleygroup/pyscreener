@@ -6,6 +6,7 @@ from typing import Optional, Union
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.vina.utils import Software
 
+
 @dataclass(repr=True, eq=False)
 class VinaMetadata(CalculationMetadata):
     """
@@ -42,10 +43,16 @@ class VinaMetadata(CalculationMetadata):
     prepared_ligand: Optional[Union[str, Path]] = None,
     prepared_receptor: Optional[Union[str, Path]] = None
     """
-    software: Software = Software.VINA
+
+    software: Union[Software, str] = Software.VINA
     extra: Optional[str] = None
     prepared_ligand: Optional[Union[str, Path]] = None
     prepared_receptor: Optional[Union[str, Path]] = None
 
     def __post_init__(self):
+        self.software = (
+            self.software
+            if isinstance(self.software, Software)
+            else Software.from_str(self.software)
+        )
         self.extra = shlex.split(self.extra) if self.extra else []

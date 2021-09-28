@@ -1,6 +1,7 @@
 from enum import Enum, auto
+from pyscreener.utils import AutoName
 
-class Software(Enum):
+class Software(AutoName):
     def _generate_next_value_(name, start, count, last_values):
         return name.lower()
 

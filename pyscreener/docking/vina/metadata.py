@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
-from pyscreener.exceptions import UnsupportedSoftwareError
 import shlex
 from typing import Optional, Union
 
+from pyscreener.exceptions import UnsupportedSoftwareError
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.vina.utils import Software
 
@@ -56,5 +56,5 @@ class VinaMetadata(CalculationMetadata):
                 self.software = Software.from_str(self.software)
             except KeyError:
                 raise UnsupportedSoftwareError(f'Software "{self.software}" is not supported!')
-                
+
         self.extra = shlex.split(self.extra) if self.extra else []

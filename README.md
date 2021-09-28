@@ -112,7 +112,7 @@ the following code snippet will dock benzene (SMILES string c1ccccc1) against th
 >>> import ray
 >>> ray.init()
 [...]
->>> from pyscreener.docking import screen, vina
+>>> from pyscreener.docking import screen, utils, vina
 >>> metadata = vina.VinaMetadata(vina.Software.VINA)
 >>> vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
@@ -125,7 +125,7 @@ A few notes from the above example:
 - the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=['5WIU']) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
 - you can manually input the center and size of your docking box, but this must be manually determined before runtime. e.g.
     ```python
-    vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
+    vs = screen.DockingVirtualScreen(utils.ScreenType.VINA, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
     ```
 - If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight that you can initialize ray according to your own needs (i.e., distributed setup).

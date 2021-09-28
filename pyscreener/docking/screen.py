@@ -18,9 +18,8 @@ from pyscreener.utils import ScoreMode
 from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
-from pyscreener.docking.runner import DockingRunner
 from pyscreener.docking.utils import ScreenType, reduce_scores, run_on_all_nodes
-from pyscreener.docking.vina import VinaRunner
+# from pyscreener.docking.vina import VinaRunner
 # from pyscreener.docking.dock import DOCKRunner
 
 

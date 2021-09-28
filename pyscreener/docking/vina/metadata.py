@@ -55,6 +55,8 @@ class VinaMetadata(CalculationMetadata):
             try:
                 self.software = Software.from_str(self.software)
             except KeyError:
-                raise UnsupportedSoftwareError(f'Software "{self.software}" is not supported!')
+                raise UnsupportedSoftwareError(
+                    f'"{self.software}" is not a supported software for vina-type screens!'
+                )
 
         self.extra = shlex.split(self.extra) if self.extra else []

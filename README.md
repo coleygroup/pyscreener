@@ -114,7 +114,7 @@ the following code snippet will dock benzene (SMILES string c1ccccc1) against th
 [...]
 >>> from pyscreener.docking import screen, utils, vina
 >>> metadata = vina.VinaMetadata(vina.Software.VINA)
->>> vs = screen.DockingVirtualScreen(vina.VinaRunner, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
+>>> vs = screen.DockingVirtualScreen(utils.ScreenType.VINA, ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
 >>> scores = vs('c1ccccc1')
 >>> scores

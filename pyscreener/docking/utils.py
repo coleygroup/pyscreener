@@ -8,7 +8,6 @@ import ray
 
 from pyscreener.utils import AutoName, ScoreMode
 from pyscreener.docking.metadata import CalculationMetadata
-from pyscreener.docking import dock, vina
 
 
 class ScreenType(AutoName):
@@ -18,11 +17,14 @@ class ScreenType(AutoName):
 
 def build_metadata(screen_type: ScreenType, **kwargs) -> CalculationMetadata:
     if screen_type == ScreenType.DOCK:
+        from pyscreener.docking import dock
+
         d_md = asdict(dock.DOCKMetadata())
         d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
         return dock.DOCKMetadata(**d_md)
 
-    elif screen_type == ScreenType.DOCK:
+    elif screen_type == ScreenType.VINA:
+        from pyscreener.docking import vina
         d_md = asdict(vina.VinaMetadata())
         d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
         return vina.VinaMetadata(**d_md)

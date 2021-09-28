@@ -20,10 +20,9 @@ from pyscreener.utils import ScoreMode
 from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
-from pyscreener.docking.runner import DockingRunner
 from pyscreener.docking.utils import ScreenType, reduce_scores, run_on_all_nodes
-from pyscreener.docking.vina import VinaRunner
-from pyscreener.docking.dock import DOCKRunner
+# from pyscreener.docking.vina import VinaRunner
+# from pyscreener.docking.dock import DOCKRunner
 
 
 class DockingVirtualScreen:
@@ -53,9 +52,11 @@ class DockingVirtualScreen:
             else ScreenType.from_str(screen_type)
         )
         if screen_type == ScreenType.DOCK:
-            self.runner = DOCKRunner
+            from pyscreener.docking import dock
+            self.runner = dock.DOCKRunner
         elif screen_type == ScreenType.VINA:
-            self.runner = VinaRunner
+            from pyscreener.docking import vina
+            self.runner = vina.VinaRunner
         else:
             raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
 

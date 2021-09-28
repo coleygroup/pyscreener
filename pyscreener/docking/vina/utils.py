@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import auto
 from pyscreener.utils import AutoName
 
 class Software(AutoName):

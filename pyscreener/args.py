@@ -2,16 +2,16 @@ import json
 import os
 from pathlib import Path
 import shlex
-import tempfile
 from typing import Optional
 
 from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
 def positive_int(arg: str):
-    value = int(arg)
-    if value <= 0:
-        raise ArgumentTypeError('Value must be greater than 0!')
-    return value
+    val = int(arg)
+    if val <= 0:
+        raise ArgumentTypeError(f'Value must be greater than 0! got: {arg}')
+
+    return val
 
 def add_general_args(parser: ArgumentParser):
     parser.add_argument('--config', is_config_file=True,

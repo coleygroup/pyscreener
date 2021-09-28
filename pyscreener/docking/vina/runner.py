@@ -1,6 +1,5 @@
 from itertools import takewhile
 from pathlib import Path
-from pyscreener.exceptions import MissingExecutableError
 import re
 import shutil
 import subprocess as sp
@@ -12,6 +11,7 @@ import ray
 
 from pyscreener import utils
 from pyscreener.docking import CalculationData, DockingRunner, Result
+from pyscreener.exceptions import MissingExecutableError
 from pyscreener.docking.vina.utils import Software
 
 if shutil.which("prepare_receptor") is None:
@@ -114,7 +114,6 @@ class VinaRunner(DockingRunner):
         """
         fmt = Path(data.input_file).suffix.strip(".")
         mols = list(pybel.readfile(fmt, data.input_file))
-        # width = ceil(log10(len(mols) + offset)) + 1
         mol = mols[0]
 
         pdbqt = Path(data.in_path) / f"{mol.title or data.name}.pdbqt"

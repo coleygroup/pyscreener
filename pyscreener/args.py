@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import shlex
@@ -51,7 +52,14 @@ def add_preparation_args(parser: ArgumentParser):
                         help='(OPTIONAL) the column containing the molecule names/IDs in the CSV file. Molecules will be labeled as ligand_<i> otherwise.')
     parser.add_argument('--id-prop-name',
                         help='(OPTIONAL) the name of the property containing the molecule names/IDs in a SMI or SDF file (e.g., "CatalogID", "Chemspace_ID", "Name", etc.). Molecules will be labeled as ligand_<i> otherwise.')
-    
+
+def add_screen_args(parser: ArgumentParser):
+    pass
+
+def add_data_args(parser: ArgumentParser):
+    parser.add_argument('--metadata', type=json.loads,
+                        help='a dictionary containing metadata options in JSON format')
+                        
 def add_docking_args(parser: ArgumentParser):
     parser.add_argument('--software', default='vina',
                         choices=['vina', 'smina', 'qvina', 'psovina', 'dock'],

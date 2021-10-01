@@ -1,8 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, TypeVar
-
-S = TypeVar('S')
-T = TypeVar('T')
+from typing import Optional
 
 @dataclass
 class Result:

@@ -11,6 +11,7 @@ import ray
 
 from pyscreener import utils
 from pyscreener.docking import CalculationData, DockingRunner, Result
+from pyscreener.docking.vina.metadata import VinaMetadata
 from pyscreener.exceptions import MissingExecutableError
 from pyscreener.docking.vina.utils import Software
 
@@ -279,3 +280,11 @@ class VinaRunner(DockingRunner):
                 continue
 
         return scores or None
+
+    @staticmethod
+    def validate_metadata(metadata: VinaMetadata):
+        if shutil.which(metadata.software.value) is None:
+            raise MissingExecutableError(
+                f'Could not find "{metadata.software.value}" on PATH! '
+                "See https://github.com/coleygroup/pyscreener/tree/refactor#adding-an-executable-to-your-path for more information."
+            )

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import ray
 
-import pyscreener
 from pyscreener.args import gen_args
+from pyscreener.docking import screen
 
 def main():
     print('''\
@@ -43,8 +43,7 @@ def main():
     print(ray.cluster_resources())
     print(flush=True)
 
-    name = args.name
-    out_dir = Path(args.root) / name
+    out_dir = Path(args.output_dir)
     params['path'] = out_dir
     
     print('Preprocessing ...', flush=True)

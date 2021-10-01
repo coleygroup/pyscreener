@@ -11,8 +11,8 @@ from pyscreener.utils import FileType
 class LigandSupply:
     def __init__(
         self,
-        filepaths: Iterable[str],
-        filetypes: Iterable[Union[str, FileType]],
+        filepaths: Iterable[Union[str, Path]],
+        filetypes: Optional[Iterable[Union[str, FileType]]] = None,
         use_3d: bool = False,
         optimize: bool = False,
         title_line: bool = True,
@@ -20,11 +20,15 @@ class LigandSupply:
         name_col: int = 1,
         id_property: Optional[str] = None,
     ):
-        self.filepaths = filepaths
-        self.filetypes = [
-            filetype if isinstance(filetype, FileType) else FileType.from_str(filetype)
-            for filetype in filetypes
-        ]
+        self.filepaths = [Path(filepath) for filepath in filepaths]
+        if filetypes is not None:
+            self.filetypes = [
+                filetype if isinstance(filetype, FileType) else FileType.from_str(filetype)
+                for filetype in filetypes
+            ]
+        else:
+            self.filetypes = [LigandSupply.guess_filetype(filepath) for filepath in self.filepaths]
+
         self.use_3d = use_3d
         self.optimize = optimize
         self.title_line = title_line
@@ -47,12 +51,12 @@ class LigandSupply:
                 )
             elif filetype == FileType.FILE:
                 ligands.extend(
-                    LigandSupply.get_ligands_from_file(filepath, self.optimize)
+                    LigandSupply.get_ligands_from_file(filepath, self.use_3d, self.optimize)
                 )
             elif filetype == FileType.SDF:
                 ligands.extend(
                     LigandSupply.get_ligands_from_sdf(
-                        filepath, self.id_property, self.optimize
+                        filepath, self.id_property, self.use_3d, self.optimize
                     )
                 )
             elif filetype == FileType.SMI:
@@ -66,7 +70,7 @@ class LigandSupply:
 
     @staticmethod
     def get_ligands_from_csv(
-        filepath,
+        filepath: Path,
         title_line: bool = True,
         smiles_col: int = 0,
         name_col: int = 1,
@@ -83,12 +87,11 @@ class LigandSupply:
 
         mols = [Chem.MolFromSmiles(smi) for smi in smis]
 
-        p = Path(filepath)
-        return LigandSupply.optimize_and_write_mols(mols, p.parent / p.stem)
+        return LigandSupply.optimize_and_write_mols(mols, filepath.parent / filepath.stem)
 
     @staticmethod
     def get_ligands_from_file(
-        filepath, use_3d: bool = False, optimize: bool = False
+        filepath: Path, use_3d: bool = False, optimize: bool = False
     ) -> List[str]:
         if use_3d:
             return LigandSupply.split_file(filepath)
@@ -103,8 +106,7 @@ class LigandSupply:
 
         mols = [Chem.MolFromSmiles(smi) for smi in smis]
 
-        p = Path(filepath)
-        return LigandSupply.optimize_and_write_mols(mols, p.parent / p.stem)
+        return LigandSupply.optimize_and_write_mols(mols, filepath.parent / filepath.stem)
         # names = []
         # for mol in pybel.readfile(fmt, filepath):
         #     smis.append(mol.write())
@@ -118,7 +120,7 @@ class LigandSupply:
 
     @staticmethod
     def get_ligands_from_sdf(
-        filepath,
+        filepath: Path,
         id_property: Optional[str] = None,
         use_3d: bool = False,
         optimize: bool = False,
@@ -126,13 +128,12 @@ class LigandSupply:
         if use_3d:
             return LigandSupply.split_file(filepath)
 
-        mols = Chem.SDMolSupplier(filepath)
+        mols = Chem.SDMolSupplier(str(filepath))
 
         if not optimize:
             return [Chem.MolToSmiles(mol) for mol in mols]
 
-        p = Path(filepath)
-        return LigandSupply.optimize_and_write_mols(mols, p.parent / p.stem)
+        return LigandSupply.optimize_and_write_mols(mols, filepath.parent / filepath.stem)
         # if id_property is not None:
         #     for mol in mols:
         #         if mol is None:
@@ -151,15 +152,14 @@ class LigandSupply:
 
     @staticmethod
     def get_ligands_from_smi(
-        filepath, id_property: Optional[str] = None, optimize: bool = False
+        filepath: Path, id_property: Optional[str] = None, optimize: bool = False
     ) -> List[str]:
-        mols = Chem.SmilesMolSupplier(filepath)
+        mols = Chem.SmilesMolSupplier(str(filepath))
 
         if not optimize:
             return [Chem.MolToSmiles(mol) for mol in mols]
 
-        p = Path(filepath)
-        return LigandSupply.optimize_and_write_mols(mols, p.parent / p.stem)
+        return LigandSupply.optimize_and_write_mols(mols, filepath.parent / filepath.stem)
 
     @staticmethod
     def optimize_and_write_mols(
@@ -170,18 +170,24 @@ class LigandSupply:
         [Chem.EmbedMolecule(mol) for mol in mols]
         [Chem.MMFFOptimizeMolecule(mol) for mol in mols]
         filenames = [f"{base_name}_{i}.mol" for i in range(len(mols))]
-        [Chem.MoltoMolFile(mol, filename) for mol, filename in zip(mols, filenames)]
+        [Chem.MolToMolFile(mol, filename) for mol, filename in zip(mols, filenames)]
 
         return filenames
 
     @staticmethod
-    def split_file(filepath) -> List[str]:
-        p = Path(filepath)
-        fmt = p.suffix.strip(".")
-        base_name = p.parent / p.stem
+    def split_file(filepath: Path) -> List[str]:
+        fmt = filepath.suffix.strip(".")
+        base_name = filepath.parent / filepath.stem
 
         mols = list(pybel.readfile(fmt, filepath))
         filenames = [f"{base_name}_{i}.{fmt}" for i in range(len(mols))]
         [mol.write(fmt, filename, True) for mol, filename in zip(mols, filenames)]
 
         return filenames
+
+    @staticmethod
+    def guess_filetype(filepath: Path) -> List[FileType]:
+        try:
+            return FileType.from_str(filepath.suffix.strip('.'))
+        except KeyError:
+            return FileType.FILE

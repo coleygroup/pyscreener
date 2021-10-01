@@ -37,15 +37,15 @@ def build_metadata(screen_type: ScreenType, **kwargs) -> CalculationMetadata:
     raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
 
 
-def valiate_metadata(screen_type: ScreenType, metadata: CalculationMetadata):
-    if screen_type == ScreenType.DOCK:
-        return
-    else:
-        if shutil.which(metadata.software.value) is None:
-            raise MissingExecutableError(
-                f'Could not find "{metadata.software.value}" on PATH! '
-                "See https://github.com/coleygroup/pyscreener/tree/refactor#adding-an-executable-to-your-path for more information."
-            )
+# def valiate_metadata(screen_type: ScreenType, metadata: CalculationMetadata):
+#     if screen_type == ScreenType.DOCK:
+#         return
+#     else:
+#         if shutil.which(metadata.software.value) is None:
+#             raise MissingExecutableError(
+#                 f'Could not find "{metadata.software.value}" on PATH! '
+#                 "See https://github.com/coleygroup/pyscreener/tree/refactor#adding-an-executable-to-your-path for more information."
+#             )
 
 
 def run_on_all_nodes(func: Callable) -> Callable:

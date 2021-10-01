@@ -7,6 +7,7 @@ from typing import Mapping, Optional, Tuple, Union
 
 from openbabel import pybel
 import ray
+from pyscreener.docking.dock.metadata import DOCKMetadata
 
 from pyscreener.exceptions import (
     MisconfiguredDirectoryError,
@@ -217,6 +218,10 @@ class DOCKRunner(DockingRunner):
         )
 
         return scores
+
+    @staticmethod
+    def validate_metadata(metadata: DOCKMetadata):
+        return
 
     @staticmethod
     def parse_outfile(outfile: Union[str, Path]) -> Optional[float]:

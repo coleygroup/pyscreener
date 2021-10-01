@@ -77,12 +77,18 @@ def add_preprocessing_args(parser: ArgumentParser):
 
 
 def add_supply_args(parser: ArgumentParser):
+    parser.add_argument("-s", "--smis", nargs="+", help="the SMILES strings of the ligands to dock")
     parser.add_argument(
         "-l",
         "--ligands",
-        required=True,
         nargs="+",
-        help="the filenames containing the ligands to dock",
+        help="the filenames containing ligands to dock",
+    )
+    parser.add_argument(
+        "-i",
+        "--input-file-types",
+        nargs="+",
+        help="the filetype of each input ligand. If unspecified, will attempt to determine the filetype for each file.",
     )
     parser.add_argument(
         "--no-title-line",

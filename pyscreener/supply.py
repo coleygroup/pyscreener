@@ -36,7 +36,6 @@ class LigandSupply:
         self.name_col = name_col
         self.id_property = id_property
 
-    def ligands(self) -> List[str]:
         ligands = []
         for filepath, filetype in zip(self.filepaths, self.filetypes):
             if filetype == FileType.CSV:
@@ -66,7 +65,13 @@ class LigandSupply:
                     )
                 )
 
-        return ligands
+        self.ligands = ligands
+    
+    def __len__(self):
+        return len(self.ligands)
+
+    # def ligands(self) -> List[str]:
+    #     return self.ligands
 
     @staticmethod
     def get_ligands_from_csv(
@@ -179,7 +184,7 @@ class LigandSupply:
         fmt = filepath.suffix.strip(".")
         base_name = filepath.parent / filepath.stem
 
-        mols = list(pybel.readfile(fmt, filepath))
+        mols = list(pybel.readfile(fmt, str(filepath)))
         filenames = [f"{base_name}_{i}.{fmt}" for i in range(len(mols))]
         [mol.write(fmt, filename, True) for mol, filename in zip(mols, filenames)]
 

@@ -17,11 +17,7 @@ from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import (
-    ScreenType,
-    reduce_scores,
-    run_on_all_nodes,
-)
+from pyscreener.docking.utils import reduce_scores, run_on_all_nodes
 
 
 class DockingVirtualScreen:
@@ -61,7 +57,7 @@ class DockingVirtualScreen:
         # else:
         #     raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
         self.runner = runner
-        self.runner.valiate_metadata(metadata_template)
+        self.runner.validate_metadata(metadata_template)
 
         self.center = center
         self.size = size

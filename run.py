@@ -5,7 +5,7 @@ from pathlib import Path
 import ray
 
 from pyscreener.args import gen_args
-from pyscreener.docking import screen
+from pyscreener.docking import virtual_screen, build_metadata
 
 def main():
     print('''\

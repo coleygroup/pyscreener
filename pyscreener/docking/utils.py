@@ -10,6 +10,8 @@ import ray
 from pyscreener.exceptions import MissingExecutableError
 from pyscreener.utils import AutoName, ScoreMode
 from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.docking.dock.metadata import DOCKMetadata
+from pyscreener.docking.vina.metadata import VinaMetadata
 
 
 class ScreenType(AutoName):
@@ -19,7 +21,6 @@ class ScreenType(AutoName):
 
 def build_metadata(screen_type: ScreenType, **kwargs) -> CalculationMetadata:
     if screen_type == ScreenType.DOCK:
-        from pyscreener.docking import dock
 
         d_md = asdict(dock.DOCKMetadata())
         d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())

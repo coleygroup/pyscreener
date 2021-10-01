@@ -34,9 +34,9 @@ DOCK = DOCK6 / "bin" / "dock6"
 for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
     if not f.exists():
         raise MisconfiguredDirectoryError(
-            f'DOCK6 directory not configured properly! DOCK6 path is set as "{DOCK6}", but there '
-            f'is no "{f.name}" located in the "{f.parents[0].name}" subdirectory under the DOCK6 '
-            "path. See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information."
+            f'$DOCK6 directory not configured properly! DOCK6 path is set as "{DOCK6}", but there '
+            f'is no "{f.name}" located under the "{f.parents}" directory. '
+            "See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information."
         )
 
 

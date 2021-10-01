@@ -4,7 +4,7 @@ from .runner import DockingRunner
 from .screen import DockingVirtualScreen
 from .utils import ScreenType
 
-def screener(software, *args, **kwargs):
+def virtual_screen(software, *args, **kwargs):
     software = software.lower()
 
     if software.lower() in ('vina', 'qvina', 'smina', 'psovina'):

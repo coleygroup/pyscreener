@@ -1,0 +1,10 @@
+receptor=5WIU.pdbqt
+ligand=ligand.pdbqt
+
+center_x=-18.2
+center_y=14.4
+center_z=16.1
+
+size_x=15.4
+size_y=13.9
+size_z=14.5

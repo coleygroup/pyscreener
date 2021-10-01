@@ -70,6 +70,7 @@ class DOCKRunner(DockingRunner):
         """
         rec_mol2 = utils.prepare_mol2(data.receptor, data.in_path)
         rec_pdb = utils.prepare_pdb(data.receptor, data.in_path)
+        
         if rec_mol2 is None or rec_pdb is None:
             return data
 

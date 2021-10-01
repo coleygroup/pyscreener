@@ -20,4 +20,4 @@ class DOCKMetadata(CalculationMetadata):
     
     def __post_init__(self):
         if isinstance(self.sphere_mode, str):
-            self.software = SphereMode.from_str(self.software)
+            self.sphere_mode = SphereMode.from_str(self.sphere_more)

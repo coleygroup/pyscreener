@@ -1,52 +1,19 @@
 from dataclasses import asdict
 from enum import auto
 import functools
-import shutil
 from typing import Callable, Optional
 
 import numpy as np
 import ray
 
-from pyscreener.exceptions import MissingExecutableError
 from pyscreener.utils import AutoName, ScoreMode
 from pyscreener.docking.metadata import CalculationMetadata
-from pyscreener.docking.dock.metadata import DOCKMetadata
-from pyscreener.docking.vina.metadata import VinaMetadata
 
 
 class ScreenType(AutoName):
     DOCK = auto()
     VINA = auto()
 
-
-def build_metadata(screen_type: ScreenType, **kwargs) -> CalculationMetadata:
-    if screen_type == ScreenType.DOCK:
-
-        d_md = asdict(dock.DOCKMetadata())
-        d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
-
-        return dock.DOCKMetadata(**d_md)
-
-    elif screen_type == ScreenType.VINA:
-        from pyscreener.docking import vina
-
-        d_md = asdict(vina.VinaMetadata())
-        d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
-
-        return vina.VinaMetadata(**d_md)
-
-    raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
-
-
-# def valiate_metadata(screen_type: ScreenType, metadata: CalculationMetadata):
-#     if screen_type == ScreenType.DOCK:
-#         return
-#     else:
-#         if shutil.which(metadata.software.value) is None:
-#             raise MissingExecutableError(
-#                 f'Could not find "{metadata.software.value}" on PATH! '
-#                 "See https://github.com/coleygroup/pyscreener/tree/refactor#adding-an-executable-to-your-path for more information."
-#             )
 
 
 def run_on_all_nodes(func: Callable) -> Callable:

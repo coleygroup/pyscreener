@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import json
 from typing import Optional
 
@@ -19,12 +19,8 @@ def gen_args(argv: Optional[str] = None) -> Namespace:
     add_postprocessing_args(parser)
 
     args = parser.parse_args(argv)
-
     args.title_line = not args.no_title_line
     del args.no_title_line
-
-    args.enclose_spheres = not args.dont_enclose_spheres
-    del args.dont_enclose_spheres
 
     return args
 
@@ -79,14 +75,13 @@ def add_preprocessing_args(parser: ArgumentParser):
 def add_supply_args(parser: ArgumentParser):
     parser.add_argument("-s", "--smis", nargs="+", help="the SMILES strings of the ligands to dock")
     parser.add_argument(
-        "-l",
-        "--ligands",
+        "-i",
+        "--input-files",
         nargs="+",
         help="the filenames containing ligands to dock",
     )
     parser.add_argument(
-        "-i",
-        "--input-file-types",
+        "--input-filetypes",
         nargs="+",
         help="the filetype of each input ligand. If unspecified, will attempt to determine the filetype for each file.",
     )
@@ -105,6 +100,7 @@ def add_supply_args(parser: ArgumentParser):
     parser.add_argument(
         "--name-col",
         type=int,
+        default=1,
         help="UNUSED the column containing the molecule names/IDs in the CSV file. Molecules will be labeled as ligand_<i> otherwise.",
     )
     parser.add_argument(
@@ -152,7 +148,7 @@ def add_screen_args(parser: ArgumentParser):
     )
     parser.add_argument("--metadata-template", type=json.loads)
     parser.add_argument(
-        "--pdbids", help="the PDB IDs of the crystal structures to dock against"
+        "--pdbids", nargs="+", help="the PDB IDs of the crystal structures to dock against"
     )
     parser.add_argument(
         "--docked-ligand-file",

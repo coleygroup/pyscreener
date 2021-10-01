@@ -16,6 +16,7 @@ from pyscreener.utils import ScoreMode
 from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.docking.result import Result
 from pyscreener.docking.runner import DockingRunner
 from pyscreener.docking.utils import reduce_scores, run_on_all_nodes
 
@@ -39,6 +40,7 @@ class DockingVirtualScreen:
         ensemble_score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
         repeats: int = 1,
         k: int = 1,
+        verbose: int = 0,
     ):
         # super().__init__()
         # screen_type = (
@@ -143,59 +145,6 @@ class DockingVirtualScreen:
         """the number of ligands that have been simulated. NOT the total number of simulations"""
         return self.num_ligands
 
-    @run_on_all_nodes
-    def prepare_receptors(self):
-        return [
-            self.runner.prepare_receptor(template) for template in self.data_templates
-        ]
-
-    @property
-    def path(self):
-        return self.__path
-
-    @path.setter
-    def path(self, path):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__path = path
-
-    @property
-    def tmp_dir(self) -> Path:
-        """the Screener's temp directory"""
-        return self.__tmp_dir
-
-    @tmp_dir.setter
-    def tmp_dir(self, path: Union[str, Path]):
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        tmp_dir = Path(path) / "pyscreener" / f"session_{timestamp}"
-        tmp_dir.mkdir(exist_ok=True, parents=True)
-        self.__tmp_dir = tmp_dir
-        self.tmp_in = tmp_dir / "inputs"
-        self.tmp_out = tmp_dir / "outputs"
-
-    @property
-    def tmp_in(self) -> Path:
-        return self.__tmp_in
-
-    @tmp_in.setter
-    def tmp_in(self, path: Union[str, Path]):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__tmp_in = path
-
-    @property
-    def tmp_out(self) -> Path:
-        return self.__tmp_out
-
-    @tmp_out.setter
-    def tmp_out(self, path: Union[str, Path]):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__tmp_out = path
-
     def __call__(self, *sources: Iterable[Union[str, Iterable[str]]]) -> np.ndarray:
         """dock all of the ligands and return an array of their scores
 
@@ -244,6 +193,71 @@ class DockingVirtualScreen:
             S, self.repeat_score_mode, self.ensemble_score_mode, self.k
         )
 
+    @property
+    def path(self):
+        return self.__path
+
+    @path.setter
+    def path(self, path):
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+
+        self.__path = path
+
+    @property
+    def tmp_dir(self) -> Path:
+        """the Screener's temp directory"""
+        return self.__tmp_dir
+
+    @tmp_dir.setter
+    def tmp_dir(self, path: Union[str, Path]):
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        tmp_dir = Path(path) / "pyscreener" / f"session_{timestamp}"
+        tmp_dir.mkdir(exist_ok=True, parents=True)
+
+        self.__tmp_dir = tmp_dir
+        self.tmp_in = tmp_dir / "inputs"
+        self.tmp_out = tmp_dir / "outputs"
+
+    @property
+    def tmp_in(self) -> Path:
+        return self.__tmp_in
+
+    @tmp_in.setter
+    def tmp_in(self, path: Union[str, Path]):
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+
+        self.__tmp_in = path
+
+    @property
+    def tmp_out(self) -> Path:
+        return self.__tmp_out
+
+    @tmp_out.setter
+    def tmp_out(self, path: Union[str, Path]):
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+
+        self.__tmp_out = path
+
+    @run_on_all_nodes
+    def prepare_receptors(self):
+        return [
+            self.runner.prepare_receptor(template) for template in self.data_templates
+        ]
+
+    def all_results(self, flatten: bool = True) -> List[Result]:
+        """A flattened list of results from all of the completed simulations"""
+        resultsss = [
+            [[s.result for s in sims] for sims in simss]
+            for simss in self.completed_simulationsss
+        ]
+        if flatten:
+            return list(chain(*(chain(*resultsss))))
+        
+        return resultsss
+
     def plan(
         self, sources: Iterable[str], smiles: bool = True
     ) -> List[List[List[CalculationData]]]:
@@ -279,9 +293,6 @@ class DockingVirtualScreen:
             ]
 
         return planned_simulationsss
-
-    def prepare(self):
-        pass
 
     def run(
         self, planned_simulationsss: List[List[List[CalculationData]]]

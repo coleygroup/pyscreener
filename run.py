@@ -1,11 +1,13 @@
 import csv
+import dataclasses
 import os
 from pathlib import Path
-
+import time
 import ray
 
+from pyscreener import docking
 from pyscreener.args import gen_args
-from pyscreener.docking import virtual_screen, build_metadata
+from pyscreener.supply import LigandSupply
 
 def main():
     print('''\
@@ -42,44 +44,78 @@ def main():
     print('Ray cluster online with resources:')
     print(ray.cluster_resources())
     print(flush=True)
-
-    out_dir = Path(args.output_dir)
-    params['path'] = out_dir
     
-    print('Preprocessing ...', flush=True)
-    params = pyscreener.preprocess(**params)
-    print('Done!')
-
+    start = time.time()
     print(f'Preparing and screening inputs ...', flush=True)
-    screener = pyscreener.build_screener(**params)
-    d_smi_score, rows = screener(
-        *params['ligands'], full_results=True, **params
+    metadata_template = docking.build_metadata(args.software, args.metadata_template)
+    virtual_screen = docking.virtual_screen(
+        args.screen_type,
+        args.receptors,
+        args.center,
+        args.size,
+        metadata_template,
+        args.pdbids,
+        args.docked_ligand_file,
+        args.buffer,
+        args.ncpu,
+        args.base_name,
+        args.output_dir,
+        args.score_mode,
+        args.repeat_score_mode,
+        args.ensemble_score_mode,
+        args.repeats,
+        args.k,
+        args.verbose
     )
+    supply = LigandSupply(
+        args.input_files,
+        args.input_filetypes,
+        args.use_3d,
+        args.optimize,
+        args.title_line,
+        args.smiles_col,
+        args.name_col,
+        args.id_property
+    )
+
+    virtual_screen(args.smis)
+    virtual_screen(supply.ligands)
+
+    end = time.time()
     print('Done!')
 
-    print(f'Postprocessing ...', flush=True)
-    pyscreener.postprocess(d_smi_score=d_smi_score, **params)
-    print('Done!')
+    total_time = end - start
+    m, s = divmod(total_time, 60)
+    h, m = divmod(m, 60)
+    print(f'Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s}')
 
-    scores_filename = out_dir / 'scores.csv'
+    # print(f'Postprocessing ...', flush=True)
+    # pyscreener.postprocess(d_smi_score=d_smi_score, **params)
+    # print('Done!')
+
+    results = virtual_screen.all_results()
+    if not args.no_sort:
+        results = sorted(results, key=lambda r: r.score if r.score is not None else float('inf'))
+    smis_scores = [(r.smiles, r.score) for r in results]
+
+    scores_filename = virtual_screen.path / 'scores.csv'
     with open(scores_filename, 'w') as fid:
         writer = csv.writer(fid)
         writer.writerow(['smiles', 'score'])
-        writer.writerows(sorted(
-            d_smi_score.items(),
-            key=None if args.no_sort else lambda k_v: k_v[1] or float('inf')
-        ))
+        writer.writerows(smis_scores)
+
     print(f'Scoring data has been saved to: "{scores_filename}"')
 
     if args.collect_all:
         print('Collecting all input and output files ...', end=' ', flush=True)
-        screener.collect_files(out_dir)
-        extended_filename = out_dir / 'extended.csv'
-        rows = sorted(rows, key=lambda row: row['score'] or float('inf'))
+        virtual_screen.collect_files()
+
+        extended_filename = virtual_screen.path / 'extended.csv'
         with open(extended_filename, 'w') as fid:
             writer = csv.writer(fid)
-            writer.writerow(['smiles', 'name', 'node_id', 'score'])
-            writer.writerows(row.values() for row in rows)
+            writer.writerow(field.name for field in dataclasses.fields(results[0]))
+            writer.writerows(dataclasses.astuple(r) for r in results)
+
         print('Done!')
         print(f'Extended data has been saved to: "{extended_filename}"')
 

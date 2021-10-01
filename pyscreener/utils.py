@@ -24,6 +24,14 @@ class ScoreMode(AutoName):
     TOP_K = auto()
 
 
+class FileType(AutoName):
+
+    CSV = auto()
+    FILE = auto()
+    SDF = auto()
+    SMI = auto()
+
+
 def calc_score(
     scores: Sequence[float], score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
 ) -> float:

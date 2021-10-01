@@ -220,12 +220,12 @@ class DockingVirtualScreen:
         Parameters
         ----------
         *sources : Iterable[Union[str, Iterable[str]]]
-            the SMILES strings of the ligands to dock
+            an Iterable of SMILES strings, individual chemical files, or iterables thereof of the ligands to dock
 
         Returns
         -------
         np.ndarray
-            a vector of length `n`, where `n` is the total number of ligands ligands that were
+            a vector of length `n`, where `n` is the total number of ligands that were
             supplied
         """
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))

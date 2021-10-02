@@ -10,7 +10,9 @@ from openbabel import pybel
 import ray
 
 from pyscreener import utils
-from pyscreener.docking import CalculationData, DockingRunner, Result
+from pyscreener.docking.data import CalculationData
+from pyscreener.docking.runner import DockingRunner
+from pyscreener.docking.result import Result
 from pyscreener.docking.vina.metadata import VinaMetadata
 from pyscreener.exceptions import MissingExecutableError
 from pyscreener.docking.vina.utils import Software

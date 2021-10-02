@@ -9,45 +9,48 @@ from pyscreener import docking
 from pyscreener.args import gen_args
 from pyscreener.supply import LigandSupply
 
+
 def main():
-    print('''\
+    print(
+        """\
 ***************************************************************
 *      ____  __  ____________________  ___  ____  ___  _____  *
 *     / __ \/ / / / ___/ ___/ ___/ _ \/ _ \/ __ \/ _ \/ ___/  *
 *    / /_/ / /_/ (__  ) /__/ /  /  __/  __/ / / /  __/ /      *
 *   / .___/\__, /____/\___/_/   \___/\___/_/ /_/\___/_/       *
 *  /_/    /____/                                              *
-***************************************************************''')
-    print('Welcome to Pyscreener!\n')
+***************************************************************"""
+    )
+    print("Welcome to Pyscreener!\n")
     args = gen_args()
     params = vars(args)
-    print('Pyscreener will be run with the following arguments:')
+    print("Pyscreener will be run with the following arguments:")
     for param, value in sorted(params.items()):
-        print(f'  {param}: {value}')
+        print(f"  {param}: {value}")
     print(flush=True)
 
     try:
-        if 'redis_password' in os.environ:
+        if "redis_password" in os.environ:
             ray.init(
                 address=os.environ["ip_head"],
-                _node_ip_address=os.environ["ip_head"].split(":")[0], 
-                _redis_password=os.environ['redis_password']
+                _node_ip_address=os.environ["ip_head"].split(":")[0],
+                _redis_password=os.environ["redis_password"],
             )
         else:
-            ray.init(address='auto')
+            ray.init(address="auto")
     except ConnectionError:
         ray.init()
     except PermissionError:
-        print('Failed to create a temporary directory for ray')
+        print("Failed to create a temporary directory for ray")
         raise
-    
-    print('Ray cluster online with resources:')
+
+    print("Ray cluster online with resources:")
     print(ray.cluster_resources())
     print(flush=True)
-    
+
     start = time.time()
-    print(f'Preparing and screening inputs ...', flush=True)
-    metadata_template = docking.build_metadata(args.software, args.metadata_template)
+    print(f"Preparing and screening inputs ...", flush=True)
+    metadata_template = docking.build_metadata(args.screen_type, args.metadata_template)
     virtual_screen = docking.virtual_screen(
         args.screen_type,
         args.receptors,
@@ -65,7 +68,7 @@ def main():
         args.ensemble_score_mode,
         args.repeats,
         args.k,
-        args.verbose
+        args.verbose,
     )
     supply = LigandSupply(
         args.input_files,
@@ -75,19 +78,24 @@ def main():
         args.title_line,
         args.smiles_col,
         args.name_col,
-        args.id_property
+        args.id_property,
     )
 
-    virtual_screen(args.smis)
+    # import pdb; pdb.set_trace()
+    if args.smis is not None:
+        virtual_screen(args.smis)
     virtual_screen(supply.ligands)
 
-    end = time.time()
-    print('Done!')
+    total_time = time.time() - start
+    print("Done!")
 
-    total_time = end - start
+    avg_time = total_time / len(virtual_screen)
     m, s = divmod(total_time, 60)
     h, m = divmod(m, 60)
-    print(f'Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s}')
+    print(
+        f"Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s:0.2f} "
+        f"({avg_time:0.2f}s/ligand)"
+    )
 
     # print(f'Postprocessing ...', flush=True)
     # pyscreener.postprocess(d_smi_score=d_smi_score, **params)
@@ -95,31 +103,34 @@ def main():
 
     results = virtual_screen.all_results()
     if not args.no_sort:
-        results = sorted(results, key=lambda r: r.score if r.score is not None else float('inf'))
+        results = sorted(
+            results, key=lambda r: r.score if r.score is not None else float("inf")
+        )
     smis_scores = [(r.smiles, r.score) for r in results]
 
-    scores_filename = virtual_screen.path / 'scores.csv'
-    with open(scores_filename, 'w') as fid:
+    scores_filename = virtual_screen.path / "scores.csv"
+    with open(scores_filename, "w") as fid:
         writer = csv.writer(fid)
-        writer.writerow(['smiles', 'score'])
+        writer.writerow(["smiles", "score"])
         writer.writerows(smis_scores)
 
     print(f'Scoring data has been saved to: "{scores_filename}"')
 
     if args.collect_all:
-        print('Collecting all input and output files ...', end=' ', flush=True)
+        print("Collecting all input and output files ...", end=" ", flush=True)
         virtual_screen.collect_files()
 
-        extended_filename = virtual_screen.path / 'extended.csv'
-        with open(extended_filename, 'w') as fid:
+        extended_filename = virtual_screen.path / "extended.csv"
+        with open(extended_filename, "w") as fid:
             writer = csv.writer(fid)
             writer.writerow(field.name for field in dataclasses.fields(results[0]))
             writer.writerows(dataclasses.astuple(r) for r in results)
 
-        print('Done!')
+        print("Done!")
         print(f'Extended data has been saved to: "{extended_filename}"')
 
-    print('Thanks for using Pyscreener!')
+    print("Thanks for using Pyscreener!")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

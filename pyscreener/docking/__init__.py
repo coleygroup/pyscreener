@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from typing import Dict
 
 from .data import CalculationData
 from .metadata import CalculationMetadata
@@ -15,12 +16,12 @@ def screen_type(software) -> ScreenType:
     else:
         raise ValueError(f'Unrecognized docking software: "{software}"')
 
-def build_metadata(software: str, **kwargs) -> CalculationMetadata:
+def build_metadata(software: str, metadata: Dict) -> CalculationMetadata:
     if software.lower() in ('vina', 'qvina', 'smina', 'psovina'):
         from pyscreener.docking.vina.metadata import VinaMetadata
 
         d_md = asdict(VinaMetadata())
-        d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
+        d_md.update((k, metadata[k]) for k in d_md.keys() & metadata.keys())
 
         return VinaMetadata(**d_md)
 
@@ -28,7 +29,7 @@ def build_metadata(software: str, **kwargs) -> CalculationMetadata:
         from pyscreener.docking.dock.metadata import DOCKMetadata
 
         d_md = asdict(DOCKMetadata())
-        d_md.update((k, kwargs[k]) for k in d_md.keys() & kwargs.keys())
+        d_md.update((k, metadata[k]) for k in d_md.keys() & metadata.keys())
 
         return DOCKMetadata(**d_md)
 

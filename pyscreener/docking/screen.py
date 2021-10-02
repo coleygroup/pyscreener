@@ -11,6 +11,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import ray
+from tqdm import tqdm
 
 from pyscreener.utils import ScoreMode
 from pyscreener.preprocessing import autobox, pdbfix
@@ -301,7 +302,10 @@ class DockingVirtualScreen:
             [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
             for simss in planned_simulationsss
         ]
-        return [[ray.get(refs) for refs in refss] for refss in refsss]
+        return [
+            [ray.get(refs) for refs in refss]
+            for refss in tqdm(refsss, desc='Docking', unit='ligand', smoothing=0.)
+        ]
 
     @run_on_all_nodes
     def collect_files(self, path: Optional[Union[str, Path]] = None):

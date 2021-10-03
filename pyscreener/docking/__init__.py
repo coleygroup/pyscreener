@@ -8,16 +8,18 @@ from .runner import DockingRunner
 from .screen import DockingVirtualScreen
 from .utils import ScreenType
 
+
 def screen_type(software) -> ScreenType:
-    if software.lower() in ('vina', 'qvina', 'smina', 'psovina'):
+    if software.lower() in ("vina", "qvina", "smina", "psovina"):
         return ScreenType.VINA
-    elif software.lower() in ('dock', 'dock6', 'ucsfdock'):
+    elif software.lower() in ("dock", "dock6", "ucsfdock"):
         return ScreenType.DOCK
     else:
         raise ValueError(f'Unrecognized docking software: "{software}"')
 
+
 def build_metadata(software: str, metadata: Dict) -> CalculationMetadata:
-    if software.lower() in ('vina', 'qvina', 'smina', 'psovina'):
+    if software.lower() in ("vina", "qvina", "smina", "psovina"):
         from pyscreener.docking.vina.metadata import VinaMetadata
 
         d_md = asdict(VinaMetadata())
@@ -25,7 +27,7 @@ def build_metadata(software: str, metadata: Dict) -> CalculationMetadata:
 
         return VinaMetadata(**d_md)
 
-    if software.lower() in ('dock', 'ucsfdock'):
+    if software.lower() in ("dock", "dock6", "ucsfdock"):
         from pyscreener.docking.dock.metadata import DOCKMetadata
 
         d_md = asdict(DOCKMetadata())
@@ -35,12 +37,13 @@ def build_metadata(software: str, metadata: Dict) -> CalculationMetadata:
 
     raise ValueError(f'Unrecognized docking software: "{software}"')
 
-def virtual_screen(software: str, *args, **kwargs):
-    if software.lower() in ('vina', 'qvina', 'smina', 'psovina'):
+
+def virtual_screen(software: str, *args, **kwargs) -> DockingVirtualScreen:
+    if software.lower() in ("vina", "qvina", "smina", "psovina"):
         from pyscreener.docking.vina import VinaRunner
 
         runner = VinaRunner
-    elif software.lower() in ('dock', 'ucsfdock'):
+    elif software.lower() in ("dock", "dock6", "ucsfdock"):
         from pyscreener.docking.dock import DOCKRunner
 
         runner = DOCKRunner

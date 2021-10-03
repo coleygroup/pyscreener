@@ -22,6 +22,8 @@ def gen_args(argv: Optional[str] = None) -> Namespace:
     args.title_line = not args.no_title_line
     del args.no_title_line
 
+    args.metadata_template["buffer"]  = args.buffer
+
     return args
 
 
@@ -146,7 +148,7 @@ def add_screen_args(parser: ArgumentParser):
         metavar=("SIZE_X", "SIZE_Y", "SIZE_Z"),
         help="the x-, y-, and z-radii of the docking box",
     )
-    parser.add_argument("--metadata-template", type=json.loads)
+    parser.add_argument("--metadata-template", type=json.loads, default={})
     parser.add_argument(
         "--pdbids", nargs="+", help="the PDB IDs of the crystal structures to dock against"
     )

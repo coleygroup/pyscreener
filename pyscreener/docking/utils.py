@@ -1,4 +1,3 @@
-from dataclasses import asdict
 from enum import auto
 import functools
 from typing import Callable, Optional
@@ -7,13 +6,11 @@ import numpy as np
 import ray
 
 from pyscreener.utils import AutoName, ScoreMode
-from pyscreener.docking.metadata import CalculationMetadata
 
 
 class ScreenType(AutoName):
     DOCK = auto()
     VINA = auto()
-
 
 
 def run_on_all_nodes(func: Callable) -> Callable:

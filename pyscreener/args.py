@@ -23,7 +23,8 @@ def gen_args(argv: Optional[str] = None) -> Namespace:
     del args.no_title_line
 
     args.metadata_template["buffer"]  = args.buffer
-
+    args.metadata_template["docked_ligand_file"] = args.docked_ligand_file
+    
     return args
 
 

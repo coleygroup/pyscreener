@@ -83,21 +83,41 @@ pyscreener writes a lot of intermediate input and output files (due to the inher
 __!!please read the entire section before running pyscreener!!__
 
 pyscreener was designed to have a minimal interface under the principal that a high-throughput virtual screen is intended to be a broad strokes technique to gauge ligand favorability. With that in mind, all one really needs to get going are the following:
-- the PDB id of your receptor of interest or a PDB format file of the specific structure
+- the type of screen (`screen-type`) you would like to run: `vina` or `dock` for Vina-type or DOCK6 screens, respectively
+- the PDB id(s) of your receptor(s) of interest or PDB file(s) of the specific structure(s)
 - a file containing the ligands you would like to dock, in SDF, SMI, or CSV format
-- the coordinates of your docking box (center + size), a PDB format file containing the coordinates of a previously bound ligand, or a numbered list of residues from which to construct the docking box (e.g., [42, 64, 117, 169, 191])
+- the coordinates of your docking box (center + size) or a PDB format file containing the coordinates of a previously bound ligand
+- a metadata template containing screen-specific options in a JSON-format string. See the [metadata](#metadata-templates) section below for more details.
+- the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking
+<!-- , or a numbered list of residues from which to construct the docking box (e.g., [42, 64, 117, 169, 191]) -->
 
 There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
 
-All of these options may be specified on the command line, but they may also be placed in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [test_configs](test_configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config integration-tests/configs/<config>`
+All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [test_configs](test_configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config integration-tests/configs/<config>`
+
+### Metadata Templates
+Vina-type and DOCK6 docking simulations have a number of options unique to their preparation and simulation pipeline, and these options are termed simulation "metadata" in `pyscreener`. At present, only a few of these options are supported for both families of docking software, but future updates will add support for more of these options. These options may be specified via a JSON struct to the `--metadata-template` argument. Below is a list of the supported options for both types of docking screen (default options provided in parentheses next to the parameter)
+
+* Vina-type
+  - `software` (=`"vina"`): which Vina-type docking software you would like to use. Currently supported values: `"vina"`, `"qvina",` `"smina"`, and `"psovina"`
+  - `extra` (=`""`): all the extra command line options to pass to a Vina-type docking software. E.g., `"--energy_range ENERGY_RANGE --num_modes NUM_MODES"`
+
+* DOCK6
+  - `probe_radius` (=`1.4`): the size of the probe to use for calculating the molecular surface (see [here](http://dock.compbio.ucsf.edu/DOCK_6/tutorials/sphere_generation/generating_spheres.htm) for more details)
+  - `steric_clash_dist` (=`0.0`): prevent the generation of large spheres with close surface contacts with larger values
+  - `min_radius` (=`1.4`): the minimum radius of sphere to use for sphere generation
+  - `max_radius` (=`4.0`): the maximum "..."
+  - `sphere_mode` (=`"box"`): the method by which to select spheres for docking box construction. Accepted values: `"largest"`, select the largest cluster of spheres; `"box"`, select all spheres within a predefined docking box; `"ligand"`, use the coordinates of a previously docked/bound ligand to select spheres
+  - `docked_ligand_file` (=`""`): a MOL2 file containing the coordinates of a previously docked/bound ligand
+  - `buffer` (=`10.0`): the amount of extra space (in Angstroms) to be added around the ligand when selecting spheres
+  - `enclose_spheres` (=`True`): whether to construct the docking box by enclosing all of the selected spheres or use only spheres within a predefined docking box
 
 ## Using pyscreener as a library
 The object model of pyscreener relies on four classes:
 * [`CalculationData`](pyscreener.docking.data.py): a simple object containing the broadstrokes specifications of a docking calculation common to all types of docking calculations (e.g., Vina, DOCK6, etc.): the SMILES string, the target receptor, the center/size of a docking box, the metadata, and the result.
-* [`CalculationMetadata`](pyscreener.docking.metadata.py): a nondescript object that contains software-specific fields. For example, a Vina-type calculation requires a `software` parameter, whereas a DOCK6 calculation requires a number of different parameters for receptor preparation. Most importantly, the metadata will always contain two fields of abstract type: `prepared_ligand` and `prepared_receptor`. You can inspect the respective metadata classes to learn the concrete type, but the intent is that a user will not be inspecting the metadata object
+* [`CalculationMetadata`](pyscreener.docking.metadata.py): a nondescript object that contains software-specific fields. For example, a Vina-type calculation requires a `software` parameter, whereas a DOCK6 calculation requires a number of different parameters for receptor preparation. Most importantly, the metadata will always contain two fields of abstract type: `prepared_ligand` and `prepared_receptor`.
 * [`DockingRunner`](pyscreener.docking.runner.py): a static object that takes defines an interface to prepare and run docking calculations. Each calculation type defines its own `DockingRunner` implementation.
 * [`DockingVirtualScreen`](pyscreener.docking.screen.py): an object that organizes a virtual screen. At a high level, a virtual is a series of docking calculations with some template set of parameters performed for a collection of molecules and distributed over some set of computational resources. A `DockingVirtualScreen` takes as arguments a `DockingRunner`, a list of receptors (for possible ensemble docking) and a set of template values for a `CalculationData` template. It defines a `__call__()` method that takes an unzipped list of SMILES strings, builds the `CalculationData` objects for each molecule, and submits these objects for preparation and calculation to various resources in the ray cluster (see [setup](#setup)).
-
 
 To perform docking calls inside your python code using `pyscreener`, you must first initialize a `DockingVirtualScreen` object either through the factory `docking.virtual_screen` function or manually initializing one. The following section will show an example of how to perform computational from inside a python interpreter.
 
@@ -107,17 +127,17 @@ To perform docking calls inside your python code using `pyscreener`, you must fi
 `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are. -->
 
 ### Example
-the following code snippet will dock benzene (SMILES string "c1ccccc1") against the D4 dopamine receptor (PDB ID: 5WIU) using the site of a previously docked ligand and Autodock Vina
+the following code snippet will dock benzene (SMILES string "c1ccccc1") against the D4 dopamine receptor (PDB ID 5WIU) using the site of a previously docked ligand and Autodock Vina
 
 ```python
 >>> import ray
 >>> ray.init()
 [...]
 >>> from pyscreener.docking import virtual_screen, vina
->>> metadata = vina.VinaMetadata('vina'')
->>> vs = virtual_screen('vina', ['testing_inputs/5WIU.pdb'], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
+>>> metadata = vina.VinaMetadata("vina")
+>>> vs = virtual_screen("vina", ["testing_inputs/5WIU.pdb"], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
->>> scores = vs('c1ccccc1')
+>>> scores = vs("c1ccccc1")
 >>> scores
 array([-4.4])
 ```
@@ -126,10 +146,11 @@ A few notes from the above example:
 - the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=["5WIU"]) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
 - you can construct a docking from the coordinates of a previously bound ligand by providing these coordinates in a PDB file, e.g.
     ```python
-    vs = screen.DockingVirtualScreen(utils.ScreenType.VINA, ["testing_inputs/5WIU.pdb"], None, None, metadata, ncpu=8, docked_ligand_file="path/to/docked_ligand_file.pdb")
+    vs = screen.DockingVirtualScreen("vina", ["testing_inputs/5WIU.pdb"], None, None, metadata, ncpu=8, docked_ligand_file="path/to/DOCKED_LIGAND.pdb")
     ```
 - If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight the ability to initialize ray according to your own needs (i.e., a distributed setup).
+- to use an input file containing ligands, you must use the `LigandSupply` class and call the `.ligands` attribute
 <!-- - you can call the `vs` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`) -->
     
 ## Copyright

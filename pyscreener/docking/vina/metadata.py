@@ -22,9 +22,14 @@ class VinaMetadata(CalculationMetadata):
         the x-, y-, and z-radii of the docking box
     ncpu : int
         the number of cpu cores to use during the docking calculation
-    extra : Optional[List[str]]
-        additional command line arguments that will be passed to the
-        docking calculation
+    exhaustiveness: int
+        the exhaustiveness of the global search. Larger values are more exhaustive
+    num_modes: int
+        the number of output modes
+    energy_range: float
+        the maximum energy difference (in kcal/mol) between the best and worst output binding modes
+    extra : List[str]
+        additional arguments that will be passed to the docking calculation
     prepared_ligand: Optional[Path]
     prepared_receptor: Optional[Path]
 
@@ -38,15 +43,21 @@ class VinaMetadata(CalculationMetadata):
         the x-, y-, and z-radii of the docking box
     ncpu : int, default=1
         the number of cpu cores to use during the docking calculation
-    extra : Optional[List[str]], default=None
-        additional command line arguments that will be passed to the
-        docking calculation
+    exhaustiveness: int, default=8
+    num_modes: int, default=9
+    energy_range: float, default=3.
+    extra : str, default=""
+        a string containing the additional command line arguments to pass to a run of a vina-type
+        software for options not contained within the default metadata. E.g. for a run of Smina, extra="--force_cap ARG" or for PSOVina, extra="-w ARG"
     prepared_ligand: Optional[Union[str, Path]] = None,
     prepared_receptor: Optional[Union[str, Path]] = None
     """
 
     software: Union[Software, str] = Software.VINA
-    extra: Optional[str] = None
+    exhaustiveness: int = 8
+    num_modes: int = 9
+    energy_range: float = 3.
+    extra: str = ""
     prepared_ligand: Optional[Union[str, Path]] = None
     prepared_receptor: Optional[Union[str, Path]] = None
 
@@ -59,4 +70,4 @@ class VinaMetadata(CalculationMetadata):
                     f'"{self.software}" is not a supported software for vina-type screens!'
                 )
 
-        self.extra = shlex.split(self.extra) if self.extra else []
+        self.extra = shlex.split(self.extra)

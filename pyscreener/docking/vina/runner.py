@@ -154,9 +154,12 @@ class VinaRunner(DockingRunner):
             center=data.center,
             size=data.size,
             ncpu=data.ncpu,
-            extra=data.metadata.extra,
+            exhaustiveness=data.metadata.exhaustiveness,
+            num_modes=data.metadata.num_modes,
+            energy_range=data.metadata.energy_range,
             name=name,
             path=Path(data.out_path),
+            extra=data.metadata.extra,
         )
 
         ret = sp.run(argv, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -186,6 +189,9 @@ class VinaRunner(DockingRunner):
         center: Tuple[float, float, float],
         size: Tuple[float, float, float] = (10, 10, 10),
         ncpu: int = 1,
+        exhaustiveness: int = 8,
+        num_modes: int = 9,
+        energy_range: float = 3.,
         name: Optional[str] = None,
         path: Path = Path("."),
         extra: Optional[List[str]] = None,
@@ -206,6 +212,16 @@ class VinaRunner(DockingRunner):
             the  x-, y-, and z-radii, respectively, of the search box
         ncpu : int, default=1
             the number of cores to allocate to the docking program
+        exhaustiveness: int
+            the exhaustiveness of the global search. Larger values are more exhaustive
+        num_modes: int
+            the number of output modes
+        energy_range: float
+            the maximum energy difference (in kcal/mol) between the best and worst output binding 
+            modes
+        extra : Optional[List[str]]
+        additional command line arguments that will be passed to the
+        docking calculation
         name : string, default=<receptor>_<ligand>)
             the base name to use for both the log and out files
         path : Path, default=Path('.')
@@ -242,6 +258,9 @@ class VinaRunner(DockingRunner):
             f"--cpu={ncpu}",
             f"--out={out}",
             f"--log={log}",
+            f"--exhaustiveness {exhaustiveness}",
+            f"--num_modes {num_modes}",
+            f"--energy_range {energy_range}"
             *extra,
         ]
 

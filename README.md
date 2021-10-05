@@ -38,11 +38,13 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 
 ### external software
 * vina-type software
-  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and either:
+  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and add `prepare_receptor` to your PATH. If this step was successful, the command `which prepare_receptor` should output `path/to/prepare_receptor`. This can be done via either:
 
-      1. add the entire `bin` directory to your path (you should see a command at the end of the installation process) or
+      1. adding the entire `bin` directory to your path (you should see a command at the end of the installation process) or
 
-      2. add only `prepare_receptor` in the `bin` directory to your PATH as detailed [below](#adding-an-executable-to-your-path)
+      2. adding only `prepare_receptor` in the `bin` directory to your PATH as detailed [below](#adding-an-executable-to-your-path)
+  
+  
   1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
@@ -92,7 +94,7 @@ pyscreener was designed to have a minimal interface under the principal that a h
 - a file containing the ligands you would like to dock, in SDF, SMI, or CSV format
 - the coordinates of your docking box (center + size) or a PDB format file containing the coordinates of a previously bound ligand
 - a metadata template containing screen-specific options in a JSON-format string. See the [metadata](#metadata-templates) section below for more details.
-- the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking
+- the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking. A generally good value for this is between `2` and `8` depending on your compute setup. If you're docking molecule-by-molecule, e.g., reinforcement learning, then you will likely want this to be as many CPUs as are on your machine.
 <!-- , or a numbered list of residues from which to construct the docking box (e.g., [42, 64, 117, 169, 191]) -->
 
 There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
@@ -121,9 +123,9 @@ The object model of pyscreener relies on four classes:
 * [`CalculationData`](pyscreener.docking.data.py): a simple object containing the broadstrokes specifications of a docking calculation common to all types of docking calculations (e.g., Vina, DOCK6, etc.): the SMILES string, the target receptor, the center/size of a docking box, the metadata, and the result.
 * [`CalculationMetadata`](pyscreener.docking.metadata.py): a nondescript object that contains software-specific fields. For example, a Vina-type calculation requires a `software` parameter, whereas a DOCK6 calculation requires a number of different parameters for receptor preparation. Most importantly, the metadata will always contain two fields of abstract type: `prepared_ligand` and `prepared_receptor`.
 * [`DockingRunner`](pyscreener.docking.runner.py): a static object that takes defines an interface to prepare and run docking calculations. Each calculation type defines its own `DockingRunner` implementation.
-* [`DockingVirtualScreen`](pyscreener.docking.screen.py): an object that organizes a virtual screen. At a high level, a virtual is a series of docking calculations with some template set of parameters performed for a collection of molecules and distributed over some set of computational resources. A `DockingVirtualScreen` takes as arguments a `DockingRunner`, a list of receptors (for possible ensemble docking) and a set of template values for a `CalculationData` template. It defines a `__call__()` method that takes an unzipped list of SMILES strings, builds the `CalculationData` objects for each molecule, and submits these objects for preparation and calculation to various resources in the ray cluster (see [setup](#setup)).
+* [`DockingVirtualScreen`](pyscreener.docking.screen.py): an object that organizes a virtual screen. At a high level, a virtual is a series of docking calculations with some template set of parameters performed for a collection of molecules and distributed over some set of computational resources. A `DockingVirtualScreen` takes as arguments a `DockingRunner`, a list of receptors (for possible ensemble docking) and a set of template values for a `CalculationData` template. It defines a `__call__()` method that takes an unzipped list of SMILES strings, builds the `CalculationData` objects for each molecule, and submits these objects for preparation and calculation to various resources in the ray cluster (see [ray setup](#ray-setup)).
 
-To perform docking calls inside your python code using `pyscreener`, you must first initialize a `DockingVirtualScreen` object either through the factory `docking.virtual_screen` function or manually initializing one. The following section will show an example of how to perform computational from inside a python interpreter.
+To perform docking calls inside your python code using `pyscreener`, you must first initialize a `DockingVirtualScreen` object either through the factory `pyscreener.virtual_screen` function or manually initializing one. The following section will show an example of how to perform computational from inside a python interpreter.
 
 <!---
 `Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina.
@@ -139,7 +141,7 @@ the following code snippet will dock benzene (SMILES string `"c1ccccc1"`) agains
 [...]
 >>> import pyscreener as ps
 >>> metadata = ps.build_metadata("vina")
->>> virtual_screen = ps.virtual_screen("vina", ["testing_inputs/5WIU.pdb"], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
+>>> virtual_screen = ps.virtual_screen("vina", ["integration-tests/inputs/5WIU.pdb"], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
 >>> scores = virtual_screen("c1ccccc1")
 >>> scores
@@ -150,9 +152,8 @@ A few notes from the above example:
 - the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., `pdbids=["5WIU"]`) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
 - you can construct a docking from the coordinates of a previously bound ligand by providing these coordinates in a PDB file, e.g.
   ```python
-  vs = screen.DockingVirtualScreen("vina", ["testing_inputs/5WIU.pdb"], None, None, metadata, ncpu=8, docked_ligand_file="path/to/DOCKED_LIGAND.pdb")
+  vs = ps.virtual_screen("vina", ["integration-tests/inputs/5WIU.pdb"], None, None, metadata, ncpu=8, docked_ligand_file="path/to/DOCKED_LIGAND.pdb")
   ```
-- If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight the ability to initialize ray according to your own needs (i.e., a distributed setup).
 - to use an input file containing ligands, you must use the `LigandSupply` class and access the `.ligands` attribute, e.g.,
   ```python

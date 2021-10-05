@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import Dict
+from typing import Dict, Optional
 
 from .data import CalculationData
 from .metadata import CalculationMetadata
@@ -18,7 +18,9 @@ def screen_type(software) -> ScreenType:
         raise ValueError(f'Unrecognized docking software: "{software}"')
 
 
-def build_metadata(software: str, metadata: Dict) -> CalculationMetadata:
+def build_metadata(software: str, metadata: Optional[Dict] = None) -> CalculationMetadata:
+    metadata = metadata or {}
+    
     if software.lower() in ("vina", "qvina", "smina", "psovina"):
         from pyscreener.docking.vina.metadata import VinaMetadata
 

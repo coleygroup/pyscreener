@@ -3,6 +3,7 @@ import dataclasses
 import os
 import time
 
+import numpy as np
 import ray
 
 import pyscreener as ps
@@ -79,9 +80,9 @@ def main():
         args.id_property,
     )
 
+    S = virtual_screen(supply.ligands)
     if args.smis is not None:
-        virtual_screen(args.smis)
-    virtual_screen(supply.ligands)
+        S = np.concat((S, virtual_screen(args.smis)))
 
     total_time = time.time() - start
     print("Done!")
@@ -94,9 +95,10 @@ def main():
         f"({avg_time:0.2f}s/ligand)"
     )
 
-    # print(f'Postprocessing ...', flush=True)
-    # pyscreener.postprocess(d_smi_score=d_smi_score, **params)
-    # print('Done!')
+    if args.hist_mode is not None:
+        ps.postprocessing.histogram(
+            args.hist_mode, S, virtual_screen.path, "score_distribution.png"
+        )
 
     results = virtual_screen.all_results()
     if not args.no_sort:

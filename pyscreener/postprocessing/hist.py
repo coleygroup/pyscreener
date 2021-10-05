@@ -48,7 +48,7 @@ def plot_hist(Y: np.ndarray, path: str = ".", name: str = "scores_distribution.p
 
 def print_hist(Y: np.ndarray):
     hist, bin_edges = np.histogram(
-        Y[~np.isnan(Y)], np.arange(Y.min(), Y.max() + BINWIDTH, BINWIDTH)
+        Y[~np.isnan(Y)], np.arange(np.nanmin(Y), np.nanmax(Y) + BINWIDTH, BINWIDTH)
     )
 
     try:
@@ -62,6 +62,7 @@ def print_hist(Y: np.ndarray):
 
     counts = hist / hist.max()
     unit = ceil(hist.max() / width)
+    
     header_str = f"| Score Distribution (* = {unit} counts) |"
     border_str = f"+{'-'*(len(header_str)-2)}+"
 

@@ -38,7 +38,11 @@ Before running `pyscreener`, be sure to first activate the environment: `conda a
 
 ### external software
 * vina-type software
-  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) for receptor preparation and follow the directions to add the resulting `bin` folder to your path (you should see a command at the end of the installation process)
+  1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and either:
+
+      1. add the entire `bin` directory to your path (you should see a command at the end of the installation process) or
+
+      2. add only `prepare_receptor` in the `bin` directory to your PATH as detailed [below](#adding-an-executable-to-your-path)
   1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
@@ -155,7 +159,6 @@ A few notes from the above example:
   supply = ps.LigandSupply('integration-tests/inputs/ligands.csv')
   virtual_screen(supply.ligands)
   ```
-<!-- - you can call the `vs` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`) -->
     
 ## Copyright
 Copyright (c) 2021, david graff

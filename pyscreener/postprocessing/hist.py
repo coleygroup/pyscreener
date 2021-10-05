@@ -44,7 +44,7 @@ def plot_hist(Y: np.ndarray, path: str = ".", name: str = "scores_distribution.p
     filepath = Path(path) / name
 
     fig.savefig(str(filepath), dpi=300)
-
+    print(f'Histogram saved to {filepath}!')
 
 def print_hist(Y: np.ndarray):
     hist, bin_edges = np.histogram(

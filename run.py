@@ -89,7 +89,7 @@ def main():
 
     avg_time = total_time / len(virtual_screen)
     m, s = divmod(total_time, 60)
-    h, m = divmod(m, 60)
+    h, m = divmod(int(m), 60)
     print(
         f"Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s:0.2f}s "
         f"({avg_time:0.2f}s/ligand)"

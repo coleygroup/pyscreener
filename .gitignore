@@ -6,6 +6,7 @@
 *.log
 *.out
 *.txt
+*.png
 
 *.mol
 *.pdbqt

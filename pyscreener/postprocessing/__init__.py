@@ -1,5 +1,5 @@
 from typing import List
-
+from .visualization import visualize
 def postprocess(postprocessing_options: List[str], **kwargs):
     if 'none' in postprocessing_options:
         return

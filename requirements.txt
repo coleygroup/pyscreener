@@ -6,4 +6,5 @@ ray
 pandas
 scikit_learn
 scipy
+seaborn
 tqdm

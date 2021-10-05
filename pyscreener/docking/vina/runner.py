@@ -4,7 +4,7 @@ import re
 import shutil
 import subprocess as sp
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from openbabel import pybel
 import ray
@@ -267,20 +267,19 @@ class VinaRunner(DockingRunner):
         return argv, out, log
 
     @staticmethod
-    def parse_logfile(logfile: str) -> Optional[List[float]]:
-        """parse a Vina-type log file for the scores of the conformations
+    def parse_logfile(logfile: Union[str, Path]) -> Optional[List[float]]:
+        """parse a Vina-type log file for the scores of the binding modes
 
         Parameters
         ----------
-        logfile : str
+        logfile : Union[str, Path]
             the path to a Vina-type log file
 
         Returns
         -------
         Optional[List[float]]
-            the scores of the docked conformations in the ordering of the
-            log file. None if no scores were parsed or the log file was
-            unparseable
+            the scores of the docked binding modes in the ordering of the log file. None if no 
+            scores were parsed or the log file was unparseable
         """
         TABLE_BORDER = "-----+------------+----------+----------"
         try:
@@ -291,12 +290,42 @@ class VinaRunner(DockingRunner):
 
                 score_lines = list(takewhile(lambda line: "Writing" not in line, fid))
         except OSError:
-            pass
+            return None
 
         scores = []
         for line in score_lines:
             try:
                 scores.append(float(line.split()[1]))
+            except ValueError:
+                continue
+
+        return scores or None
+
+    @staticmethod
+    def parse_outfile(outfile: Union[str, Path]) -> Optional[List[float]]:
+        """parse a Vina-type output file for the scores of the binding modes
+        
+        Paramaters
+        ----------
+        outfile : Union[str, Path]
+            the filepath a vina-type output file
+        
+        Returns
+        -------
+        Optional[List[float]]
+            the scores of the binding in the ordering of the output file. None if no scores were 
+            parsed or the log file was unparseable
+        """
+        try:
+            with open(outfile) as fid:
+                score_lines = [line for line in fid.readlines() if 'REMARK VINA RESULT' in line]
+        except OSError:
+            return None
+
+        scores = []
+        for line in score_lines:
+            try:
+                scores.append(float(line.split()[3]))
             except ValueError:
                 continue
 

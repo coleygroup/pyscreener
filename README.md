@@ -14,7 +14,7 @@ This repository contains the source of pyscreener, both a library and software f
 - [Table of Contents](#table-of-contents)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Setup](#setup)
+- [Ray setup](#ray-setup)
 - [Running pyscreener](#running-pyscreener-as-a-software)
 - [Using pyscreener](#using-pyscreener-as-a-library)
 
@@ -64,7 +64,7 @@ To add an executable to your PATH, you have three options:
 #### specifying an environment variable
 To set the `DOCK6` environment variable, run the following command: `export DOCK6=<path/to/dock6>`, where `<path/to/dock6>` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
-## Setup
+## Ray Setup
 pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, don't need to do anything . However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster __before__ running pyscreener.
 
 #### Limiting the number of cores

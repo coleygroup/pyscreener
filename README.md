@@ -100,7 +100,7 @@ Vina-type and DOCK6 docking simulations have a number of options unique to their
 
 * Vina-type
   - `software` (=`"vina"`): which Vina-type docking software you would like to use. Currently supported values: `"vina"`, `"qvina",` `"smina"`, and `"psovina"`
-  - `extra` (=`""`): all the extra command line options to pass to a Vina-type docking software. E.g., `"--energy_range ENERGY_RANGE --num_modes NUM_MODES"`
+  - `extra` (=`""`): all the extra command line options to pass to a Vina-type docking software. E.g. for a run of Smina, `extra="--force_cap ARG"` or for PSOVina, `extra="-w ARG"`
 
 * DOCK6
   - `probe_radius` (=`1.4`): the size of the probe to use for calculating the molecular surface (see [here](http://dock.compbio.ucsf.edu/DOCK_6/tutorials/sphere_generation/generating_spheres.htm) for more details)
@@ -134,8 +134,7 @@ the following code snippet will dock benzene (SMILES string `"c1ccccc1"`) agains
 >>> ray.init()
 [...]
 >>> import pyscreener as ps
->>> from pyscreener.docking import vina
->>> metadata = vina.VinaMetadata("vina")
+>>> metadata = ps.build_metadata("vina")
 >>> virtual_screen = ps.virtual_screen("vina", ["testing_inputs/5WIU.pdb"], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
 >>> scores = virtual_screen("c1ccccc1")
@@ -159,7 +158,7 @@ A few notes from the above example:
 <!-- - you can call the `vs` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`) -->
     
 ## Copyright
-Copyright (c) 2020, david graff
+Copyright (c) 2021, david graff
 
 ## Acknowledgements 
 Project based on the 

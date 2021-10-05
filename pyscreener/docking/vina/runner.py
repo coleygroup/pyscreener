@@ -46,14 +46,16 @@ class VinaRunner(DockingRunner):
         receptor_pdbqt : Optional[str]
             the filepath of the resulting PDBQT file. None if preparation failed
         """
-        receptor_pdbqt = Path(data.receptor).with_suffix(".pdbqt")
-        receptor_pdbqt = Path(data.in_path) / receptor_pdbqt.name
+        name = Path(data.receptor).with_suffix(".pdbqt").name
+        receptor_pdbqt = Path(data.in_path) / name
 
         argv = ["prepare_receptor", "-r", data.receptor, "-o", receptor_pdbqt]
         try:
-            sp.run(argv, stderr=sp.PIPE, check=True)
+            ret = sp.run(argv, stderr=sp.PIPE)
+            ret.check_returncode()
         except sp.SubprocessError:
             print(f'ERROR: failed to convert "{data.receptor}"', file=sys.stderr)
+            print(ret.stderr.decode("utf-8"))
             return None
 
         data.metadata.prepared_receptor = receptor_pdbqt

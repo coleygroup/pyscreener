@@ -44,21 +44,6 @@ class DockingVirtualScreen:
         verbose: int = 0,
     ):
         # super().__init__()
-        # screen_type = (
-        #     screen_type
-        #     if isinstance(screen_type, ScreenType)
-        #     else ScreenType.from_str(screen_type)
-        # )
-        # if screen_type == ScreenType.DOCK:
-        #     from pyscreener.docking import dock
-
-        #     self.runner = dock.DOCKRunner
-        # elif screen_type == ScreenType.VINA:
-        #     from pyscreener.docking import vina
-
-        #     self.runner = vina.VinaRunner
-        # else:
-        #     raise ValueError(f"Invalid screen type specified! got: {screen_type}.")
         self.runner = runner
         self.runner.validate_metadata(metadata_template)
 

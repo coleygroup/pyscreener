@@ -1,6 +1,7 @@
 from enum import auto
 import functools
 from typing import Callable, Optional
+import warnings
 
 import numpy as np
 import ray
@@ -57,26 +58,29 @@ def reduce_scores(
     S : np.ndarray
         an array of shape `n`, containing the reduced docking score for each ligand
     """
-    if repeat_score_mode == ScoreMode.BEST:
-        S = np.nanmin(S, axis=2)
-    elif repeat_score_mode == ScoreMode.AVG:
-        S = np.nanmean(S, axis=2)
-    elif repeat_score_mode == ScoreMode.BOLTZMANN:
-        S_e = np.exp(-S)
-        Z = S_e / np.nansum(S_e, axis=2)[:, :, None]
-        S = np.nansum((S * Z), axis=2)
-    elif repeat_score_mode == ScoreMode.TOP_K:
-        S = np.nanmean(np.sort(S, axis=2)[:, :k], axis=2)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", r"All-NaN (slice|axis) encountered")
 
-    if ensemble_score_mode == ScoreMode.BEST:
-        S = np.nanmin(S, axis=1)
-    elif ensemble_score_mode == ScoreMode.AVG:
-        S = np.nanmean(S, axis=1)
-    elif ensemble_score_mode == ScoreMode.BOLTZMANN:
-        S_e = np.exp(-S)
-        Z = S_e / np.nansum(S_e, axis=1)[:, None]
-        S = np.nansum((S * Z), axis=1)
-    elif ensemble_score_mode == ScoreMode.TOP_K:
-        S = np.nanmean(np.sort(S, axis=1)[:, :, :k], axis=1)
+        if repeat_score_mode == ScoreMode.BEST:
+            S = np.nanmin(S, axis=2)
+        elif repeat_score_mode == ScoreMode.AVG:
+            S = np.nanmean(S, axis=2)
+        elif repeat_score_mode == ScoreMode.BOLTZMANN:
+            S_e = np.exp(-S)
+            Z = S_e / np.nansum(S_e, axis=2)[:, :, None]
+            S = np.nansum((S * Z), axis=2)
+        elif repeat_score_mode == ScoreMode.TOP_K:
+            S = np.nanmean(np.sort(S, axis=2)[:, :k], axis=2)
+
+        if ensemble_score_mode == ScoreMode.BEST:
+            S = np.nanmin(S, axis=1)
+        elif ensemble_score_mode == ScoreMode.AVG:
+            S = np.nanmean(S, axis=1)
+        elif ensemble_score_mode == ScoreMode.BOLTZMANN:
+            S_e = np.exp(-S)
+            Z = S_e / np.nansum(S_e, axis=1)[:, None]
+            S = np.nansum((S * Z), axis=1)
+        elif ensemble_score_mode == ScoreMode.TOP_K:
+            S = np.nanmean(np.sort(S, axis=1)[:, :, :k], axis=1)
 
     return S

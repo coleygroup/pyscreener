@@ -63,8 +63,7 @@ def add_preprocessing_args(parser: ArgumentParser):
     parser.add_argument(
         "--preprocessing-options",
         nargs="+",
-        default="none",
-        choices=["pdbfix", "autobox", "tautomers", "desalt", "filter"],
+        choices=("pdbfix", "filter"),
         help="the preprocessing options to apply",
     )
     parser.add_argument(
@@ -202,17 +201,17 @@ def add_postprocessing_args(parser: ArgumentParser):
         "--postprocessing-options",
         nargs="+",
         default="none",
-        choices=["cluster", "visualize"],
+        choices=["visualize"],
         help="the postprocessing options to apply",
     )
+    # parser.add_argument(
+    #     "--n-cluster", type=int, default=10, help="the number of clusters to form"
+    # )
     parser.add_argument(
-        "--n-cluster", type=int, default=10, help="the number of clusters to form"
-    )
-    parser.add_argument(
-        "--viz-mode",
+        "--hist-mode",
         default="text",
-        choices=["histogram", "text"],
-        help='the type of visualization to generate. "hist" makes a histogram that is output in a pdf and "text" generates a histogram using terminal output.',
+        choices=["image", "text"],
+        help='the type of histogram to generate. "image" makes a histogram that is output as a PNG file and "text" generates a histogram using terminal output.',
     )
 
 

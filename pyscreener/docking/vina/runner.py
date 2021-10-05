@@ -147,7 +147,7 @@ class VinaRunner(DockingRunner):
 
         name = f"{Path(data.receptor).stem}_{ligand_name}"
 
-        argv, _, log = VinaRunner.build_argv(
+        argv, out, log = VinaRunner.build_argv(
             ligand=data.metadata.prepared_ligand,
             receptor=data.metadata.prepared_receptor,
             software=data.metadata.software,
@@ -166,8 +166,7 @@ class VinaRunner(DockingRunner):
         try:
             ret.check_returncode()
         except sp.SubprocessError:
-            print(f"ERROR: docking failed. argv: {argv}", file=sys.stderr)
-            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+            print(f'ERROR: docking failed. Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
 
         scores = VinaRunner.parse_logfile(log)
         if scores is None:
@@ -195,7 +194,7 @@ class VinaRunner(DockingRunner):
         name: Optional[str] = None,
         path: Path = Path("."),
         extra: Optional[List[str]] = None,
-    ) -> Tuple[List[str], str, str]:
+    ) -> Tuple[List[str], Path, Path]:
         """Builds the argument vector to run a vina-type docking program
 
         Parameters
@@ -220,8 +219,7 @@ class VinaRunner(DockingRunner):
             the maximum energy difference (in kcal/mol) between the best and worst output binding 
             modes
         extra : Optional[List[str]]
-        additional command line arguments that will be passed to the
-        docking calculation
+            additional command line arguments that will be passed to the docking calculation
         name : string, default=<receptor>_<ligand>)
             the base name to use for both the log and out files
         path : Path, default=Path('.')
@@ -234,9 +232,9 @@ class VinaRunner(DockingRunner):
         argv : List[str]
             the argument vector with which to run an instance of a vina-type
             docking program
-        out : str
+        out : Path
             the filepath of the out file which the docking program will write to
-        log : str
+        log : Path
             the filepath of the log file which the docking program will write to
         """
         name = name or (Path(receptor).stem + "_" + Path(ligand).stem)
@@ -258,9 +256,9 @@ class VinaRunner(DockingRunner):
             f"--cpu={ncpu}",
             f"--out={out}",
             f"--log={log}",
-            f"--exhaustiveness {exhaustiveness}",
-            f"--num_modes {num_modes}",
-            f"--energy_range {energy_range}"
+            f"--exhaustiveness={exhaustiveness}",
+            f"--num_modes={num_modes}",
+            f"--energy_range={energy_range}",
             *extra,
         ]
 

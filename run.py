@@ -1,13 +1,11 @@
 import csv
 import dataclasses
 import os
-from pathlib import Path
 import time
+
 import ray
 
-from pyscreener import docking
-from pyscreener.args import gen_args
-from pyscreener.supply import LigandSupply
+import pyscreener as ps
 
 
 def main():
@@ -22,7 +20,7 @@ def main():
 ***************************************************************"""
     )
     print("Welcome to Pyscreener!\n")
-    args = gen_args()
+    args = ps.args.gen_args()
     params = vars(args)
     print("Pyscreener will be run with the following arguments:")
     for param, value in sorted(params.items()):
@@ -50,8 +48,8 @@ def main():
 
     start = time.time()
     print(f"Preparing and screening inputs ...", flush=True)
-    metadata_template = docking.build_metadata(args.screen_type, args.metadata_template)
-    virtual_screen = docking.virtual_screen(
+    metadata_template = ps.build_metadata(args.screen_type, args.metadata_template)
+    virtual_screen = ps.virtual_screen(
         args.screen_type,
         args.receptors,
         args.center,
@@ -70,7 +68,7 @@ def main():
         args.k,
         args.verbose,
     )
-    supply = LigandSupply(
+    supply = ps.LigandSupply(
         args.input_files,
         args.input_filetypes,
         args.use_3d,
@@ -81,7 +79,6 @@ def main():
         args.id_property,
     )
 
-    # import pdb; pdb.set_trace()
     if args.smis is not None:
         virtual_screen(args.smis)
     virtual_screen(supply.ligands)
@@ -93,7 +90,7 @@ def main():
     m, s = divmod(total_time, 60)
     h, m = divmod(m, 60)
     print(
-        f"Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s:0.2f} "
+        f"Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s:0.2f}s "
         f"({avg_time:0.2f}s/ligand)"
     )
 

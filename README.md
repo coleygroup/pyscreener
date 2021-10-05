@@ -62,7 +62,7 @@ To add an executable to your PATH, you have three options:
 1. append the directory containing the file to your PATH: `export PATH=$PATH:DIR`, where `DIR` is the directory containing the file in question. As your PATH must be configured each time run pyscreener, this command should also be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
 #### specifying an environment variable
-To set the `DOCK6` environment variable, run the following command: `export DOCK6=<path/to/dock6>`, where `<path/to/dock6>` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
+To set the `DOCK6` environment variable, run the following command: `export DOCK6=path/to/dock6`, where `path/to/dock6` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
 ## Ray Setup
 pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, don't need to do anything . However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster __before__ running pyscreener.
@@ -127,30 +127,35 @@ To perform docking calls inside your python code using `pyscreener`, you must fi
 `DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are. -->
 
 ### Example
-the following code snippet will dock benzene (SMILES string "c1ccccc1") against the D4 dopamine receptor (PDB ID 5WIU) using the site of a previously docked ligand and Autodock Vina
+the following code snippet will dock benzene (SMILES string `"c1ccccc1"`) against the D4 dopamine receptor (PDB ID `5WIU`) using the site of a previously docked ligand and Autodock Vina
 
 ```python
 >>> import ray
 >>> ray.init()
 [...]
->>> from pyscreener.docking import virtual_screen, vina
+>>> import pyscreener as ps
+>>> from pyscreener.docking import vina
 >>> metadata = vina.VinaMetadata("vina")
->>> vs = virtual_screen("vina", ["testing_inputs/5WIU.pdb"], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
+>>> virtual_screen = ps.virtual_screen("vina", ["testing_inputs/5WIU.pdb"], (-18.2, 14.4, -16.1), (15.4, 13.9, 14.5), metadata, ncpu=8)
 {...}
->>> scores = vs("c1ccccc1")
+>>> scores = virtual_screen("c1ccccc1")
 >>> scores
 array([-4.4])
 ```
 
 A few notes from the above example:
-- the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., receptors=["5WIU"]) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
+- the input PDB file must be *clean* prior to use. You can alternatively pass in a PDB ID (e.g., `pdbids=["5WIU"]`) but you must know the coordinates of the docking box for the corresponding PDB file. This usually means downloading the PDB file and manually inspecting it for more reliable results, but it's there if you want it.
 - you can construct a docking from the coordinates of a previously bound ligand by providing these coordinates in a PDB file, e.g.
-    ```python
-    vs = screen.DockingVirtualScreen("vina", ["testing_inputs/5WIU.pdb"], None, None, metadata, ncpu=8, docked_ligand_file="path/to/DOCKED_LIGAND.pdb")
-    ```
+  ```python
+  vs = screen.DockingVirtualScreen("vina", ["testing_inputs/5WIU.pdb"], None, None, metadata, ncpu=8, docked_ligand_file="path/to/DOCKED_LIGAND.pdb")
+  ```
 - If you don't want any files from `pyscreener` at all (only the score dictionary return value), don't set the `path` argument value.
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight the ability to initialize ray according to your own needs (i.e., a distributed setup).
-- to use an input file containing ligands, you must use the `LigandSupply` class and call the `.ligands` attribute
+- to use an input file containing ligands, you must use the `LigandSupply` class and access the `.ligands` attribute, e.g.,
+  ```python
+  supply = ps.LigandSupply('integration-tests/inputs/ligands.csv')
+  virtual_screen(supply.ligands)
+  ```
 <!-- - you can call the `vs` object on (1) a SMILES string, (2) a csv/SDF/SMI file containing ligands, (3) a list of smiles strings, or (4) any combination of the above (e.g., `screener(ligand1, ligand_source_file, ligands_list)`). It is much more efficient to handle **one large** set of ligands than many small sets (i.e., `screener(one_long_list)` vs `screener(smiles1, smiles2, smiles3, ..., smilesN)`) -->
     
 ## Copyright

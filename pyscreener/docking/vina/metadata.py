@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import shlex
-from typing import Optional, Union
+from typing import Iterable, Optional, Union
 
 from pyscreener.exceptions import UnsupportedSoftwareError
 from pyscreener.docking.metadata import CalculationMetadata
@@ -57,7 +57,7 @@ class VinaMetadata(CalculationMetadata):
     exhaustiveness: int = 8
     num_modes: int = 9
     energy_range: float = 3.
-    extra: str = ""
+    extra: Union[str, Iterable[str]] = ""
     prepared_ligand: Optional[Union[str, Path]] = None
     prepared_receptor: Optional[Union[str, Path]] = None
 
@@ -70,4 +70,4 @@ class VinaMetadata(CalculationMetadata):
                     f'"{self.software}" is not a supported software for vina-type screens!'
                 )
 
-        self.extra = shlex.split(self.extra)
+        self.extra = shlex.split(self.extra) if isinstance(self.extra, str) else self.extra

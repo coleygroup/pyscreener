@@ -1,8 +1,8 @@
 """This module contains functions for ligand autoboxing in docking simulations"""
 from enum import Enum
-from itertools import chain, takewhile
+from itertools import takewhile
 from pyscreener.exceptions import BadPDBFileError
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -23,7 +23,7 @@ def autobox(
     buffer: int = 10,
 ) -> Tuple[Tuple, Tuple]:
     if residues:
-        center, size = residues(receptors[0], residues)
+        center, size = residues(receptors[0], residues, buffer)
         print("Autoboxing from residues with", end=" ")
     else:
         # allow user to only specify one receptor file
@@ -38,7 +38,7 @@ def autobox(
     return center, size
 
 
-def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
+def residues(pdbfile: str, residues: List[int], buffer: float = 0.) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a list of protein residues
 
     The ligand autobox is the minimum bounding box of the alpha carbons of the
@@ -50,6 +50,8 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
         a PDB-format file containing the protein of interest
     residues: List[int]
         the residue numbers corresponding to the residues from which to calculate the autobox
+    buffer : int, default=0.
+        the amount of buffer to add around the ligand autobox, in Angstroms
 
     Returns
     -------
@@ -58,34 +60,33 @@ def residues(pdbfile: str, residues: List[int]) -> Tuple[Tuple, Tuple]:
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    residues = set(residues)
-    if len(residues) == 0:
-        raise ValueError("No residues were specified!")
-
-    coords = []
-
-    with open(pdbfile) as fid:
-        for line in fid:
-            if "ATOM" == line[PDBRecord.NAME.value].strip():
-                break
-        lines = chain([line], fid)
-        for line in lines:
-            if "ATOM" != line[PDBRecord.NAME.value].strip():
-                break
-
-            if (
-                line[PDBRecord.ATOM.value].strip() == "CA"
-                and line[PDBRecord.RES_SEQ.value].strip() in residues
-            ):
-                coords.append(parse_coordinates(line))
+    lines = extract_residues_lines(pdbfile, residues)
+    coords = [parse_coordinates(line) for line in lines]
 
     if len(coords) == 0:
         raise ValueError(
             f'PDB file "{pdbfile} does not contain any of the residue numbers: {residues}!"'
         )
 
-    return minimum_bounding_box(np.array(coords))
+    return minimum_bounding_box(np.array(coords), buffer)
 
+def extract_residues_lines(pdb_filepath, residues: Iterable[int]):
+    """Extract the CA lines for the numbered residues in the input PDB file"""
+    residues = set(residues)
+    if len(residues) == 0:
+        raise ValueError("No residues were specified!")
+
+    lines = []
+    with open(pdb_filepath) as fid:
+        for line in fid:
+            if (
+                line[PDBRecord.NAME.value].strip() == "ATOM"
+                and line[PDBRecord.ATOM.value].strip() == "CA"
+                and int(line[PDBRecord.RES_SEQ.value].strip()) in residues
+            ):
+                lines.append(line)
+    
+    return lines
 
 def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a PDB file containing a docked ligand
@@ -100,7 +101,7 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
     docked_ligand_file : str
         a PDB-format file containing the coordinates of a docked ligand
     buffer : int, default=10.
-        the buffer to add around the ligand autobox, in Angstroms
+        the amount of buffer to add around the ligand autobox, in Angstroms
 
     Returns
     -------
@@ -109,30 +110,34 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
     size: Tuple[float, float, float]
         the x-, y-, and z-radii of the ligand autobox
     """
-    with open(docked_ligand_file) as fid:
-        for line in fid:
-            if "HETATM" == line[PDBRecord.NAME.value].strip():
-                break
-        fid = chain([line], fid)
-        coords = [
-            parse_coordinates(line)
-            for line in takewhile(
-                lambda line: "HETATM" == line[PDBRecord.NAME.value].strip(), fid
-            )
-        ]
+    hetatm_lines = extract_hetatm_lines(docked_ligand_file)
+    coords = [parse_coordinates(line) for line in hetatm_lines]
 
     if len(coords) == 0:
         raise BadPDBFileError(f'No HETATM coordinates could be parsed from "{docked_ligand_file}"')
 
     return minimum_bounding_box(np.array(coords), buffer)
 
+def extract_hetatm_lines(pdb_filepath: str):
+    """extract the lines of the first HETAM in the PDB file"""
+    lines = []
+    with open(pdb_filepath) as fid:
+        for line in fid:
+            if "HETATM" == line[PDBRecord.NAME.value].strip():
+                lines.append(line)
+                break
+        lines.extend(takewhile(
+            lambda line: "HETATM" == line[PDBRecord.NAME.value].strip(), fid
+        ))
+        
+    return lines
 
 def parse_coordinates(line: str) -> Tuple[float, float, float]:
     """Parse the x-, y-, and z-coordinates from an ATOM/HETATM record in a PDB file"""
     try:
         x = float(line[PDBRecord.X_COORD.value])
         y = float(line[PDBRecord.Y_COORD.value])
-        z = float(line[PDBRecord.Y_COORD.value])
+        z = float(line[PDBRecord.Z_COORD.value])
     except:
         raise BadPDBFileError(f'could not parse line: "{line}"')
 

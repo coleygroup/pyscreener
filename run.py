@@ -47,7 +47,6 @@ def main():
     print(ray.cluster_resources())
     print(flush=True)
 
-    start = time.time()
     print(f"Preparing and screening inputs ...", flush=True)
     metadata_template = ps.build_metadata(args.screen_type, args.metadata_template)
     virtual_screen = ps.virtual_screen(
@@ -79,6 +78,7 @@ def main():
         args.name_col,
         args.id_property,
     )
+    start = time.time()
 
     S = virtual_screen(supply.ligands)
     if args.smis is not None:
@@ -91,7 +91,7 @@ def main():
     m, s = divmod(total_time, 60)
     h, m = divmod(int(m), 60)
     print(
-        f"Total time to dock {len(virtual_screen)} ligands: {h}h{m}m{s:0.2f}s "
+        f"Total time to dock {len(virtual_screen)} ligands: {h}h {m}m {s:0.2f}s "
         f"({avg_time:0.2f}s/ligand)"
     )
 

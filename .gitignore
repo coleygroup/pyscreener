@@ -15,6 +15,7 @@
 *.sdf
 *.smi
 *.in
+*.pdb
 
 *.batch
 *.sh

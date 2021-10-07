@@ -31,10 +31,11 @@ def pdbfix(
     else:
         outfile = Path(path) / f"{pdbid}.pdb"
 
-    PDBFile.writeFile(fixer.topology, fixer.positions, open(outfile, "w"))
+    with open(outfile, "w") as fid:
+        PDBFile.writeFile(fixer.topology, fixer.positions, fid)
 
     return outfile
 
 
 def get_pdb(pdbid: str, pH: float = 7.0, path: str = ".") -> str:
-    return pdbfix(pdbid=pdbid, pH=pH, path=path)
+    return pdbfix(None, pdbid, pH, path)

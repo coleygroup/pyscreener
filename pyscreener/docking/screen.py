@@ -74,8 +74,9 @@ class DockingVirtualScreen:
 
         self.receptors = receptors or []
         if pdbids is not None:
+            self.receptors = list(self.receptors)
             self.receptors.extend(
-                [pdbfix.pdbfix(pdbid=pdbid, path=self.path) for pdbid in pdbids]
+                [pdbfix.get_pdb(pdbid, path=self.path) for pdbid in pdbids]
             )
 
         if self.center is None:
@@ -110,7 +111,7 @@ class DockingVirtualScreen:
                 self.score_mode,
                 k,
             )
-            for receptor in receptors
+            for receptor in self.receptors
         ]
 
         if not ray.is_initialized():

@@ -131,7 +131,6 @@ def add_screen_args(parser: ArgumentParser):
     parser.add_argument(
         "--receptors",
         nargs="+",
-        default=(10.0, 10.0, 10.0),
         help="the filenames of the receptors",
     )
     parser.add_argument(
@@ -209,7 +208,6 @@ def add_postprocessing_args(parser: ArgumentParser):
     # )
     parser.add_argument(
         "--hist-mode",
-        default="text",
         choices=["image", "text"],
         help='the type of histogram to generate. "image" makes a histogram that is output as a PNG file and "text" generates a histogram using terminal output.',
     )

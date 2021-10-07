@@ -14,7 +14,6 @@ import ray
 from tqdm import tqdm
 
 from pyscreener.utils import ScoreMode, autobox, pdbfix
-# from pyscreener.preprocessing import autobox, pdbfix
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.result import Result

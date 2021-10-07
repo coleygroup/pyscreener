@@ -112,16 +112,6 @@ class LigandSupply:
         mols = [Chem.MolFromSmiles(smi) for smi in smis]
 
         return LigandSupply.optimize_and_write_mols(mols, filepath.parent / filepath.stem)
-        # names = []
-        # for mol in pybel.readfile(fmt, filepath):
-        #     smis.append(mol.write())
-
-        #     if mol.title:
-        #         names.append(mol.title)
-        #     else:
-        #         names.append(None)
-
-        # return smis, names
 
     @staticmethod
     def get_ligands_from_sdf(
@@ -139,21 +129,6 @@ class LigandSupply:
             return [Chem.MolToSmiles(mol) for mol in mols]
 
         return LigandSupply.optimize_and_write_mols(mols, filepath.parent / filepath.stem)
-        # if id_property is not None:
-        #     for mol in mols:
-        #         if mol is None:
-        #             continue
-
-        #         smis.append(Chem.MolToSmiles(mol))
-        #         names.append(mol.GetProp(id_prop_name))
-        # else:
-        #     for mol in mols:
-        #         if mol is None:
-        #             continue
-
-        #         smis.append(Chem.MolToSmiles(mol))
-        #     names = [None for _ in smis]
-        # return smis, names
 
     @staticmethod
     def get_ligands_from_smi(

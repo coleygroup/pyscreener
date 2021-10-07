@@ -37,6 +37,8 @@ This repository contains the source of pyscreener, both a library and software f
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)
 
 ### external software
+To check whether your environment is setup correctly with respect to pathing and environment variables, use the `check_environment.sh` script with your desired software (e.g. `check_environment vina|dock6|psovina|smina|qvina`).
+
 * vina-type software
   1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and add `prepare_receptor` to your PATH. If this step was successful, the command `which prepare_receptor` should output `path/to/prepare_receptor`. This can be done via either:
 

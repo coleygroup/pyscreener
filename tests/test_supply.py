@@ -106,7 +106,6 @@ def test_multiple_filetypes(smis, tmp_path):
     ]
 
     supply = LigandSupply(filepaths)
-    ligands = supply.ligands
 
     assert len(supply) == len(filepaths) * len(smis)
 

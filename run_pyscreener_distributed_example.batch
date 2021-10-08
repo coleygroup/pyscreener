@@ -27,15 +27,13 @@ echo "IP Head: $ip_head"
 
 echo "STARTING HEAD at $node_1"
 srun -N 1 -n 1 -w $node_1 \
-    ray start --head \
-    --node-ip-address=$ip --port=$port --redis-password=$redis_password \
+    ray start --head --node-ip-address=$ip --port=$port --redis-password=$redis_password \
     --num-cpus $SLURM_CPUS_ON_NODE --temp-dir $TMPDIR \
     --block > /dev/null 2>& 1 &
 sleep 30
 
 worker_num=$(($SLURM_JOB_NUM_NODES - 1))
-for ((  i=1; i<=$worker_num; i++ ))
-do
+for ((  i=1; i<=$worker_num; i++ )); do
     node_i=${nodes_array[$i]}
     echo "STARTING WORKER $i at $node_i"
     srun -N 1 -n 1 -w $node_i \
@@ -47,4 +45,4 @@ done
 sleep 30
 ###############################################################################
 
-python run.py --config test_configs/test_vina.ini --ncpu $SLURM_CPUS_PER_TASK
+python run.py --config integration-tests/configs/test_vina.ini --ncpu $SLURM_CPUS_PER_TASK

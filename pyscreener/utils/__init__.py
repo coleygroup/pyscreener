@@ -1,1 +1,1 @@
-from .utils import AutoName, FileType, ScoreMode, calc_score
+from .utils import AutoName, FileFormat, ScoreMode, calc_score

@@ -5,7 +5,7 @@ import pytest
 from rdkit import Chem
 
 from pyscreener.supply import LigandSupply
-from pyscreener.utils import FileType
+from pyscreener.utils import FileFormat
 
 
 @pytest.fixture(
@@ -24,6 +24,11 @@ def smis(request):
 
 @pytest.fixture(params=["csv", "smi", "sdf"])
 def filetype(request):
+    return request.param
+
+
+@pytest.fixture(params=[None, 'test_dir'])
+def path(request):
     return request.param
 
 
@@ -72,14 +77,14 @@ def make_file(smis, tmp_path, filetype):
 
 def test_guess_filetype():
     filepaths = ["test.csv", "test.sdf", "test.smi", "test.pdb", "test.mol2"]
-    filetypes = [LigandSupply.guess_filetype(Path(filepath)) for filepath in filepaths]
+    formats = [LigandSupply.guess_format(Path(filepath)) for filepath in filepaths]
 
-    assert filetypes == [
-        FileType.CSV,
-        FileType.SDF,
-        FileType.SMI,
-        FileType.FILE,
-        FileType.FILE,
+    assert formats == [
+        FileFormat.CSV,
+        FileFormat.SDF,
+        FileFormat.SMI,
+        FileFormat.FILE,
+        FileFormat.FILE,
     ]
 
 
@@ -110,19 +115,32 @@ def test_multiple_filetypes(smis, tmp_path):
     assert len(supply) == len(filepaths) * len(smis)
 
 
-def test_multiple_filetypes_optimize(smis, tmp_path):
+def test_multiple_filetypes_optimize(smis, tmp_path, path):
     filepaths = [
         make_csv(smis, tmp_path),
         make_sdf(smis, tmp_path),
         make_smi(smis, tmp_path),
     ]
 
-    supply = LigandSupply(filepaths, optimize=True)
+    if path is not None:
+        path = tmp_path / path
+        path.mkdir(exist_ok=True, parents=True)
+
+    supply = LigandSupply(
+        filepaths,
+        optimize=True,
+        path=path
+    )
     assert len(supply) == len(filepaths) * len(smis)
 
-    for ligand in supply.ligands:
+    for ligand in supply:
         assert Path(ligand).exists()
 
+    parents = {Path(ligand).parent for ligand in supply}
+    if path is not None:
+        assert len(parents) == 1
+    # else:
+    #     assert len(parents) > 1
 
 def test_use3d(smis, tmp_path):
     filepaths = [make_sdf(smis, tmp_path)]
@@ -131,5 +149,5 @@ def test_use3d(smis, tmp_path):
 
     assert len(supply) == len(filepaths) * len(smis)
 
-    for ligand in supply.ligands:
+    for ligand in supply:
         assert Path(ligand).exists()

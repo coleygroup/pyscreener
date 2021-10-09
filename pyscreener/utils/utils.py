@@ -24,8 +24,10 @@ class ScoreMode(AutoName):
     TOP_K = auto()
 
 
-class FileType(AutoName):
-
+class FileFormat(AutoName):
+    """The format of a molecular suppy file. FILE represents the format of all molecular supply
+    files with no explicit support (i.e., CSV, SDF, and SMI.)"""
+    
     CSV = auto()
     FILE = auto()
     SDF = auto()

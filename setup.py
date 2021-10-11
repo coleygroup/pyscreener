@@ -33,7 +33,13 @@ setup(
     # Which Python importable modules should be included when your package is 
     # installed. Handled automatically by setuptools. Use 'exclude' to prevent 
     # some specific subpackage(s) from being added, if needed
-    packages=find_packages(),
+    packages=find_packages(
+        exclude=[
+            'pyscreener.dft',
+            'pyscreener.md'
+            'pyscreener.docking.dock.scripts',
+        ]
+    ),
 
     # Optional include package data to ship with your package
     # Customize MANIFEST.in if the general case does not suit your needs
@@ -43,10 +49,9 @@ setup(
 
     # url='http://www.my_package.com',  # Website
     platforms=['Linux', 'Mac OS-X', 'Unix'],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[
         'configargparse',
-        'importlib_resources; python_version < "3.7.0"',
         'h5py',
         'numpy',
         'ray[default]',

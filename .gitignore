@@ -27,7 +27,6 @@
 *.sh
 scripts/
 
-_*
 .vscode/
 .DS_Store
 Makefile

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import csv
-import collections
+from collections.abc import Iterable
 from pathlib import Path
-from typing import List, Iterable, Optional, Union
+from typing import Optional, Union
 
 from openbabel import pybel
 from rdkit.Chem import AllChem as Chem
@@ -9,7 +11,7 @@ from rdkit.Chem import AllChem as Chem
 from pyscreener.utils import FileFormat
 
 
-class LigandSupply(collections.abc.Iterable):
+class LigandSupply(Iterable[str]):
     """A LigandSupply is represents an abstract collection of molecular supply files, allowing for
     the iteration between all molecules contained in a variety of file formats
 
@@ -79,7 +81,6 @@ class LigandSupply(collections.abc.Iterable):
         id_property: Optional[str] = None,
         path: Optional[str] = None,
     ):
-        # import pdb; pdb.set_trace()
         self.filepaths = [Path(filepath) for filepath in filepaths]
         if formats is not None:
             self.formats = [
@@ -142,10 +143,10 @@ class LigandSupply(collections.abc.Iterable):
     def __len__(self):
         return len(self.ligands)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[str]:
         return iter(self.ligands)
 
-    def __getitem__(self, i: int):
+    def __getitem__(self, i: int) -> str:
         return self.ligands[i]
 
     @staticmethod
@@ -156,7 +157,7 @@ class LigandSupply(collections.abc.Iterable):
         name_col: int = 1,
         optimize: bool = False,
         path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> list[str]:
         with open(filepath) as fid:
             reader = csv.reader(fid)
             if title_line:
@@ -176,7 +177,7 @@ class LigandSupply(collections.abc.Iterable):
         use_3d: bool = False,
         optimize: bool = False,
         path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> list[str]:
         if use_3d:
             return LigandSupply.split_file(filepath)
 
@@ -199,7 +200,7 @@ class LigandSupply(collections.abc.Iterable):
         use_3d: bool = False,
         optimize: bool = False,
         path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> list[str]:
         if use_3d:
             return LigandSupply.split_file(filepath, path)
 
@@ -216,7 +217,7 @@ class LigandSupply(collections.abc.Iterable):
         id_property: Optional[str] = None,
         optimize: bool = False,
         path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> list[str]:
         mols = Chem.SmilesMolSupplier(str(filepath))
 
         if not optimize:
@@ -227,7 +228,7 @@ class LigandSupply(collections.abc.Iterable):
     @staticmethod
     def optimize_and_write_mols(
         mols: Iterable[Chem.Mol], filepath: Path, path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> list[str]:
         base_name = (path or filepath.parent) / filepath.stem
         # NOTE(degraff): this can parallelized later
         mols = [Chem.AddHs(mol) for mol in mols]
@@ -240,7 +241,7 @@ class LigandSupply(collections.abc.Iterable):
         return filenames
 
     @staticmethod
-    def split_file(filepath: Path, path: Optional[Path] = None) -> List[str]:
+    def split_file(filepath: Path, path: Optional[Path] = None) -> list[str]:
         fmt = filepath.suffix.strip(".")
         base_name = (path or filepath.parent) / filepath.stem
 
@@ -252,7 +253,7 @@ class LigandSupply(collections.abc.Iterable):
         return filenames
 
     @staticmethod
-    def guess_format(filepath: Path) -> List[FileFormat]:
+    def guess_format(filepath: Path) -> FileFormat:
         try:
             return FileFormat.from_str(filepath.suffix.strip("."))
         except KeyError:

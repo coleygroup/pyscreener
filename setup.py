@@ -10,7 +10,6 @@ short_description = __doc__.split("\n")
 
 # from https://github.com/pytest-dev/pytest-runner#conditional-requirement
 needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-pytest_runner = ['pytest-runner'] if needs_pytest else []
 
 try:
     with open("README.md", "r") as handle:
@@ -45,7 +44,7 @@ setup(
     # Customize MANIFEST.in if the general case does not suit your needs
     # Comment out this line to prevent the files from being packaged with your software
     include_package_data=True,
-    setup_requires=[] + pytest_runner,
+    setup_requires=[],
 
     # url='http://www.my_package.com',  # Website
     platforms=['Linux', 'Mac OS-X', 'Unix'],

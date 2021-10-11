@@ -11,7 +11,7 @@ from rdkit.Chem import AllChem as Chem
 from pyscreener.utils import FileFormat
 
 
-class LigandSupply(Iterable[str]):
+class LigandSupply(Iterable):
     """A LigandSupply is represents an abstract collection of molecular supply files, allowing for
     the iteration between all molecules contained in a variety of file formats
 

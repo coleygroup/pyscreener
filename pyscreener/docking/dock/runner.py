@@ -7,7 +7,6 @@ from typing import Mapping, Optional, Tuple, Union
 
 from openbabel import pybel
 import ray
-from pyscreener.docking.dock.metadata import DOCKMetadata
 
 from pyscreener.exceptions import (
     MisconfiguredDirectoryError,
@@ -16,6 +15,7 @@ from pyscreener.exceptions import (
 from pyscreener.utils import calc_score
 from pyscreener.docking import CalculationData, DockingRunner, Result
 from pyscreener.docking.dock import utils
+from pyscreener.docking.dock.metadata import DOCKMetadata
 
 try:
     DOCK6 = Path(os.environ["DOCK6"])

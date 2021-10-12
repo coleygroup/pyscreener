@@ -162,7 +162,12 @@ A few notes from the above example:
   supply = ps.LigandSupply('integration-tests/inputs/ligands.csv')
   virtual_screen(supply.ligands)
   ```
-    
+
+## Testing
+
+1. `pip install pytest`
+1. `pytest`
+
 ## Copyright
 Copyright (c) 2021, david graff
 

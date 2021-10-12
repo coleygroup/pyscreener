@@ -13,12 +13,11 @@ import numpy as np
 import ray
 from tqdm import tqdm
 
-from pyscreener.utils import ScoreMode, autobox, pdbfix
+from pyscreener.utils import ScoreMode, autobox, pdbfix, reduce_scores, run_on_all_nodes
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.result import Result
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import reduce_scores, run_on_all_nodes
 
 
 class DockingVirtualScreen:

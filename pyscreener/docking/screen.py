@@ -228,6 +228,9 @@ class DockingVirtualScreen:
 
     @run_on_all_nodes
     def prepare_receptors(self):
+        self.tmp_in.mkdir(parents=True, exist_ok=True)
+        self.tmp_out.mkdir(parents=True, exist_ok=True)
+        
         return [
             self.runner.prepare_receptor(template) for template in self.data_templates
         ]

@@ -198,39 +198,20 @@ class DockingVirtualScreen:
     def tmp_dir(self, path: Union[str, Path]):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         tmp_dir = Path(path) / "pyscreener" / f"session_{timestamp}"
-        tmp_dir.mkdir(exist_ok=True, parents=True)
 
         self.__tmp_dir = tmp_dir
         self.tmp_in = tmp_dir / "inputs"
         self.tmp_out = tmp_dir / "outputs"
 
-    @property
-    def tmp_in(self) -> Path:
-        return self.__tmp_in
+        self.make_tmp_dirs()
 
-    @tmp_in.setter
-    def tmp_in(self, path: Union[str, Path]):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__tmp_in = path
-
-    @property
-    def tmp_out(self) -> Path:
-        return self.__tmp_out
-
-    @tmp_out.setter
-    def tmp_out(self, path: Union[str, Path]):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__tmp_out = path
+    @run_on_all_nodes
+    def make_tmp_dirs(self):
+        for d in (self.tmp_dir, self.tmp_in, self.tmp_out):
+            d.mkdir(parents=True, exist_ok=True)
 
     @run_on_all_nodes
     def prepare_receptors(self):
-        for d in (self.tmp, self.tmp_in, self.tmp_out):
-            d.mkdir(parents=True, exist_ok=True)
-
         return [
             self.runner.prepare_receptor(template) for template in self.data_templates
         ]

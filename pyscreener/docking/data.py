@@ -52,7 +52,7 @@ class CalculationData:
     k : int, default=1
     prepared_ligand : Optional[Union[str, Path]], default=None
     prepared_receptor : Optional[Union[str, Path]], default=None
-    result : Optional[Mapping], default=None
+    result : Optional[Result], default=None
     """
 
     smi: str

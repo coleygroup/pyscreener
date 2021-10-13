@@ -13,12 +13,11 @@ import numpy as np
 import ray
 from tqdm import tqdm
 
-from pyscreener.utils import ScoreMode, autobox, pdbfix
+from pyscreener.utils import ScoreMode, autobox, pdbfix, reduce_scores, run_on_all_nodes
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 from pyscreener.docking.result import Result
 from pyscreener.docking.runner import DockingRunner
-from pyscreener.docking.utils import reduce_scores, run_on_all_nodes
 
 
 class DockingVirtualScreen:
@@ -199,33 +198,17 @@ class DockingVirtualScreen:
     def tmp_dir(self, path: Union[str, Path]):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         tmp_dir = Path(path) / "pyscreener" / f"session_{timestamp}"
-        tmp_dir.mkdir(exist_ok=True, parents=True)
 
         self.__tmp_dir = tmp_dir
         self.tmp_in = tmp_dir / "inputs"
         self.tmp_out = tmp_dir / "outputs"
 
-    @property
-    def tmp_in(self) -> Path:
-        return self.__tmp_in
+        self.make_tmp_dirs()
 
-    @tmp_in.setter
-    def tmp_in(self, path: Union[str, Path]):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__tmp_in = path
-
-    @property
-    def tmp_out(self) -> Path:
-        return self.__tmp_out
-
-    @tmp_out.setter
-    def tmp_out(self, path: Union[str, Path]):
-        path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
-
-        self.__tmp_out = path
+    @run_on_all_nodes
+    def make_tmp_dirs(self):
+        for d in (self.tmp_dir, self.tmp_in, self.tmp_out):
+            d.mkdir(parents=True, exist_ok=True)
 
     @run_on_all_nodes
     def prepare_receptors(self):

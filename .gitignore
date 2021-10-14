@@ -30,3 +30,4 @@ scripts/
 .vscode/
 .DS_Store
 Makefile
+*.conf

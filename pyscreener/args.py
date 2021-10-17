@@ -22,15 +22,20 @@ def gen_args(argv: Optional[str] = None) -> Namespace:
     args.title_line = not args.no_title_line
     del args.no_title_line
 
-    args.metadata_template["buffer"]  = args.buffer
+    args.metadata_template["buffer"] = args.buffer
     args.metadata_template["docked_ligand_file"] = args.docked_ligand_file
-    
+
     return args
 
 
 def add_general_args(parser: ArgumentParser):
     parser.add_argument(
         "--config", is_config_file=True, help="filepath of a configuration file to use"
+    )
+    parser.add_argument(
+        "--check-env",
+        action="store_true",
+        help="whether to check if the environment is set up properly for the given screen type",
     )
     parser.add_argument(
         "-o",
@@ -75,7 +80,9 @@ def add_preprocessing_args(parser: ArgumentParser):
 
 
 def add_supply_args(parser: ArgumentParser):
-    parser.add_argument("-s", "--smis", nargs="+", help="the SMILES strings of the ligands to dock")
+    parser.add_argument(
+        "-s", "--smis", nargs="+", help="the SMILES strings of the ligands to dock"
+    )
     parser.add_argument(
         "-i",
         "--input-files",
@@ -124,7 +131,7 @@ def add_supply_args(parser: ArgumentParser):
 def add_screen_args(parser: ArgumentParser):
     parser.add_argument(
         "--screen-type",
-        choices=("dock", "vina"),
+        choices=("dock", "dock6", "ucsfdock", "vina", "qvina", "smina", "psovina"),
         required=True,
         help="the type of docking screen to perform",
     )
@@ -149,7 +156,9 @@ def add_screen_args(parser: ArgumentParser):
     )
     parser.add_argument("--metadata-template", type=json.loads, default={})
     parser.add_argument(
-        "--pdbids", nargs="+", help="the PDB IDs of the crystal structures to dock against"
+        "--pdbids",
+        nargs="+",
+        help="the PDB IDs of the crystal structures to dock against",
     )
     parser.add_argument(
         "--docked-ligand-file",

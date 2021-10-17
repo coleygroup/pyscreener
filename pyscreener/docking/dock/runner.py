@@ -8,10 +8,7 @@ from typing import Mapping, Optional, Tuple, Union
 from openbabel import pybel
 import ray
 
-from pyscreener.exceptions import (
-    MisconfiguredDirectoryError,
-    MissingEnvironmentVariableError,
-)
+from pyscreener.exceptions import MisconfiguredDirectoryError, MissingEnvironmentVariableError
 from pyscreener.utils import calc_score
 from pyscreener.docking import CalculationData, DockingRunner, Result
 from pyscreener.docking.dock import utils

@@ -1,6 +1,13 @@
 from dataclasses import asdict
 from typing import Dict, Optional
 
+from pyscreener.exceptions import (
+    MisconfiguredDirectoryError,
+    MissingEnvironmentVariableError,
+    MissingExecutableError,
+    UnsupportedSoftwareError,
+)
+
 from .data import CalculationData
 from .metadata import CalculationMetadata
 from .result import Result
@@ -9,18 +16,10 @@ from .screen import DockingVirtualScreen
 from .utils import ScreenType
 
 
-def screen_type(software) -> ScreenType:
-    if software.lower() in ("vina", "qvina", "smina", "psovina"):
-        return ScreenType.VINA
-    elif software.lower() in ("dock", "dock6", "ucsfdock"):
-        return ScreenType.DOCK
-    else:
-        raise ValueError(f'Unrecognized docking software: "{software}"')
-
 
 def build_metadata(software: str, metadata: Optional[Dict] = None) -> CalculationMetadata:
     metadata = metadata or {}
-    
+
     if software.lower() in ("vina", "qvina", "smina", "psovina"):
         from pyscreener.docking.vina.metadata import VinaMetadata
 
@@ -40,16 +39,36 @@ def build_metadata(software: str, metadata: Optional[Dict] = None) -> Calculatio
     raise ValueError(f'Unrecognized docking software: "{software}"')
 
 
-def virtual_screen(software: str, *args, **kwargs) -> DockingVirtualScreen:
+def get_runner(software: str) -> DockingRunner:
     if software.lower() in ("vina", "qvina", "smina", "psovina"):
         from pyscreener.docking.vina import VinaRunner
+        return VinaRunner
 
-        runner = VinaRunner
-    elif software.lower() in ("dock", "dock6", "ucsfdock"):
+    if software.lower() in ("dock", "dock6", "ucsfdock"):
         from pyscreener.docking.dock import DOCKRunner
+        return DOCKRunner
 
-        runner = DOCKRunner
-    else:
-        raise ValueError(f'Unrecognized docking software: "{software}"')
+    raise ValueError(f'Unrecognized docking software: "{software}"')
 
-    return DockingVirtualScreen(runner, *args, **kwargs)
+
+def check_env(software, metadata: Optional[Dict] = None):
+    print("Checking environment for input screen ...", end=" ")
+    try:
+        runner = get_runner(software)
+        metadata = build_metadata(software, metadata)
+        runner.validate_metadata(metadata)
+    except (
+        MissingExecutableError,
+        MisconfiguredDirectoryError,
+        MissingEnvironmentVariableError,
+    ):
+        print("FAIL")
+        print("Environment not set up properly! See the exception for more details", flush=True)
+        raise
+
+    print("PASS")
+    print("Environment is properly set up!")
+
+
+def virtual_screen(software: str, *args, **kwargs) -> DockingVirtualScreen:
+    return DockingVirtualScreen(get_runner(software), *args, **kwargs)

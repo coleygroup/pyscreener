@@ -10,6 +10,12 @@ import pyscreener as ps
 
 
 def main():
+    args = ps.args.gen_args()
+    
+    if args.smoke_test:
+        ps.check_env(args.screen_type, args.metadata_template)
+        exit(0)
+        
     print(
         """\
 ***************************************************************
@@ -21,11 +27,6 @@ def main():
 ***************************************************************"""
     )
     print("Welcome to Pyscreener!\n")
-    args = ps.args.gen_args()
-    
-    if args.smoke_test:
-        ps.check_env(args.screen_type, args.metadata_template)
-        exit(0)
 
     params = vars(args)
     print("Pyscreener will be run with the following arguments:")

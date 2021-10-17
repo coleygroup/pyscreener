@@ -33,9 +33,9 @@ def add_general_args(parser: ArgumentParser):
         "--config", is_config_file=True, help="filepath of a configuration file to use"
     )
     parser.add_argument(
-        "--check-env",
+        "--smoke-test",
         action="store_true",
-        help="whether to check if the environment is set up properly for the given screen type",
+        help="whether to perform a smoke test by checking if the environment is set up properly",
     )
     parser.add_argument(
         "-o",

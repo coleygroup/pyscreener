@@ -23,7 +23,7 @@ def main():
     print("Welcome to Pyscreener!\n")
     args = ps.args.gen_args()
     
-    if args.check_env:
+    if args.smoke_test:
         ps.check_env(args.screen_type, args.metadata_template)
         exit(0)
 

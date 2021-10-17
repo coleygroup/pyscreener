@@ -1,5 +1,5 @@
 import argparse
-from collections import defaultdict#, namedtuple
+from collections import defaultdict
 import csv
 from pathlib import Path
 import tarfile
@@ -10,7 +10,7 @@ def main():
                         help='the individual SMILES strings you would like to extract files for. NOTE: the SMILES strings must be quoted to avoid command line parsing issues.')
     parser.add_argument('-f', '--files', nargs='+',
                         help='a file (or files) containing the desired SMILES strings, each on a separate line. NOTE: there must be no title line!')
-    parser.add_argument('-d', '--root-dir', required=True,
+    parser.add_argument('-o', '--output-dir', required=True,
                         help='the output directory of a pyscreener run')
     parser.add_argument('-p', '--path',
                         help='the desired output directory for the extracted input and output file. By default, use the pyscreener output directory.')
@@ -22,34 +22,32 @@ def main():
         with open(f) as fid:
             smis.update(fid.read().splitlines())
 
-    root_dir = Path(args.root_dir)
-    if not root_dir.is_dir():
-        raise ValueError(f'"{args.root_dir}" is not a directory!')
+    output_dir = Path(args.output_dir)
+    if not output_dir.is_dir():
+        raise ValueError(f'"{args.output_dir}" is not a directory!')
 
-    d_nodeID_ligands = defaultdict(list)
-    extended_csv = root_dir / 'extended.csv'
+    d_nodeID_names = defaultdict(list)
+    extended_csv = output_dir / 'extended.csv'
     with open(extended_csv) as fid:
         reader = csv.reader(fid)
         next(reader)
 
-        for smi, ligand_name, node_id, _ in reader:
+        for smi, name, node_id, _ in reader:
             if smi not in smis:
                 continue
             
-            d_nodeID_ligands[node_id].append(ligand_name)
+            d_nodeID_names[node_id].append(name)
 
-    path = Path(args.path or args.root_dir)
+    path = Path(args.path or args.output_dir)
 
-    for node_id in d_nodeID_ligands:
-        with tarfile.open(root_dir / f'{node_id}.tar.gz') as tar:
-            member_names = tar.getnames()
-            ligand_names = d_nodeID_ligands[node_id]
-            extracted_members = [
-                tar.extract(member_name, path)
-                for member_name in member_names if any(
-                    ligand_name in member_name for ligand_name in ligand_names
-                )
+    for node_id in d_nodeID_names:
+        with tarfile.open(output_dir / f'{node_id}.tar.gz') as tar:
+            names = d_nodeID_names[node_id]
+            targets = [
+                member for member in tar.getnames()
+                if any(name in member for name in names)
             ]
+            extracted_members = [tar.extract(target, path) for target in targets]
             print(f'Extracted {len(extracted_members)} from node {node_id}')
 
 

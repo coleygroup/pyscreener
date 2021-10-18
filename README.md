@@ -89,7 +89,7 @@ pyscreener writes a lot of intermediate input and output files (due to the inher
 
 *Note*: the `VirtualScreen.collect_files()` method is **slow** due to the need to send possibly a **bunch** of files over the network. This method should only be run **once** over the lifetime of a `VirtualScreen` object, as several intermediate calls will yield the same result as a single, final call.
 
-*Note*: `tempfile.gettempdir()` returns a path that depends the values of specific environment variables (see [here](https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir).) It is possible that the value returned on your system is not actually a valid path for you! In this case you will likely get file permissions errors and must ask your system administrator where this value should point to and then set `TMPDIR` accordingly before running pyscreener! 
+*Note*: `tempfile.gettempdir()` returns a path that depends the values of specific environment variables (see [here](https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir)). It is possible that the value returned on your system is not actually a valid path for you! In this case you will likely get file permissions errors and must ask your system administrator where this value should point to and set your environment variables accordingly before running pyscreener! 
 
 ## Running pyscreener as a software
 __!!please read the entire section before running pyscreener!!__
@@ -104,7 +104,7 @@ pyscreener was designed to have a minimal interface under the principal that a h
 
 There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
 
-All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [test_configs](test_configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config integration-tests/configs/<config>`
+All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config integration-tests/configs/<config>`
 
 ### Metadata Templates
 Vina-type and DOCK6 docking simulations have a number of options unique to their preparation and simulation pipeline, and these options are termed simulation "metadata" in `pyscreener`. At present, only a few of these options are supported for both families of docking software, but future updates will add support for more of these options. These options may be specified via a JSON struct to the `--metadata-template` argument. Below is a list of the supported options for both types of docking screen (default options provided in parentheses next to the parameter)

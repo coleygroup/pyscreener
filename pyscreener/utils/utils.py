@@ -1,6 +1,17 @@
+__all__ = [
+    "AutoName",
+    "ScoreMode",
+    "FileFormat",
+    "chunks",
+    "calc_score",
+    "reduce_scores",
+    "run_on_all_nodes",
+]
+
 from enum import Enum, auto
 import functools
-from typing import Callable, Optional, Sequence
+from itertools import islice
+from typing import Callable, Iterable, Iterator, List, Optional, Sequence
 import warnings
 
 import numpy as np
@@ -30,27 +41,51 @@ class ScoreMode(AutoName):
 class FileFormat(AutoName):
     """The format of a molecular suppy file. FILE represents the format of all molecular supply
     files with no explicit support (i.e., CSV, SDF, and SMI.)"""
-    
+
     CSV = auto()
     FILE = auto()
     SDF = auto()
     SMI = auto()
 
-def run_on_all_nodes(func: Callable) -> Callable:
-    """Run a function on all nodes in the ray cluster"""
 
-    @functools.wraps(func)
-    def wrapper_run_on_all_nodes(*args, **kwargs):
-        refs = []
-        for node in ray.nodes():
-            address = node["NodeManagerAddress"]
-            g = ray.remote(resources={f"node:{address}": 0.1})(func)
-            refs.append(g.remote(*args, **kwargs))
+def chunks(it: Iterable, size: int) -> Iterator[List]:
+    """chunk an iterable into chunks of given size, with the last chunk being potentially smaller"""
+    it = iter(it)
+    return iter(lambda: list(islice(it, size)), [])
 
-        ray.wait(refs)
-        return ray.get(refs[-1])
 
-    return wrapper_run_on_all_nodes
+def calc_score(
+    scores: Sequence[float], score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
+) -> float:
+    """Calculate an overall score from a sequence of scores
+
+    Parameters
+    ----------
+    scores : Sequence[float]
+    score_mode : ScoreMode, default=ScoreMode.BEST
+        the method used to calculate the overall score. See ScoreMode for
+        choices
+    k : int, default=1
+        the number of top scores to average, if using ScoreMode.TOP_K_AVG
+
+    Returns
+    -------
+    float
+    """
+    Y = np.array(scores)
+
+    if score_mode == ScoreMode.BEST:
+        return Y.min()
+    elif score_mode == ScoreMode.AVG:
+        return np.nanmean(Y)
+    elif score_mode == ScoreMode.BOLTZMANN:
+        Y_e = np.exp(-Y)
+        Z = Y_e / np.nansum(Y_e)
+        return np.nansum(Y * Z)
+    elif score_mode == ScoreMode.TOP_K:
+        return np.nanmean(Y.sort()[:k])
+
+    raise ValueError(f"Invalid ScoreMode! got: {score_mode}")
 
 
 def reduce_scores(
@@ -106,36 +141,20 @@ def reduce_scores(
             S = np.nanmean(np.sort(S, axis=1)[:, :, :k], axis=1)
 
     return S
-    
-def calc_score(
-    scores: Sequence[float], score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
-) -> float:
-    """Calculate an overall score from a sequence of scores
 
-    Parameters
-    ----------
-    scores : Sequence[float]
-    score_mode : ScoreMode, default=ScoreMode.BEST
-        the method used to calculate the overall score. See ScoreMode for
-        choices
-    k : int, default=1
-        the number of top scores to average, if using ScoreMode.TOP_K_AVG
 
-    Returns
-    -------
-    float
-    """
-    Y = np.array(scores)
+def run_on_all_nodes(func: Callable) -> Callable:
+    """Run a function on all nodes in the ray cluster"""
 
-    if score_mode == ScoreMode.BEST:
-        return Y.min()
-    elif score_mode == ScoreMode.AVG:
-        return np.nanmean(Y)
-    elif score_mode == ScoreMode.BOLTZMANN:
-        Y_e = np.exp(-Y)
-        Z = Y_e / np.nansum(Y_e)
-        return np.nansum(Y * Z)
-    elif score_mode == ScoreMode.TOP_K:
-        return np.nanmean(Y.sort()[:k])
+    @functools.wraps(func)
+    def wrapper_run_on_all_nodes(*args, **kwargs):
+        refs = []
+        for node in ray.nodes():
+            address = node["NodeManagerAddress"]
+            g = ray.remote(resources={f"node:{address}": 0.1})(func)
+            refs.append(g.remote(*args, **kwargs))
 
-    raise ValueError(f"Invalid ScoreMode! got: {score_mode}")
+        ray.wait(refs)
+        return ray.get(refs[-1])
+
+    return wrapper_run_on_all_nodes

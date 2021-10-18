@@ -5,7 +5,6 @@ pythonic interface to virtual screening software
 from pyscreener._version import __version__
 from . import args
 from .docking import build_metadata, check_env, virtual_screen
-from .postprocessing import postprocess
 from .supply import LigandSupply
 
 # Handle versioneer

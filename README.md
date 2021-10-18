@@ -83,7 +83,7 @@ pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its paralle
 To do this, simply type `ray start --head --num-cpus N` before starting pyscreener (where `N` is the total number of cores you wish to allow pyscreener to utilize). Not performing this step will give pyscreener access to all of the cores on your local machine, potentially slowing down other applications.
 
 #### Distributing across many nodes
-While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([run_pyscreener_distributed_example.batch](run_pyscreener_distributed_example.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html). To allow pyscreener to connect to your ray cluster, you must set the `ip_head` and `redis_password` environment variables appropriately, where `ip_head` is the address of the head of your ray cluster, i.e., `$IP:$PORT` where `$IP` is the IP address of the head node and `$PORT` is the port that is running ray.
+While the precise instructions for this will vary with HPC cluster architecture, the general idea is to establish a ray cluster between the nodes allocated to your job. We have provided a sample SLURM submission script ([run_pyscreener_distributed_example.batch](run_pyscreener_distributed_example.batch)) to achieve this, but you may have to alter some commands depending on your system. For more information on this see [here](https://docs.ray.io/en/master/cluster/index.html). To allow pyscreener to connect to your ray cluster, you must set the `ip_head` and `redis_password` environment variables appropriately, where `ip_head` is the address of the head of your ray cluster, i.e., `IP:PORT` where `IP` is the IP address of the head node and `PORT` is the port that is running ray.
 
 pyscreener writes a lot of intermediate input and output files (due to the inherent specifications of the underlying docking software.) Given that the primary endpoint of pyscreener is a list of ligands and associated scores (rather than the specific binding poses,) these files are written to each node's temporary directory (determined by `tempfile.gettempdir()`) and discarded at the end. If you wish to collect these files, pass the `--collect-all` flag in the program arguments or run the `collect_files()` method of your `VirtualScreen` object when your screen is complete.
 
@@ -101,7 +101,6 @@ pyscreener was designed to have a minimal interface under the principal that a h
 - the coordinates of your docking box (center + size) or a PDB format file containing the coordinates of a previously bound ligand
 - a metadata template containing screen-specific options in a JSON-format string. See the [metadata](#metadata-templates) section below for more details.
 - the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking. A generally good value for this is between `2` and `8` depending on your compute setup. If you're docking molecule-by-molecule, e.g., reinforcement learning, then you will likely want this to be as many CPUs as are on your machine.
-<!-- , or a numbered list of residues from which to construct the docking box (e.g., [42, 64, 117, 169, 191]) -->
 
 There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
 
@@ -132,11 +131,6 @@ The object model of pyscreener relies on four classes:
 * [`DockingVirtualScreen`](pyscreener/docking/screen.py): an object that organizes a virtual screen. At a high level, a virtual is a series of docking calculations with some template set of parameters performed for a collection of molecules and distributed over some set of computational resources. A `DockingVirtualScreen` takes as arguments a `DockingRunner`, a list of receptors (for possible ensemble docking) and a set of template values for a `CalculationData` template. It defines a `__call__()` method that takes an unzipped list of SMILES strings, builds the `CalculationData` objects for each molecule, and submits these objects for preparation and calculation to various resources in the ray cluster (see [ray setup](#ray-setup)).
 
 To perform docking calls inside your python code using `pyscreener`, you must first initialize a `DockingVirtualScreen` object either through the factory `pyscreener.virtual_screen` function or manually initializing one. The following section will show an example of how to perform computational from inside a python interpreter.
-
-<!---
-`Vina` is the `Screener` class for performing docking simulations using any software derived from AutoDock Vina and accepts the `software` keyword argument to its initializer. Currently, the list of supported Vina-type software is as follows: AutoDock Vina, Smina, QVina2, and PSOVina.
-
-`DOCK` is the `Screener` class for performing DOCKing using the DOCK software from UCSF. The input preparation pipeline for this software is a little more involved, so we encourage readers to look at the file to see what these additional parameters are. -->
 
 ### Example
 the following code snippet will dock benzene (SMILES string `"c1ccccc1"`) against the D4 dopamine receptor (PDB ID `5WIU`) using a predefined docking box and Autodock Vina

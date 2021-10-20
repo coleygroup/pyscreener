@@ -31,7 +31,7 @@ This repository contains the source of pyscreener, both a library and software f
 1. clone this repository: `git clone git@github.com:coleygroup/pyscreener.git`
 1. `cd pyscreener`
 1. `conda env create -f environment.yml`
-1. `pip install .`
+1. `pip install -e .`
 1. follow the corresponding directions below for the intended software
 
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)

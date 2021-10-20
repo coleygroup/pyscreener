@@ -5,20 +5,8 @@ channels:
   - defaults
 
 dependencies:
-  - configargparse
-  - h5py
-  - importlib_resources
-  - matplotlib
-  - mpi4py
   - openbabel
-  - pandas
-  - omnia::pdbfixer
+  - openmm
   - pip
-  - pip:
-    - ray
   - python=3.8
   - rdkit
-  - scikit-learn
-  - scipy
-  - seaborn
-  - tqdm

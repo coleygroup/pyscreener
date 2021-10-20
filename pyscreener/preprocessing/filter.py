@@ -1,8 +1,6 @@
 """This module contains functions for filtering molecules from inputs based on 
 a desired set of properties"""
-
 import csv
-from itertools import zip_longest
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
@@ -10,8 +8,7 @@ from rdkit import Chem
 from rdkit.Chem import QED
 from tqdm import tqdm
 
-def filter_ligands(ligands: str,
-                   **kwargs) -> Tuple[List[str], Optional[List[str]]]:
+def filter_ligands(ligands: str, **kwargs) -> Tuple[List[str], Optional[List[str]]]:
     if isinstance(ligands, str):
         p_ligand = Path(ligands)
 
@@ -27,10 +24,11 @@ def filter_ligands(ligands: str,
     
     raise TypeError('argument "ligand" must be of type str or Sequence[str]!')
 
-def filter_mols(mols: List[Chem.Mol], names: Optional[List[str]] = None,
-                max_atoms: int = 1000, max_weight: float = 10000.,
-                max_logP: float = 10.,
-                **kwargs) -> Tuple[List[str], Optional[List[str]]]:
+def filter_mols(
+    mols: List[Chem.Mol], names: Optional[List[str]] = None,
+    max_atoms: int = 1000, max_weight: float = 10000.,
+    max_logP: float = 10., **kwargs
+) -> Tuple[List[str], Optional[List[str]]]:
     """Filter a list of molecules according to input critera
 
     Parameters

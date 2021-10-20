@@ -8,10 +8,6 @@ import versioneer
 
 short_description = __doc__.split("\n")
 
-# from https://github.com/pytest-dev/pytest-runner#conditional-requirement
-needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-pytest_runner = ['pytest-runner'] if needs_pytest else []
-
 try:
     with open("README.md", "r") as handle:
         long_description = handle.read()
@@ -20,7 +16,6 @@ except:
 
 
 setup(
-    # Self-descriptive entries which should always be present
     name='pyscreener',
     author='david graff',
     author_email='deg711@g.harvard.edu',
@@ -31,27 +26,37 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     license='MIT',
 
-    # Which Python importable modules should be included when your package is installed
-    # Handled automatically by setuptools. Use 'exclude' to prevent some specific
-    # subpackage(s) from being added, if needed
-    packages=find_packages(),
+    # Which Python importable modules should be included when your package is 
+    # installed. Handled automatically by setuptools. Use 'exclude' to prevent 
+    # some specific subpackage(s) from being added, if needed
+    packages=find_packages(
+        exclude=[
+            'pyscreener.dft',
+            'pyscreener.md'
+        ]
+    ),
 
     # Optional include package data to ship with your package
     # Customize MANIFEST.in if the general case does not suit your needs
     # Comment out this line to prevent the files from being packaged with your software
     include_package_data=True,
+    setup_requires=[],
 
-    # Allows `setup.py test` to work correctly with pytest
-    setup_requires=[] + pytest_runner,
-
-    # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    # install_requires=[],              # Required packages, pulls from pip if needed; do not use for Conda deployment
-    # platforms=['Linux',
-    #            'Mac OS-X',
-    #            'Unix',
-    #            'Windows'],            # Valid platforms your code works on, adjust to your flavor
-    # python_requires=">=3.5",          # Python version restrictions
+    platforms=['Linux', 'Mac OS-X', 'Unix'],
+    python_requires=">=3.7",
+    install_requires=[
+        'configargparse',
+        'h5py',
+        'numpy',
+        'ray[default]',
+        'pandas',
+        'pdbfixer @ git+https://github.com/openmm/pdbfixer.git',
+        'seaborn',
+        'scikit_learn',
+        'scipy',
+        'tqdm'
+    ],
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,

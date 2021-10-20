@@ -4,6 +4,7 @@ h5py
 numpy
 ray
 pandas
+pytest
 scikit_learn
 scipy
 seaborn

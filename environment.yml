@@ -5,8 +5,11 @@ channels:
   - defaults
 
 dependencies:
-  - openbabel
-  - openmm
   - pip
   - python=3.8
+  - openbabel
+  - openmm
   - rdkit
+  - pip:
+    - -r requirements.txt
+

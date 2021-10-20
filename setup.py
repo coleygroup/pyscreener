@@ -8,9 +8,6 @@ import versioneer
 
 short_description = __doc__.split("\n")
 
-# from https://github.com/pytest-dev/pytest-runner#conditional-requirement
-needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-
 try:
     with open("README.md", "r") as handle:
         long_description = handle.read()
@@ -36,7 +33,6 @@ setup(
         exclude=[
             'pyscreener.dft',
             'pyscreener.md'
-            'pyscreener.docking.dock.scripts',
         ]
     ),
 

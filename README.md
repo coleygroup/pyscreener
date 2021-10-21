@@ -21,17 +21,17 @@ This repository contains the source of pyscreener, both a library and software f
 ## Installation
 
 ### General requirements
-- python >= 3.6
+- python >= 3.7
 - `numpy`, `openbabel`, `openmm`, [`pdbfixer`](git+https://github.com/openmm/pdbfixer.git), `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
 - all corresponding software downloaded and located on your PATH or under the path of a specific environment variable (see [external software](#external-software) for more details.)
 
 ### environment setup with conda
 
 0. (if necessary) [install conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
-1. clone this repository: `git clone git@github.com:coleygroup/pyscreener.git`
-1. `cd pyscreener`
-1. `conda env create -f environment.yml`
-1. `pip install -e .`
+1. `conda create -n NAME python=3.8 pip openbabel openmm rdkit`
+1. `conda activate NAME`
+1. `pip install pyscreener`
+1. `pip install git+https://github.com/openmm/pdbfixer.git`
 1. follow the corresponding directions below for the intended software
 
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)

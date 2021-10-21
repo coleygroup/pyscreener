@@ -36,7 +36,6 @@ setup(
         "numpy",
         "ray[default]",
         "pandas",
-        "pdbfixer @ git+https://github.com/openmm/pdbfixer.git",
         "seaborn",
         "scikit_learn",
         "scipy",

@@ -40,17 +40,17 @@ class LigandSupply(Iterable):
     path : Optional[Path]
         The path under which to output all prepared files. If None, prepare all input files in the
         same directory as their parent file.
-    
+
     Parameters
     ----------
-    ligands : Iterable[str]
-        the SMILES strings or files containing the molecules of the supplied inputs
     filepaths : Iterable[Union[str, Path]]
         the chemical supply files containing the molecules
     formats : Optional[Iterable[Union[str, FileFormat]]], default=None
-        the corresponding filetype for each input file. Can be supplied as either a string or a 
+        the corresponding filetype for each input file. Can be supplied as either a string or a
         Filetype for each file. E.g., for a csv file, filetype can be "csv" or FileFormat.CSV.
         If None, guess the type of each file
+    smis : Iterable[str], default=None
+        the SMILES strings corresponding to molecules to prepare
     use_3d : bool, default=False
         whether to use the input 3D geometry of the supplied molecules. Does nothing if the file is
         a CSV or SMI file.
@@ -67,12 +67,14 @@ class LigandSupply(Iterable):
         NOTE: Unused. the name molecular property containing the molecule's ID
     path : Optional[str], default=None
         The path under which to output all prepared files. If None, prepare all input files in the
-        same directory as their parent file.
+        same directory as their parent file and all SMILES strings in the current directory.
     """
+
     def __init__(
         self,
         filepaths: Iterable[Union[str, Path]],
         formats: Optional[Iterable[Union[str, FileFormat]]] = None,
+        smis: Optional[Iterable[str]] = None,
         use_3d: bool = False,
         optimize: bool = False,
         title_line: bool = True,
@@ -137,7 +139,16 @@ class LigandSupply(Iterable):
                         filepath, self.id_property, self.optimize, self.path
                     )
                 )
-
+        if smis is not None:
+            if not self.optimize:
+                ligands.extend(smis)
+            else:
+                mols = [Chem.MolFromSmiles(smi) for smi in smis]
+                ligands.extend(
+                    LigandSupply.optimize_and_write_mols(
+                        mols, Path("ligand"), self.path
+                    )
+                )
         self.ligands = ligands
 
     def __len__(self):
@@ -156,7 +167,7 @@ class LigandSupply(Iterable):
         smiles_col: int = 0,
         name_col: int = 1,
         optimize: bool = False,
-        path: Optional[Path] = None
+        path: Optional[Path] = None,
     ) -> list[str]:
         with open(filepath) as fid:
             reader = csv.reader(fid)
@@ -176,7 +187,7 @@ class LigandSupply(Iterable):
         filepath: Path,
         use_3d: bool = False,
         optimize: bool = False,
-        path: Optional[Path] = None
+        path: Optional[Path] = None,
     ) -> list[str]:
         if use_3d:
             return LigandSupply.split_file(filepath)
@@ -199,7 +210,7 @@ class LigandSupply(Iterable):
         id_property: Optional[str] = None,
         use_3d: bool = False,
         optimize: bool = False,
-        path: Optional[Path] = None
+        path: Optional[Path] = None,
     ) -> list[str]:
         if use_3d:
             return LigandSupply.split_file(filepath, path)
@@ -216,7 +227,7 @@ class LigandSupply(Iterable):
         filepath: Path,
         id_property: Optional[str] = None,
         optimize: bool = False,
-        path: Optional[Path] = None
+        path: Optional[Path] = None,
     ) -> list[str]:
         mols = Chem.SmilesMolSupplier(str(filepath))
 

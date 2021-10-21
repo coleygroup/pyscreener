@@ -130,7 +130,9 @@ class DockingVirtualScreen:
         """the number of ligands that have been simulated. NOT the total number of simulations"""
         return self.num_ligands
 
-    def __call__(self, *sources: Iterable[Union[str, Iterable[str]]]) -> np.ndarray:
+    def __call__(
+        self, *sources: Iterable[Union[str, Iterable[str]]], smiles: bool = True
+    ) -> np.ndarray:
         """dock all of the ligands and return an array of their scores
 
         This function may be called with invidual ligand sources, lists of ligand sources, or a
@@ -160,7 +162,7 @@ class DockingVirtualScreen:
         """
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
-        planned_simulationsss = self.plan(sources)
+        planned_simulationsss = self.plan(sources, smiles)
         completed_simulationsss = self.run(planned_simulationsss)
 
         self.completed_simulationsss.extend(completed_simulationsss)
@@ -224,7 +226,7 @@ class DockingVirtualScreen:
         ]
         if flatten:
             return list(chain(*(chain(*resultsss))))
-        
+
         return resultsss
 
     def plan(
@@ -272,7 +274,7 @@ class DockingVirtualScreen:
         ]
         return [
             [ray.get(refs) for refs in refss]
-            for refss in tqdm(refsss, desc='Docking', unit='ligand', smoothing=0.)
+            for refss in tqdm(refsss, desc="Docking", unit="ligand", smoothing=0.0)
         ]
 
     @run_on_all_nodes

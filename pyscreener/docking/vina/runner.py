@@ -7,6 +7,7 @@ import sys
 from typing import List, Optional, Tuple, Union
 
 from openbabel import pybel
+from rdkit.Chem import AllChem as Chem
 import ray
 
 from pyscreener import utils
@@ -91,15 +92,19 @@ class VinaRunner(DockingRunner):
         """
         pdbqt = Path(data.in_path) / f"{data.name}.pdbqt"
 
-        mol = pybel.readstring(format="smi", string=data.smi)
+        mol = Chem.AddHs(Chem.MolFromSmiles(data.smi))
+        Chem.EmbedMolecule(mol)
+        Chem.MMFFOptimizeMolecule(mol)
+
         try:
-            mol.make3D()
-            mol.addh()
+            mol = pybel.readstring("mol", Chem.MolToMolBlock(mol))
+            # mol.make3D()
+            # mol.addh()
             mol.calccharges(model="gasteiger")
         except Exception:
             pass
 
-        mol.write(format="pdbqt", filename=str(pdbqt), overwrite=True, opt={"h": None})
+        mol.write("pdbqt", str(pdbqt), overwrite=True, opt={"h": None})
         data.metadata.prepared_ligand = pdbqt
 
         return data

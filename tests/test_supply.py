@@ -22,7 +22,7 @@ def smis(request):
     return request.param
 
 
-@pytest.fixture(params=["csv", "smi", "sdf"])
+@pytest.fixture(params=["csv", "smi", "sdf", None])
 def filetype(request):
     return request.param
 
@@ -89,13 +89,19 @@ def test_guess_filetype():
 
 
 def test_ligands(smis, tmp_path, filetype):
-    supply = LigandSupply([make_file(smis, tmp_path, filetype)])
+    if filetype is not None:
+        supply = LigandSupply([make_file(smis, tmp_path, filetype)])
+    else:
+        supply = LigandSupply([], smis=smis, path=tmp_path)
 
     assert len(supply) == len(smis)
 
 
 def test_optimize(smis, tmp_path, filetype):
-    supply = LigandSupply([make_file(smis, tmp_path, filetype)], optimize=True)
+    if filetype is not None:
+        supply = LigandSupply([make_file(smis, tmp_path, filetype)], optimize=True, path=tmp_path)
+    else:
+        supply = LigandSupply([], smis=smis, optimize=True, path=tmp_path)
 
     assert len(supply) == len(smis)
 

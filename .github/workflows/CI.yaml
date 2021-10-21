@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  # GitHub has started calling new repo's first branch "main" https://github.com/github/renaming
-  # Existing codes likely still have "master" as the primary branch
-  # Both are tracked here to keep legacy and new codes working
   push:
     branches:
       - "main"
@@ -11,9 +8,6 @@ on:
     branches:
       - "main"
   schedule:
-    # Nightly tests run on master by default:
-    #   Scheduled workflows run on the latest commit on the default or base branch.
-    #   (from https://help.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events-schedule)
     - cron: "0 0 * * *"
 
 jobs:
@@ -54,7 +48,7 @@ jobs:
     - name: Run tests
       shell: bash -l {0}
       run: |
-        pytest -v --cov=pyscreener --cov-report=xml --color=yes -k 'not test_vina_runner'
+        pytest -v --cov=pyscreener --cov-report=xml --color=yes
 
     - name: CodeCov
       uses: codecov/codecov-action@v1

@@ -5,4 +5,4 @@ include versioneer.py
 include pyscreener/_version.py
 
 graft pyscreener
-global-exclude *.py[cod] __pycache__ *.soinclude pyscreener/_version.py
+global-exclude *.py[cod] __pycache__ *.so

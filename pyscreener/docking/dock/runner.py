@@ -6,6 +6,7 @@ import sys
 from typing import Mapping, Optional, Tuple, Union
 
 from openbabel import pybel
+from rdkit.Chem import AllChem as Chem
 import ray
 
 from pyscreener.exceptions import MisconfiguredDirectoryError, MissingEnvironmentVariableError
@@ -143,10 +144,15 @@ class DOCKRunner(DockingRunner):
         """
         mol2 = Path(data.in_path) / f"{data.name}.mol2"
 
+        mol = Chem.AddHs(Chem.MolFromSmiles(data.smi))
+        Chem.EmbedMolecule(mol)
+        Chem.MMFFOptimizeMolecule(mol)
+
         try:
-            mol = pybel.readstring(format="smi", string=data.smi)
-            mol.make3D()
-            mol.addh()
+            mol = pybel.readstring("mol", Chem.MolToMolBlock(mol))
+            # mol = pybel.readstring(format="smi", string=data.smi)
+            # mol.make3D()
+            # mol.addh()
             mol.calccharges(model="gasteiger")
         except Exception:
             pass

@@ -6,11 +6,9 @@ on:
   # Both are tracked here to keep legacy and new codes working
   push:
     branches:
-      - "master"
       - "main"
   pull_request:
     branches:
-      - "master"
       - "main"
   schedule:
     # Nightly tests run on master by default:

@@ -5,7 +5,8 @@ numpy
 ray
 pandas
 pytest
-scikit_learn
+pytest-cov
+scikit-learn
 scipy
 seaborn
 tqdm

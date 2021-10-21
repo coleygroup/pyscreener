@@ -54,7 +54,7 @@ jobs:
     - name: Run tests
       shell: bash -l {0}
       run: |
-        pytest -v --cov=pyscreener --cov-report=xml --color=yes tests
+        pytest -v --cov=pyscreener --cov-report=xml --color=yes -k 'not test_vina_runner'
 
     - name: CodeCov
       uses: codecov/codecov-action@v1

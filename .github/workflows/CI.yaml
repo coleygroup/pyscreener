@@ -56,7 +56,7 @@ jobs:
     - name: Run tests
       shell: bash -l {0}
       run: |
-        pytest -v --cov=pyscreener --cov-report=xml --color=yes pyscreener/tests/
+        pytest -v --cov=pyscreener --cov-report=xml --color=yes tests
 
     - name: CodeCov
       uses: codecov/codecov-action@v1

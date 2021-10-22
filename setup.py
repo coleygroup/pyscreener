@@ -24,13 +24,22 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     license="MIT",
-    packages=find_packages(exclude=["pyscreener.dft", "pyscreener.md", "pyscreener.docking.dock.scripts"]),
+    packages=find_packages(
+        exclude=["pyscreener.dft", "pyscreener.md", "pyscreener.docking.dock.scripts"]
+    ),
+    entry_points={
+        "console_scripts": [
+            "pyscreener = bin.main:main",
+            "pyscreener-check = bin.check:main"
+        ]
+    },
     include_package_data=True,
     setup_requires=[],
     url="https://github.com/coleygroup/pyscreener",
     platforms=["Linux", "Mac OS-X", "Unix"],
     python_requires=">=3.7",
     install_requires=[
+        "colorama",
         "configargparse",
         "h5py",
         "numpy",
@@ -51,6 +60,6 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Chemistry",
-        "Typing :: Typed"
-    ]
+        "Typing :: Typed",
+    ],
 )

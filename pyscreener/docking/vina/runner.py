@@ -11,17 +11,17 @@ from rdkit.Chem import AllChem as Chem
 import ray
 
 from pyscreener import utils
+from pyscreener.exceptions import MissingExecutableError
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.runner import DockingRunner
 from pyscreener.docking.result import Result
 from pyscreener.docking.vina.metadata import VinaMetadata
-from pyscreener.exceptions import MissingExecutableError
 from pyscreener.docking.vina.utils import Software
 
 if shutil.which("prepare_receptor") is None:
     raise MissingExecutableError(
         'Could not find "prepare_receptor" on PATH! '
-        "See https://github.com/coleygroup/pyscreener/tree/refactor#adding-an-executable-to-your-path for more information."
+        "See https://github.com/coleygroup/pyscreener#adding-an-executable-to-your-path for more information."
     )
 
 

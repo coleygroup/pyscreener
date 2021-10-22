@@ -21,7 +21,7 @@ def build_metadata(software: str, metadata: Optional[Dict] = None) -> Calculatio
     metadata = metadata or {}
 
     if software.lower() in ("vina", "qvina", "smina", "psovina"):
-        from pyscreener.docking.vina.metadata import VinaMetadata
+        from pyscreener.docking.vina import VinaMetadata
 
         d_md = asdict(VinaMetadata())
         d_md.update((k, metadata[k]) for k in d_md.keys() & metadata.keys())

@@ -3,7 +3,6 @@ import dataclasses
 import os
 import time
 
-import numpy as np
 import ray
 
 import pyscreener as ps

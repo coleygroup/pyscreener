@@ -1,9 +1,6 @@
-try:
-    from importlib import resources
-except ModuleNotFoundError:
-    import importlib_resources as resources
 from enum import auto
 from itertools import takewhile
+from importlib import resources
 import os
 from pathlib import Path
 import shutil

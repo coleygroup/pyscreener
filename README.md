@@ -38,11 +38,11 @@ This repository contains the source of pyscreener, both a library and software f
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)
 
 ### external software
-To test whether your environment is setup correctly with respect to pathing and environment variables, run pyscreener with the `--smoke-test` flag in addition to the planned `--screen-type` and `--metadata-template` arguments (no other arguments need to be specified):
+To test whether your environment is setup correctly with respect to pathing and environment variables, run `pyscreener-check` `--screen-type` and `--metadata-template` values, like so:
 
-`python run.py --smoke-test --screen-type SCREEN_TYPE --metadata-template METADATA_TEMPLATE`
+`pyscreener-check SCREEN_TYPE METADATA_TEMPLATE`
 
-If the environment test passes, then your environment is set up correctly.
+If the checks pass, then your environment is set up correctly.
 
 * vina-type software
   1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and add `prepare_receptor` to your PATH. If this step was successful, the command `which prepare_receptor` should output `path/to/prepare_receptor`. This can be done via either:
@@ -67,8 +67,6 @@ If the environment test passes, then your environment is set up correctly.
   1. [install chimera](https://www.cgl.ucsf.edu/chimera/download.html) and place the file on your PATH as detailed [below](#adding-an-executable-to-your-path)
 
 #### adding an executable to your PATH
-<!-- `pyscreener` is not a virtual screening software in itself. Rather, it is a wrapper around common VS software to enable a simple and common interface between them without having to learn the ins and outs of the preparation and simulation pipeline for each different software. With that in mind, it is up to the user to install the appropriate virtual screening software and place them on their PATH. -->
-
 To add an executable to your PATH, you have three options:
 1. create a symbolic link to the executable inside a directory that is already on your path: `ln -s FILE -t DIR`. Typically, `~/bin` or `~/.local/bin` are good target directories (i.e., `DIR`). To see what directories are currently on your path, type `echo $PATH`. There will typically be a lot of directories on your path, and it is best to avoid creating files in any directory above your home directory (`$HOME` on most *nix-based systems)
 1. copy the software to a directory that is already on your path. Similar, though less preferred than the above: `cp FILE DIR`
@@ -103,9 +101,9 @@ pyscreener was designed to have a minimal interface under the principal that a h
 - a metadata template containing screen-specific options in a JSON-format string. See the [metadata](#metadata-templates) section below for more details.
 - the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking. A generally good value for this is between `2` and `8` depending on your compute setup. If you're docking molecule-by-molecule, e.g., reinforcement learning, then you will likely want this to be as many CPUs as are on your machine.
 
-There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `python run.py --help`
+There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `psycreener --help`
 
-All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `python run.py --config integration-tests/configs/<config>`
+All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `pyscreener --config integration-tests/configs/<config>`
 
 ### Metadata Templates
 Vina-type and DOCK6 docking simulations have a number of options unique to their preparation and simulation pipeline, and these options are termed simulation "metadata" in `pyscreener`. At present, only a few of these options are supported for both families of docking software, but future updates will add support for more of these options. These options may be specified via a JSON struct to the `--metadata-template` argument. Below is a list of the supported options for both types of docking screen (default options provided in parentheses next to the parameter)

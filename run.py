@@ -77,6 +77,7 @@ def main():
     supply = ps.LigandSupply(
         args.input_files,
         args.input_filetypes,
+        args.smis,
         args.use_3d,
         args.optimize,
         args.title_line,
@@ -87,8 +88,6 @@ def main():
     start = time.time()
 
     S = virtual_screen(supply.ligands)
-    if args.smis is not None:
-        S = np.concat((S, virtual_screen(args.smis)))
 
     total_time = time.time() - start
     print("Done!")

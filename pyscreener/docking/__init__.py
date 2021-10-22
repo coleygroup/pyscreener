@@ -1,13 +1,14 @@
 from dataclasses import asdict
 from typing import Dict, Optional
 
+from colorama import init, Fore, Style
+
 from pyscreener.exceptions import (
     MisconfiguredDirectoryError,
     MissingEnvironmentVariableError,
     MissingExecutableError,
     UnsupportedSoftwareError,
 )
-
 from .data import CalculationData
 from .metadata import CalculationMetadata
 from .result import Result
@@ -15,7 +16,7 @@ from .runner import DockingRunner
 from .screen import DockingVirtualScreen
 from .utils import ScreenType
 
-
+init(autoreset=True)
 
 def build_metadata(software: str, metadata: Optional[Dict] = None) -> CalculationMetadata:
     metadata = metadata or {}
@@ -36,7 +37,7 @@ def build_metadata(software: str, metadata: Optional[Dict] = None) -> Calculatio
 
         return DOCKMetadata(**d_md)
 
-    raise ValueError(f'Unrecognized docking software: "{software}"')
+    raise UnsupportedSoftwareError(f'Unrecognized screen type: "{software}"')
 
 
 def get_runner(software: str) -> DockingRunner:
@@ -48,25 +49,35 @@ def get_runner(software: str) -> DockingRunner:
         from pyscreener.docking.dock import DOCKRunner
         return DOCKRunner
 
-    raise ValueError(f'Unrecognized docking software: "{software}"')
+    raise UnsupportedSoftwareError(f'Unrecognized screen type: "{software}"')
 
 
 def check_env(software, metadata: Optional[Dict] = None):
-    print("Checking environment for input screen ...", end=" ")
+    print(f'Checking environment and metadata for "{software}" screen')
     try:
+        valid_env = False
+        print("  Checking PATH and environment variables ...", end=" ")
         runner = get_runner(software)
+        print(Style.BRIGHT + Fore.GREEN + "PASS")
+        valid_env = True
+        print("  Validating metadata ... ", end=" ")
         metadata = build_metadata(software, metadata)
         runner.validate_metadata(metadata)
+        print(Style.BRIGHT + Fore.GREEN +"PASS")
     except (
-        MissingExecutableError,
         MisconfiguredDirectoryError,
         MissingEnvironmentVariableError,
+        MissingExecutableError,
+        UnsupportedSoftwareError,
     ):
-        print("FAIL")
-        print("Environment not set up properly! See the exception for more details", flush=True)
+        print(Style.BRIGHT + Fore.RED + "FAIL")
+        if not valid_env:
+            print("Environment not set up properly!", end=" ")
+        else:
+            print("Invalid metadata supplied!", end=" ")
+        print("See the exception for more details", flush=True)
         raise
 
-    print("PASS")
     print("Environment is properly set up!")
 
 

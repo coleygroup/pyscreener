@@ -29,8 +29,8 @@ setup(
     ),
     entry_points={
         "console_scripts": [
-            "pyscreener = bin.main:main",
-            "pyscreener-check = bin.check:main"
+            "pyscreener = pyscreener.main:main",
+            "pyscreener-check = pyscreener.main:check"
         ]
     },
     include_package_data=True,

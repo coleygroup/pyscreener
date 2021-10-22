@@ -1,12 +1,17 @@
 import csv
 import dataclasses
+import json
 import os
+import sys
 import time
 
 import ray
 
 import pyscreener as ps
 
+def check():
+    ps.check_env(sys.argv[1], json.loads(sys.argv[2]))
+    exit(0)
 
 def main():
     args = ps.args.gen_args()

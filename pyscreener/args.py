@@ -4,8 +4,11 @@ from typing import Optional
 
 from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
+from pyscreener import _version
+
 TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
+__version__ = _version.get_versions()['version']
 
 def gen_args(argv: Optional[str] = None) -> Namespace:
     parser = ArgumentParser(
@@ -32,6 +35,7 @@ def add_general_args(parser: ArgumentParser):
     parser.add_argument(
         "--config", is_config_file=True, help="filepath of a configuration file to use"
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--smoke-test",
         action="store_true",

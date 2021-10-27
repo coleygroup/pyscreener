@@ -1,21 +1,20 @@
 import csv
 import dataclasses
-import json
 import os
-import sys
 import time
 
 import ray
 
 import pyscreener as ps
 
+
 def driver():
     args = ps.args.gen_args()
-    
+
     if args.smoke_test:
         ps.check_env(args.screen_type, args.metadata_template)
         exit(0)
-        
+
     print(
         """\
 ***************************************************************

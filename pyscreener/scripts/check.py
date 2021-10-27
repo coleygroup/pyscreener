@@ -1,8 +1,8 @@
 import argparse
 import json
-import sys
 
 import pyscreener as ps
+
 
 def check():
     parser = argparse.ArgumentParser()
@@ -11,6 +11,7 @@ def check():
     args = parser.parse_args()
 
     ps.check_env(args.software, args.metadata_template)
+
 
 if __name__ == "__main__":
     check()

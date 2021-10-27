@@ -25,7 +25,7 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     license="MIT",
     packages=find_packages(
-        exclude=["pyscreener.dft", "pyscreener.md", "pyscreener.docking.dock.scripts"]
+        exclude=["pyscreener.dft", "pyscreener.md"]
     ),
     entry_points={
         "console_scripts": [

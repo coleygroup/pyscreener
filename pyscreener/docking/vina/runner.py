@@ -134,7 +134,7 @@ class VinaRunner(DockingRunner):
         except Exception:
             pass
 
-        mol.write(format="pdbqt", filename=pdbqt, overwrite=True, opt={"h": None})
+        mol.write(format="pdbqt", filename=pdbqt.absolute().as_posix(), overwrite=True, opt={"h": None})
         data.metadata.prepared_ligand = pdbqt
 
         return data

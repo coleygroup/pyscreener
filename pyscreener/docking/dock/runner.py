@@ -177,7 +177,7 @@ class DOCKRunner(DockingRunner):
         except Exception:
             pass
 
-        mol.write(format="mol2", filename=mol2, overwrite=True, opt={"h": None})
+        mol.write(format="mol2", filename=str(mol2), overwrite=True, opt={"h": None})
         data.metadata.prepared_ligand = mol2
 
         return data

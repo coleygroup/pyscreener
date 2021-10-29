@@ -156,7 +156,7 @@ A few notes from the above example:
 - ray handles task distribution in the backend of the library. You don't need to manually start it if you're just going to call `ray.init()` like we did above. This was only done to highlight the ability to initialize ray according to your own needs (i.e., a distributed setup).
 - to use an input file containing ligands, you must use the `LigandSupply` class and access the `.ligands` attribute, e.g.,
   ```python
-  supply = ps.LigandSupply('integration-tests/inputs/ligands.csv')
+  supply = ps.LigandSupply(['integration-tests/inputs/ligands.csv'])
   virtual_screen(supply.ligands)
   ```
 

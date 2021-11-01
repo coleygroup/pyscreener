@@ -152,13 +152,17 @@ class DockingVirtualScreen:
         Parameters
         ----------
         *sources : Iterable[Union[str, Iterable[str]]]
-            an Iterable of SMILES strings, individual chemical files, or iterables thereof of the ligands to dock
+            an Iterable of SMILES strings, individual chemical files, or iterables thereof of the 
+            ligands to dock
+        smiles : bool, default=True
+            whether the input ligand sources are all SMILES strigs. If false, treat the sources
+            as input files
 
         Returns
         -------
         np.ndarray
-            a vector of length `n`, where `n` is the total number of ligands that were
-            supplied
+            a vector of length `n` containing the output score for each ligand, where `n` is the 
+            total number of ligands that were supplied
         """
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
@@ -182,6 +186,8 @@ class DockingVirtualScreen:
 
     @property
     def path(self):
+        """The default output path under which to collect files corresponding to simulations
+        run by this `VirtualScreen`"""
         return self.__path
 
     @path.setter
@@ -193,7 +199,7 @@ class DockingVirtualScreen:
 
     @property
     def tmp_dir(self) -> Path:
-        """the Screener's temp directory"""
+        """the temp directory of this `VirtualScreen`"""
         return self.__tmp_dir
 
     @tmp_dir.setter
@@ -214,6 +220,7 @@ class DockingVirtualScreen:
 
     @run_on_all_nodes
     def prepare_receptors(self):
+        """Prepare the receptor file(s) for each of the simulation templates"""
         return [
             self.runner.prepare_receptor(template) for template in self.data_templates
         ]

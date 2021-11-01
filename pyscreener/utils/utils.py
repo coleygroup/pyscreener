@@ -113,7 +113,7 @@ def reduce_scores(
     Returns
     -------
     S : np.ndarray
-        an array of shape `n`, containing the reduced docking score for each ligand
+        an array of shape `n` containing the reduced docking score for each ligand
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", r"All-NaN (slice|axis) encountered")
@@ -144,7 +144,15 @@ def reduce_scores(
 
 
 def run_on_all_nodes(func: Callable) -> Callable:
-    """Run a function on all nodes in the ray cluster"""
+    """A decorator to run a function on all nodes in a ray cluster.
+    
+    Ex:
+    >>> @run_on_all_nodes
+    >>> def f():
+    ...     print("hello world")
+
+    will calling the function `f()` will print "hello world" from each node in the ray cluster
+    """
 
     @functools.wraps(func)
     def wrapper_run_on_all_nodes(*args, **kwargs):

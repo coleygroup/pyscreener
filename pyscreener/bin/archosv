@@ -1,0 +1,9 @@
+#! /bin/bash
+# print architecture, operating system
+
+unamem=`uname -m`
+arch=`echo $unamem | sed 's/i.86/i86/'`
+
+os=`uname -s`
+echo "${arch}${os}"
+

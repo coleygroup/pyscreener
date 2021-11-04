@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from os import read
 from pathlib import Path
 from typing import Optional, Tuple, Union
+from openbabel import pybel
 
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
 from pyscreener.utils import ScoreMode
@@ -38,6 +40,9 @@ class CalculationData:
     result : Optional[Mapping]
         the result of the docking calculation. None if the calculation has not
         been performed yet.
+    input_file_bytes : None 
+        the file bytes for distributed computing. None if there is 
+        no file being sent. 
 
     Parmeters
     ---------
@@ -53,6 +58,7 @@ class CalculationData:
     prepared_ligand : Optional[Union[str, Path]], default=None
     prepared_receptor : Optional[Union[str, Path]], default=None
     result : Optional[Result], default=None
+    input_file_bytes : default = None
     """
 
     smi: str
@@ -68,10 +74,15 @@ class CalculationData:
     score_mode: ScoreMode = ScoreMode.BEST
     k: int = 1
     result: Optional[Result] = None
+    input_file_bytes = None
 
     def __post_init__(self):
         self.in_path = Path(self.in_path)
         self.out_path = Path(self.out_path)
+        if self.input_file != None:
+            fmt = Path(self.input_file).suffix.strip(".")
+            mols = list(pybel.readfile(fmt, self.input_file))
+            self.input_file_bytes = mols[0]
 
     @property
     def score(self) -> Optional[float]:

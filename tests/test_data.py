@@ -1,3 +1,4 @@
+from os import read
 import random
 import uuid
 
@@ -5,6 +6,8 @@ import pytest
 
 from pyscreener.docking import CalculationData, Result
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
+
+import tempfile
 
 
 @pytest.fixture(
@@ -31,3 +34,12 @@ def test_score(smi):
     data.result = Result(smi, 'ligand', str(uuid.uuid4()), score)
 
     assert data.result.score == score
+
+def test_file_bytes(smi):
+    tempf = tempfile.TemporaryFile()
+    tempf.write(b'Hello world!')
+
+    data = CalculationData(smi, None, None, None, None, input_file_bytes = tempf)
+
+    assert data.input_file_bytes is tempf
+

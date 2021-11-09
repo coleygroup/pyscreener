@@ -58,7 +58,7 @@ class CalculationData:
     prepared_ligand : Optional[Union[str, Path]], default=None
     prepared_receptor : Optional[Union[str, Path]], default=None
     result : Optional[Result], default=None
-    input_file_bytes : default = None
+    input_file_bytes : Optional[str], default = None
     """
 
     smi: str
@@ -74,12 +74,12 @@ class CalculationData:
     score_mode: ScoreMode = ScoreMode.BEST
     k: int = 1
     result: Optional[Result] = None
-    input_file_bytes = None
+    input_file_bytes: Optional[str] = None
 
     def __post_init__(self):
         self.in_path = Path(self.in_path)
         self.out_path = Path(self.out_path)
-        if self.input_file != None:
+        if self.input_file is not None:
             fmt = Path(self.input_file).suffix.strip(".")
             mols = list(pybel.readfile(fmt, self.input_file))
             self.input_file_bytes = mols[0]

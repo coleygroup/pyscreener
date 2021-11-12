@@ -7,16 +7,16 @@ tags:
   - molecular docking
 authors:
   - name: David E. Graff
-    orcid: ###
+    orcid: 0000-0003-1250-3329
     affiliation: "1, 2"
   - name: Connor W. Coley^[corresponding author]
-    orcid: ###
+    orcid: 0000-0002-8271-8723
     affiliation: 2
 affiliations:
   - name: Department of Chemistry and Chemical Biology, Harvard University
     index: 1
   - name: Department of Chemical Engineering, Massachusetts Institute of Technology
-    -index: 2
+    index: 2
 date: XX November 2021
 bibliography: refs.bib
 ---
@@ -34,7 +34,13 @@ To illustrate `pyscreener`, we consider docking benezene (SMILES string `"c1cccc
 ```python
 >>> import pyscreener as ps
 >>> metadata = ps.build_metadata("vina")
->>> virtual_screen = ps.virtual_screen("vina", receptors=["5WIU.pdb"], center=(-18.2, 14.4, -16.1), size=(15.4, 13.9, 14.5), metadata_template=metadata, ncpu=6)
+>>> virtual_screen = ps.virtual_screen(
+...   "vina", receptors=["5WIU.pdb"],
+...   center=(-18.2, 14.4, -16.1),
+...   size=(15.4, 13.9, 14.5),
+...   metadata_template=metadata,
+...   ncpu=6
+... )
 >>> scores = virtual_screen("c1ccccc1")
 >>> scores
 array([-4.4])
@@ -42,7 +48,11 @@ array([-4.4])
 
 Alternatively, we may dock many molecules by passing a `List` of SMILES strings to the `DockingVirtualScreen`:
 ```python
->>> smis = ["c1ccccc1", "O=C(Cc1ccccc1)NC1C(=O)N2C1SC(C2C(=O)O)(C)C", "C=CCN1CCC23C4C(=O)CCC2(C1CC5=C3C(=C(C=C5)O)O4)O"]
+>>> smis = [
+...   "c1ccccc1",
+...   "O=C(Cc1ccccc1)NC1C(=O)N2C1SC(C2C(=O)O)(C)C",
+...   "C=CCN1CCC23C4C(=O)CCC2(C1CC5=C3C(=C(C=C5)O)O4)O"
+... ]
 >>> scores = virtual_screen(smis)
 >>> scores.shape
 (3,)
@@ -60,7 +70,13 @@ We may also utilize other docking engines in the AutoDock Vina family by specify
 It is also possible to dock molecules using DOCK6 in `pyscreener`. To do this, we must first construct DOCK6 metadata and specify that we are creating a DOCK6 virtual screen (note that DOCK6 is not multithreaded and thus does not benefit from being assigned multiple CPU cores per task):
 ```python
 >>> metadata = ps.build_metadata("dock")
->>> virtual_screen = ps.virtual_screen("dock", receptors=["5WIU.pdb"], center=(-18.2, 14.4, -16.1), size=(15.4, 13.9, 14.5), metadata_template=metadata)
+>>> virtual_screen = ps.virtual_screen(
+...   "dock",
+...   receptors=["5WIU.pdb"],
+...   center=(-18.2, 14.4, -16.1),
+...   size=(15.4, 13.9, 14.5),
+...   metadata_template=metadata
+... )
 >>> scores = virtual_screen("c1ccccc1")
 >>> scores
 array([-12.35])

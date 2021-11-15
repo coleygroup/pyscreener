@@ -41,6 +41,23 @@ In our work on the MolPAL software [@graff_accelerating_2021], we required a lib
 
 # Implementation and Performance
 
+![Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina over six CPU cores for a single-node setup with the specified number of CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.\label{fig:local}](figures/timing-local.png)
+![Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina over six CPU cores for setups using multiple 48-core nodes with the total number of specified CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.\label{fig:dist}](figures/timing-dist.png)
+
+<!-- \begin{figure}[b!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/timing-local.png}
+    \caption{Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina over six CPU cores for a single-node setup with the specified number of CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.}
+    \label{fig:local}
+\end{figure}
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/timing-dist.png}
+    \caption{Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina over six CPU cores for setups using multiple 48-core nodes with the total number of specified CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.}
+    \label{fig:dist}
+\end{figure} -->
+
 # Examples
 To illustrate `pyscreener`, we consider docking benezene (SMILES string `"c1ccccc1"`) against 5WIU with a docking box centered at (-18.2, 14.4, -16.1) with x-, y-, and z-radii (15.4, 13.9, 14.5). We may perform this docking using AutoDock Vina over 6 CPU cores via `pyscreener` like so:
 ```python
@@ -97,3 +114,5 @@ array([-12.35])
 # Acknowledgements
 
 The authors thank Keir Adams and Wenhao Gao for providing feedback on the preparation of this paper and the `pyscreener` code. The computations in this paper were run on the FASRC Cannon cluster supported by the FAS Division of Science Research Computing Group at Harvard University. The authors also acknowledge the MIT SuperCloud and Lincoln Laboratory Supercomputing Center for providing HPC and consultation resources that have contributed to the research results reported within this paper. This work was funded by the MIT-IBM Watson AI Lab.
+
+# References

@@ -11,21 +11,33 @@ authors:
     affiliation: "1, 2"
   - name: Connor W. Coley^[corresponding author]
     orcid: 0000-0002-8271-8723
-    affiliation: 2
+    affiliation: "2, 3"
 affiliations:
   - name: Department of Chemistry and Chemical Biology, Harvard University
     index: 1
   - name: Department of Chemical Engineering, Massachusetts Institute of Technology
     index: 2
+  - name: Department of Electrical Engineering and Computer Science, Massachusetts Institute of Technology
+    index: 3
 date: XX November 2021
 bibliography: refs.bib
 ---
 
 # Summary
-
+`pyscreener` is a Python library that seeks to alleviate the challenges of large-scale structure-based design using computational docking. It provides a simple and uniform interface that is agnostic to the backend docking engine with which to calculate the docking score of a given molecule in a specified active site. Additionally, `pyscreener` features first-class support for task distribution, allowing users to seamlessly scale their code from a local, multi-core setup to a large, heterogeneous resource allocation.
 
 # Statement of Need
+Computational docking is an important technique in structure-based drug design that enables the rapid approximation of binding affinity for a candidate ligand in a matter of CPU seconds. With the growing popularity of ultra-large ligand libraries, docking is increasingly used to sift through hundreds of millions of compounds to try to identify novel and potent binders for a variety of protein targets \cite{gorgulla_open-source_2020,lyu_ultra-large_2019}. There are many choices of docking software, and certain software are better suited towards specific protein-ligand contexts (e.g., flexible protein side chains or sugar-like ligand molecules). Switching between these software is often not trivial as the input preparation, simulation, and output parsing pipelines differ between each software.
 
+In addition, many of these programs exist only as command-line applications and lack Python bindings.
+This presents an additional challenge for their integration into molecular optimization workflows, such as reinforcement learning or genetic algorithms.
+Molecular optimization objectives have largely been limited to benchmark tasks, such as penalized logP, QED, JNK3 or GSK3$\beta$ inhibitor classification \cite{li_multi-objective_2018}, and others contained in the GuacaMol library \cite{brown_guacamol_2019}. These benchmarks are useful for comparing molecular design techniques, but they are not representative of true drug discovery tasks in terms of complexity; computational docking is at least one step in the right direction.
+
+While many molecular optimization techniques propose new molecules in the form of SMILES strings \cite{elton_deep_2019}, most docking programs accept input in the form of molecular supply files with predefined 3D geometry (e.g., Mol2 or PDBQT format). Using the docking score of a molecule as a design objective thus requires an ad hoc implementation for which no standardized approach exists.
+The `vina` library \cite{eberhardt_autodock_2021} is currently the only library capable of performing molecular docking within Python code, but it is limited to docking molecules using solely AutoDock Vina as the backend docking engine.
+Moreover, the object model of the `vina` library accepts input ligands only as PDBQT files or strings and still does not address the need to quickly calculate the docking score of a molecule from its SMILES string.
+
+In our work on the MolPAL software \cite{graff_accelerating_2021}, we required a library that is able to accept molecular inputs as SMILES strings and output their corresponding docking scores for a given receptor and docking box. Our use-case also called for docking large batches of molecules across large and distributed hardware setups. Lastly, we desired that our library be flexible with respect to the underlying docking engine, allowing us to use a variety of backend docking software (e.g., Vina \cite{trott_autodock_2010}, Smina \cite{koes_lessons_2013}, QVina \cite{alhossary_fast_2015}, or DOCK6 \cite{allen_dock_2015}) with minimal changes to client code. To that end, we developed `pyscreener`, a Python library that is flexible with respect to both molecular input format and docking engine that transparently handles the distribution of docking simulations across large resource allocations.
 # Implementation and Performance
 
 # Examples

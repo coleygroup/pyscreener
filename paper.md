@@ -44,7 +44,7 @@ The primary design goals with `pyscreener` were to (1) provide a simple interfac
 
 The `pyscreener` object model separates data from behavior by placing the responsibility of actually preparing, running, and parsing simulations inside the `DockingRunner` class. This stateless class defines methods to prepare simulation inputs, perform the simulation of the corresponding inputs, and parse the resulting output for a given `CalculationData` and `CalculationMetadata` pair. By placing this logic inside static methods rather than attaching them to the `CalculationData` object, `pyscreener` limits network data transfer overhead during task distribution. The separation also allows for the straightforward addition of new backend docking engines to `pyscreener`, as this entails only the specification of the corresponding `CalculationMetadata` and `DockingRunner` subclasses.
 
-`pyscreener` also contains the `DockingVirtualScreen` class, which contains a template `CalculationData` and `CalculationMetadata` with which to dock each input molecule, i.e., a virtual screening protocol. The class defines a `__call__()` method which takes as input in SMILES strings or chemical files in any format supported by OpenBabel [@oboyle_open_2011] and distributes the corresponding docking simulations across the resources in the given allocation, returning a docking score for each input molecule.
+`pyscreener` also contains the `DockingVirtualScreen` class, which contains a template `CalculationData` and `CalculationMetadata` with which to dock each input molecule, i.e., a virtual screening protocol. The class defines a `__call__()` method which takes SMILES strings or chemical files in any format supported by OpenBabel [@oboyle_open_2011] as input and distributes the corresponding docking simulations across the resources in the given hardware allocation, returning a docking score for each input molecule.
 
 ![Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina2 over six CPU cores for a single-node setup with the specified number of CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.\label{fig:local}](figures/timing-local.png)
 
@@ -52,19 +52,8 @@ To handle task distribution, `pyscreener` relies on the `ray` library [@moritz_r
 
 ![Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina2 over six CPU cores for setups using multiple 48-core nodes with the total number of specified CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.\label{fig:dist}](figures/timing-dist.png)
 
-<!-- \begin{figure}[b!]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/timing-local.png}
-    \caption{Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina over six CPU cores for a single-node setup with the specified number of CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.}
-    \label{fig:local}
-\end{figure}
-
-\begin{figure}[t!]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/timing-dist.png}
-    \caption{Wall-time of the computational docking of all 1,615 FDA-approved drugs against 5WIU using QVina over six CPU cores for setups using multiple 48-core nodes with the total number of specified CPU cores. (Left) calculated speedup. (Right) wall time in minutes. Bars reflect mean $\pm$ standard deviation over three runs.}
-    \label{fig:dist}
-\end{figure} -->
+In contrast, the multi-node setup exhibits less ideal scaling \autoref{fig:dist} with a measured speedup approximately 55% that of perfect scaling. We attribute this scaling behavior to hardware-dependent network communication overhead. Distributing a `sleep(5)` function allocated 6 CPU cores per task (to mimic a fairly quick docking simulation) in parallel over differing hardware setups
+led to an approximate 2.5% increase in wall-time relative to the single-node setup each time the number of nodes in the setup was doubled while keeping the total number of CPU cores the same. Such a trend is consistent with network communication being detrimental to scaling behavior. This test also communicated the absolute minimum amount of data over the network, as there were no function arguments or return values. When communicating `CalculationData` objects (approximately 600 bytes in serialized form) over the network, as in `pyscreener`, the drop increased to 6% for each doubling of the total number of nodes. Minimizing the total size of `CalculationData` objects was therefore an explicit implementation goal. Future development will seek to further reduce network communication overhead costs to bring `pyscreener` scaling closer to ideal scaling.
 
 # Examples
 To illustrate `pyscreener`, we consider docking benezene (SMILES string `"c1ccccc1"`) against 5WIU with a docking box centered at (-18.2, 14.4, -16.1) with x-, y-, and z-radii (15.4, 13.9, 14.5). We may perform this docking using AutoDock Vina over 6 CPU cores via `pyscreener` like so:

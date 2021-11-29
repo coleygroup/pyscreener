@@ -7,7 +7,6 @@ import pytest
 from pyscreener.docking import CalculationData, Result
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
 
-import tempfile
 
 
 @pytest.fixture(
@@ -35,11 +34,31 @@ def test_score(smi):
 
     assert data.result.score == score
 
-def test_file_bytes(smi):
-    tempf = tempfile.TemporaryFile()
-    tempf.write(b'Hello world!')
+# def test_file_bytes(smi):
+#     tempf = tempfile.TemporaryFile()
+#     tempf.write(b'Hello world!')
 
-    data = CalculationData(smi, None, None, None, None, input_file_bytes = tempf)
+#     data = CalculationData(smi, None, None, None, None, input_file = tempf)
 
-    assert data.input_file_bytes is tempf
+#     with open(tempf) as f:
+#         Bytes = f.read()
+#         print(Bytes)
+#         assert filecmp.cmp(data.input_file_bytes, Bytes)
+
+CONTENT = "testing for same memory"
+def test_create_file(tmp_path):
+    d = tmp_path / "sub"
+    d.mkdir()
+    p = d / "hello.txt"
+    p.write_text(CONTENT)
+    hello = p.read_text()
+    print(hello)
+    assert p.read_text() == CONTENT
+    
+    data = CalculationData(smi, None, None, None, None, input_file = p)
+    assert data.input_file_bytes ==  CONTENT
+
+
+
+
 

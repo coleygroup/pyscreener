@@ -74,15 +74,17 @@ class CalculationData:
     score_mode: ScoreMode = ScoreMode.BEST
     k: int = 1
     result: Optional[Result] = None
-    input_file_bytes: Optional[str] = None
+    input_file_bytes: Optional[bytes] = None
 
     def __post_init__(self):
         self.in_path = Path(self.in_path)
         self.out_path = Path(self.out_path)
+
         if self.input_file is not None:
-            fmt = Path(self.input_file).suffix.strip(".")
-            mols = list(pybel.readfile(fmt, self.input_file))
-            self.input_file_bytes = mols[0]
+            with open(self.input_file, 'r') as f:
+                self.input_file_bytes = f.read()
+                f.close()
+                
 
     @property
     def score(self) -> Optional[float]:

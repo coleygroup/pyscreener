@@ -35,7 +35,7 @@ def test_score(smi):
     assert data.result.score == score
 
 CONTENT = "testing for same memory"
-def test_create_file(tmp_path):
+def test_input_file_bytes(tmp_path):
     d = tmp_path / "sub"
     d.mkdir()
     p = d / "hello.txt"

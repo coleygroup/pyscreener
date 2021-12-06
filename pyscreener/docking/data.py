@@ -81,7 +81,7 @@ class CalculationData:
         self.out_path = Path(self.out_path)
 
         if self.input_file is not None:
-            with open(self.input_file, 'r') as f:
+            with open(self.input_file, 'rb') as f:
                 self.input_file_bytes = f.read()
                 f.close()
                 

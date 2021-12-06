@@ -74,7 +74,7 @@ class CalculationData:
     score_mode: ScoreMode = ScoreMode.BEST
     k: int = 1
     result: Optional[Result] = None
-    input_file_bytes: Optional[bytes] = None
+    input_file_bytes: Optional[str] = None
 
     def __post_init__(self):
         self.in_path = Path(self.in_path)
@@ -83,7 +83,6 @@ class CalculationData:
         if self.input_file is not None:
             with open(self.input_file, 'rb') as f:
                 self.input_file_bytes = f.read()
-                f.close()
                 
 
     @property

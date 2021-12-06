@@ -35,15 +35,74 @@ def test_score(smi):
     assert data.result.score == score
 
 CONTENT = "testing for same memory"
-def test_input_file_bytes(tmp_path):
+def test_input_small_file(tmp_path):
     d = tmp_path / "sub"
     d.mkdir()
     p = d / "hello.txt"
     p.write_text(CONTENT)
-    assert p.read_text() == CONTENT
-    
+
+    with open(p, 'rb') as f:
+        file_bytes = f.read()
+        f.close()
+
     data = CalculationData(smi, None, None, None, None, input_file = p)
-    assert data.input_file_bytes ==  CONTENT
+
+    assert data.input_file_bytes == file_bytes
+
+CONTENT = ""
+def test_input_empty_file(tmp_path):
+    d = tmp_path / "sub"
+    d.mkdir()
+    p = d / "hello.txt"
+    p.write_text(CONTENT)
+
+    with open(p, 'rb') as f:
+        file_bytes = f.read()
+        f.close()
+    data = CalculationData(smi, None, None, None, None, input_file = p)
+    assert data.input_file_bytes == file_bytes
+
+CONTENT = ""
+def test_input_large_file(tmp_path):
+    d = tmp_path / "sub"
+    d.mkdir()
+    p = d / "hello.txt"
+    p.write_text(CONTENT)
+
+    with open(p, 'rb') as f:
+        file_bytes = f.read()
+        f.close()
+    data = CalculationData(smi, None, None, None, None, input_file = p)
+    assert data.input_file_bytes == file_bytes
+
+
+def test_input_large_file():
+    with open('/home/mburlage/pyscreener/tests/mobydick.txt', 'rb') as f:
+        file_bytes = f.read()
+        f.close()
+    data = CalculationData(smi, None, None, None, None, input_file = '/home/mburlage/pyscreener/tests/mobydick.txt')
+    assert data.input_file_bytes == file_bytes
+
+
+def test_input_large_file():
+    with open('/home/mburlage/pyscreener/tests/mobydick.txt', 'rb') as f:
+        file_bytes = f.read()
+        f.close()
+    data = CalculationData(smi, None, None, None, None, input_file = '/home/mburlage/pyscreener/tests/mobydick.txt')
+    assert data.input_file_bytes == file_bytes
+
+CONTENT = "CCCCCCCC"
+def test_input_std_use_file(tmp_path):
+    d = tmp_path / "sub"
+    d.mkdir()
+    p = d / "hello.txt"
+    p.write_text(CONTENT)
+
+    with open(p, 'rb') as f:
+        file_bytes = f.read()
+        f.close()
+    data = CalculationData(smi, None, None, None, None, input_file = p)
+    assert data.input_file_bytes == file_bytes
 
 
 

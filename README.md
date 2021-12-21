@@ -52,7 +52,7 @@ If the checks pass, then your environment is set up correctly.
       2. adding only `prepare_receptor` in the `bin` directory to your PATH as detailed [below](#adding-an-executable-to-your-path)
   
   
-  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
+  1. install any of the following docking software: [vina 1.1.2](https://vina.scripps.edu/downloads/) (**note:** pyscreener does not work with vina 1.2), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
   1. [obtain a license for DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)

@@ -58,7 +58,7 @@ class CalculationData:
     prepared_ligand : Optional[Union[str, Path]], default=None
     prepared_receptor : Optional[Union[str, Path]], default=None
     result : Optional[Result], default=None
-    input_file_bytes : Optional[str], default = None
+    input_file_bytes : Optional[bytes], default = None
     """
 
     smi: str
@@ -74,7 +74,7 @@ class CalculationData:
     score_mode: ScoreMode = ScoreMode.BEST
     k: int = 1
     result: Optional[Result] = None
-    input_file_bytes: Optional[str] = None
+    input_file_bytes: Optional[bytes] = None
 
     def __post_init__(self):
         self.in_path = Path(self.in_path)

@@ -29,10 +29,9 @@ This repository contains the source of pyscreener, both a library and software f
 ### environment setup with conda
 
 0. (if necessary) [install conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
-1. `conda create -n NAME python=3.8 pip openbabel openmm rdkit`
+1. `conda create -n NAME -c conda-forge python=3.8 pip openbabel openmm rdkit pdbfixer`
 1. `conda activate NAME`
 1. `pip install pyscreener` (or if installing from source, `pip install .`)
-1. `pip install git+https://github.com/openmm/pdbfixer.git`
 1. follow the corresponding directions below for the intended software
 
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)

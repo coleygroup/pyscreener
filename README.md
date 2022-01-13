@@ -1,5 +1,5 @@
 [//]: # (Badges)
-[![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/master/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/master)
+[![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/main/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/main)
 [![CI](https://github.com/coleygroup/pyscreener/actions/workflows/CI.yaml/badge.svg)](https://github.com/coleygroup/pyscreener/actions/workflows/CI.yaml)
 [![Documentation Status](https://readthedocs.org/projects/pyscreener/badge/?version=latest)](https://pyscreener.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/pyscreener.svg)](https://badge.fury.io/py/pyscreener)

@@ -43,6 +43,7 @@ jobs:
         pip install . --no-deps
 
     - name: check for fatal syntax errors
+      shell: bash -l {0}
       run: |
         flake8 pyscreener --count --select=E9,F63,F7,F82 --show-source --statistics
 

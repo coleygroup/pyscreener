@@ -1,6 +1,5 @@
 colorama
 configargparse
-git+https://github.com/openmm/pdbfixer.git
 h5py
 numpy
 ray

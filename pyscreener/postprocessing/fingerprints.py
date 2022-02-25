@@ -24,9 +24,7 @@ def smis_to_fps(
         else:
             fps.append(
                 np.array(
-                    Chem.GetMorganFingerprintAsBitVect(
-                        mol, radius, nBits=length, useChirality=True
-                    )
+                    Chem.GetMorganFingerprintAsBitVect(mol, radius, nBits=length, useChirality=True)
                 )
             )
 
@@ -34,11 +32,7 @@ def smis_to_fps(
 
 
 def gen_fps_h5(
-    smis: Sequence[str],
-    path: str = ".",
-    name: str = "fps",
-    radius: int = 2,
-    length: int = 2048,
+    smis: Sequence[str], path: str = ".", name: str = "fps", radius: int = 2, length: int = 2048
 ) -> Tuple[str, Set[int]]:
     """Generate an hdf5 file containing the feature matrix of the list of
     SMILES strings
@@ -74,10 +68,7 @@ def gen_fps_h5(
 
     with h5py.File(str(fps_h5), "w") as h5f:
         fps_dset = h5f.create_dataset(
-            "fps",
-            (len(smis), length),
-            "int8",
-            chunks=(CHUNKSIZE, length),
+            "fps", (len(smis), length), "int8", chunks=(CHUNKSIZE, length)
         )
 
         invalid_idxs = set()
@@ -86,8 +77,7 @@ def gen_fps_h5(
 
         ray.put(smis)
         refs = [
-            smis_to_fps.remote(smis_chunk, radius, length)
-            for smis_chunk in chunks(smis, CHUNKSIZE)
+            smis_to_fps.remote(smis_chunk, radius, length) for smis_chunk in chunks(smis, CHUNKSIZE)
         ]
 
         for ref in tqdm(refs, desc="Calculating fingerprints", unit="chunk"):

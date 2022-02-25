@@ -6,10 +6,9 @@ from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
 __version__ = "1.1.1"
 
+
 def gen_args(argv: Optional[str] = None) -> Namespace:
-    parser = ArgumentParser(
-        description="Automate virtual screening of compound libraries."
-    )
+    parser = ArgumentParser(description="Automate virtual screening of compound libraries.")
 
     add_general_args(parser)
     add_preprocessing_args(parser)
@@ -80,14 +79,9 @@ def add_preprocessing_args(parser: ArgumentParser):
 
 
 def add_supply_args(parser: ArgumentParser):
+    parser.add_argument("-s", "--smis", nargs="+", help="the SMILES strings of the ligands to dock")
     parser.add_argument(
-        "-s", "--smis", nargs="+", help="the SMILES strings of the ligands to dock"
-    )
-    parser.add_argument(
-        "-i",
-        "--input-files",
-        nargs="+",
-        help="the filenames containing ligands to dock",
+        "-i", "--input-files", nargs="+", help="the filenames containing ligands to dock"
     )
     parser.add_argument(
         "--input-filetypes",
@@ -135,11 +129,7 @@ def add_screen_args(parser: ArgumentParser):
         required=True,
         help="the type of docking screen to perform",
     )
-    parser.add_argument(
-        "--receptors",
-        nargs="+",
-        help="the filenames of the receptors",
-    )
+    parser.add_argument("--receptors", nargs="+", help="the filenames of the receptors")
     parser.add_argument(
         "--center",
         type=float,
@@ -156,9 +146,7 @@ def add_screen_args(parser: ArgumentParser):
     )
     parser.add_argument("--metadata-template", type=json.loads, default={})
     parser.add_argument(
-        "--pdbids",
-        nargs="+",
-        help="the PDB IDs of the crystal structures to dock against",
+        "--pdbids", nargs="+", help="the PDB IDs of the crystal structures to dock against"
     )
     parser.add_argument(
         "--docked-ligand-file",
@@ -191,10 +179,7 @@ def add_screen_args(parser: ArgumentParser):
         help="The method used to calculate the overall score from an ensemble of docking runs",
     )
     parser.add_argument(
-        "--repeats",
-        default=1,
-        type=int,
-        help="the number of times to repeat each docking run",
+        "--repeats", default=1, type=int, help="the number of times to repeat each docking run"
     )
     parser.add_argument(
         "-k",

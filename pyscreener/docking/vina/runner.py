@@ -197,7 +197,7 @@ class VinaRunner(DockingRunner):
         ncpu: int = 1,
         exhaustiveness: int = 8,
         num_modes: int = 9,
-        energy_range: float = 3.,
+        energy_range: float = 3.0,
         name: Optional[str] = None,
         path: Path = Path("."),
         extra: Optional[List[str]] = None,
@@ -223,7 +223,7 @@ class VinaRunner(DockingRunner):
         num_modes: int
             the number of output modes
         energy_range: float
-            the maximum energy difference (in kcal/mol) between the best and worst output binding 
+            the maximum energy difference (in kcal/mol) between the best and worst output binding
             modes
         extra : Optional[List[str]]
             additional command line arguments that will be passed to the docking calculation
@@ -283,7 +283,7 @@ class VinaRunner(DockingRunner):
         Returns
         -------
         Optional[List[float]]
-            the scores of the docked binding modes in the ordering of the log file. None if no 
+            the scores of the docked binding modes in the ordering of the log file. None if no
             scores were parsed or the log file was unparseable
         """
         TABLE_BORDER = "-----+------------+----------+----------"
@@ -309,21 +309,21 @@ class VinaRunner(DockingRunner):
     @staticmethod
     def parse_outfile(outfile: Union[str, Path]) -> Optional[List[float]]:
         """parse a Vina-type output file for the scores of the binding modes
-        
+
         Paramaters
         ----------
         outfile : Union[str, Path]
             the filepath a vina-type output file
-        
+
         Returns
         -------
         Optional[List[float]]
-            the scores of the binding in the ordering of the output file. None if no scores were 
+            the scores of the binding in the ordering of the output file. None if no scores were
             parsed or the log file was unparseable
         """
         try:
             with open(outfile) as fid:
-                score_lines = [line for line in fid.readlines() if 'REMARK VINA RESULT' in line]
+                score_lines = [line for line in fid.readlines() if "REMARK VINA RESULT" in line]
         except OSError:
             return None
 

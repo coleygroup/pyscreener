@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod, abstractproperty
 from typing import Mapping, Optional, Sequence, TypeVar
 
-S = TypeVar('S')
-T = TypeVar('T')
+S = TypeVar("S")
+T = TypeVar("T")
+
 
 class DockingCalculation(ABC):
     @abstractmethod
@@ -12,7 +13,7 @@ class DockingCalculation(ABC):
     @abstractmethod
     def prepare(self):
         pass
-    
+
     @abstractmethod
     def run(self) -> Optional[Sequence[float]]:
         pass

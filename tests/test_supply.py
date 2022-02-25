@@ -27,7 +27,7 @@ def filetype(request):
     return request.param
 
 
-@pytest.fixture(params=[None, 'test_dir'])
+@pytest.fixture(params=[None, "test_dir"])
 def path(request):
     return request.param
 
@@ -110,11 +110,7 @@ def test_optimize(smis, tmp_path, filetype):
 
 
 def test_multiple_filetypes(smis, tmp_path):
-    filepaths = [
-        make_csv(smis, tmp_path),
-        make_sdf(smis, tmp_path),
-        make_smi(smis, tmp_path),
-    ]
+    filepaths = [make_csv(smis, tmp_path), make_sdf(smis, tmp_path), make_smi(smis, tmp_path)]
 
     supply = LigandSupply(filepaths)
 
@@ -122,21 +118,13 @@ def test_multiple_filetypes(smis, tmp_path):
 
 
 def test_multiple_filetypes_optimize(smis, tmp_path, path):
-    filepaths = [
-        make_csv(smis, tmp_path),
-        make_sdf(smis, tmp_path),
-        make_smi(smis, tmp_path),
-    ]
+    filepaths = [make_csv(smis, tmp_path), make_sdf(smis, tmp_path), make_smi(smis, tmp_path)]
 
     if path is not None:
         path = tmp_path / path
         path.mkdir(exist_ok=True, parents=True)
 
-    supply = LigandSupply(
-        filepaths,
-        optimize=True,
-        path=path
-    )
+    supply = LigandSupply(filepaths, optimize=True, path=path)
     assert len(supply) == len(filepaths) * len(smis)
 
     for ligand in supply:
@@ -147,6 +135,7 @@ def test_multiple_filetypes_optimize(smis, tmp_path, path):
         assert len(parents) == 1
     # else:
     #     assert len(parents) > 1
+
 
 def test_use3d(smis, tmp_path):
     filepaths = [make_sdf(smis, tmp_path)]

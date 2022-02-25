@@ -4,6 +4,7 @@ from typing import Optional, Sequence
 from pyscreener.docking.data import CalculationData
 from pyscreener.docking.metadata import CalculationMetadata
 
+
 class DockingRunner(ABC):
     @staticmethod
     @abstractmethod
@@ -25,7 +26,7 @@ class DockingRunner(ABC):
     def prepare_and_run(data: CalculationData) -> CalculationData:
         """Prepare the receptor and ligand files then run the given simulation. Roughly equivlaent
         to `prepare_*()` followed by `run()` but doesn't return the the scores of the conformers"""
-    
+
     @staticmethod
     def validate_metadata(metadata: CalculationMetadata):
         """Validate the metadata of the simulation. E.g., ensure that the specified software is

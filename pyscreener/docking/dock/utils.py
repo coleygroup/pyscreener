@@ -8,10 +8,7 @@ import subprocess as sp
 import sys
 from typing import Optional, Tuple
 
-from pyscreener.exceptions import (
-    MissingEnvironmentVariableError,
-    MisconfiguredDirectoryError,
-)
+from pyscreener.exceptions import MissingEnvironmentVariableError, MisconfiguredDirectoryError
 from pyscreener.utils import AutoName
 
 with resources.path("pyscreener.docking.dock", ".") as p_module:
@@ -106,9 +103,7 @@ def prepare_receptor(
     if rec_sph is None:
         return None
 
-    rec_sph = select_spheres(
-        rec_sph, sphere_mode, center, size, docked_ligand_file, buffer, path
-    )
+    rec_sph = select_spheres(rec_sph, sphere_mode, center, size, docked_ligand_file, buffer, path)
     rec_box = prepare_box(rec_sph, center, size, enclose_spheres, buffer, path)
     if rec_box is None:
         return None
@@ -178,12 +173,13 @@ def prepare_pdb(receptor: str, path: str = ".") -> Optional[str]:
     return rec_pdb
 
 
-def prepare_dms(
-    rec_pdb: str, probe_radius: float = 1.4, path: str = "."
-) -> Optional[str]:
+def prepare_dms(rec_pdb: str, probe_radius: float = 1.4, path: str = ".") -> Optional[str]:
     p_rec_dms = Path(path) / f"{Path(rec_pdb).stem}.dms"
     argv = [
-        "chimera", "--nogui", "--script", f"{WRITE_DMS} {rec_pdb} {probe_radius} {str(p_rec_dms)}",
+        "chimera",
+        "--nogui",
+        "--script",
+        f"{WRITE_DMS} {rec_pdb} {probe_radius} {str(p_rec_dms)}",
     ]
 
     ret = sp.run(argv, stdout=sp.PIPE)
@@ -207,10 +203,21 @@ def prepare_sph(
 ) -> Optional[str]:
     sph_file = str(Path(path) / f"{Path(rec_dms).stem}.sph")
     argv = [
-        SPHGEN, "-i", rec_dms, "-o", sph_file,
-        "-s", "R", "d", "X",
-        "-l", f"{steric_clash_dist:0.1f}", "m", str(min_radius),
-        "-x", f"{max_radius:0.1f}",
+        SPHGEN,
+        "-i",
+        rec_dms,
+        "-o",
+        sph_file,
+        "-s",
+        "R",
+        "d",
+        "X",
+        "-l",
+        f"{steric_clash_dist:0.1f}",
+        "m",
+        str(min_radius),
+        "-x",
+        f"{max_radius:0.1f}",
     ]
 
     ret = sp.run(argv, stdout=sp.PIPE)
@@ -271,12 +278,12 @@ def select_spheres(
 
     with open(sph_file, "r") as fid_in, open(selected_sph, "w") as fid_out:
         if sphere_mode == sphere_mode.LARGEST:
-            clusterline = lambda line: "cluster" not in line
+            clusterline = lambda line: "cluster" not in line  # noqa: E731
 
             for _ in takewhile(clusterline, fid_in):
                 continue
             lines = [line for line in takewhile(clusterline, fid_in)]
-            fid_out.write(f"DOCK spheres largest cluster\n")
+            fid_out.write("DOCK spheres largest cluster\n")
 
         elif sphere_mode == sphere_mode.BOX:
             lines = [line for line in fid_in if inside_box(line, center, size)]
@@ -302,13 +309,7 @@ def inside_box(
     bx, by, bz = center
     ra, rb, rc = size
 
-    return all(
-        [
-            bx - ra <= x <= bx + ra,
-            by - rb <= y <= by + rb,
-            bz - rc <= z <= bz + rc,
-        ]
-    )
+    return all([bx - ra <= x <= bx + ra, by - rb <= y <= by + rb, bz - rc <= z <= bz + rc])
 
 
 def prepare_box(
@@ -344,16 +345,11 @@ def prepare_box(
     #         fid.write(f'[{size[0]} {size[1]} {size[2]}]\n')
     #     fid.write(f'{box_file}\n')
 
-    ret = sp.run(
-        [SHOWBOX], input=showbox_input, universal_newlines=True, stdout=sp.PIPE
-    )
+    ret = sp.run([SHOWBOX], input=showbox_input, universal_newlines=True, stdout=sp.PIPE)
     try:
         ret.check_returncode()
     except sp.SubprocessError:
-        print(
-            f'ERROR: failed to generate box corresponding to "{sph_file}"',
-            file=sys.stderr,
-        )
+        print(f'ERROR: failed to generate box corresponding to "{sph_file}"', file=sys.stderr)
         if ret.stderr:
             print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None

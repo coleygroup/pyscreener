@@ -18,6 +18,7 @@ from .utils import ScreenType
 
 init(autoreset=True)
 
+
 def build_metadata(software: str, metadata: Optional[Dict] = None) -> CalculationMetadata:
     metadata = metadata or {}
 
@@ -43,10 +44,12 @@ def build_metadata(software: str, metadata: Optional[Dict] = None) -> Calculatio
 def get_runner(software: str) -> DockingRunner:
     if software.lower() in ("vina", "qvina", "smina", "psovina"):
         from pyscreener.docking.vina import VinaRunner
+
         return VinaRunner
 
     if software.lower() in ("dock", "dock6", "ucsfdock"):
         from pyscreener.docking.dock import DOCKRunner
+
         return DOCKRunner
 
     raise UnsupportedSoftwareError(f'Unrecognized screen type: "{software}"')
@@ -63,7 +66,7 @@ def check_env(software, metadata: Optional[Dict] = None):
         print("  Validating metadata ... ", end=" ")
         metadata = build_metadata(software, metadata)
         runner.validate_metadata(metadata)
-        print(Style.BRIGHT + Fore.GREEN +"PASS")
+        print(Style.BRIGHT + Fore.GREEN + "PASS")
     except (
         MisconfiguredDirectoryError,
         MissingEnvironmentVariableError,

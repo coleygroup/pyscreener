@@ -9,6 +9,7 @@ from .supply import LigandSupply
 
 try:
     from . import _version
+
     __version__ = _version.version
 except ModuleNotFoundError:
     __version__ = "1.1.1"

@@ -4,11 +4,7 @@ from typing import Optional
 
 from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
-from pyscreener import _version
-
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-__version__ = _version.get_versions()['version']
+__version__ = "1.1.1"
 
 def gen_args(argv: Optional[str] = None) -> Namespace:
     parser = ArgumentParser(

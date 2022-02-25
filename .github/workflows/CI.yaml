@@ -50,7 +50,7 @@ jobs:
     - name: Run tests
       shell: bash -l {0}
       run: |
-        pytest -v -k "not vina" --cov=pyscreener --cov-report=xml --color=yes
+        pytest -k "not vina" --cov-report=xml --color=yes
 
     - name: CodeCov
       uses: codecov/codecov-action@v1

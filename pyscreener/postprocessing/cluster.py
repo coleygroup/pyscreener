@@ -2,16 +2,12 @@
 from collections import defaultdict
 import csv
 from itertools import chain
-import os
 from pathlib import Path
 from random import sample
-import sys
 import timeit
 from typing import Dict, Iterable, List, Optional
 
 import h5py
-import numpy as np
-from scipy import sparse
 from sklearn.cluster import MiniBatchKMeans
 
 from pyscreener.postprocessing import fingerprints

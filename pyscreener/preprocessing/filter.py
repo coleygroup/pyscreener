@@ -1,5 +1,5 @@
-"""This module contains functions for filtering molecules from inputs based on 
-a desired set of properties"""
+"""This module contains functions for filtering molecules from inputs based on a desired set of
+properties"""
 import csv
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple

@@ -134,7 +134,8 @@ ATOM    124  N   LEU A  44     -23.166   6.856 -31.217  1.00  0.00           N
 ATOM    125  H   LEU A  44     -22.994   7.955 -31.593  1.00  0.00           H  
 ATOM    126  CA  LEU A  44     -22.591   6.429 -29.955  1.00  0.00           C  
 ATOM    127  HA  LEU A  44     -21.999   5.463 -30.346  1.00  0.00           H""",
-            0, 11
+            0,
+            11,
         ),
         (
             """ATOM   5816  HB2 ALA A 462     -27.968 -14.918 -35.890  1.00  0.00           H  
@@ -146,7 +147,8 @@ HETATM 5821  OAR AQD A1201     -16.479  13.184 -16.085  1.00  0.00           O
 HETATM 5822  CAW AQD A1201     -15.615  13.449 -14.994  1.00  0.00           C  
 HETATM 5823  CAK AQD A1201     -15.231  12.434 -14.098  1.00  0.00           C  
 """,
-            4, 0
+            4,
+            0,
         ),
         (
             """HETATM 5820  CAB AQD A1201     -16.765  11.793 -16.344  1.00  0.00           C  
@@ -176,7 +178,8 @@ HETATM 5843  CAG AQD A1201     -22.616  18.335 -20.665  1.00  0.00           C
 HETATM 5844  CAF AQD A1201     -23.565  17.421 -20.210  1.00  0.00           C  
 HETATM 5845  CAH AQD A1201     -23.166  16.184 -19.721  1.00  0.00           C  
 HETATM 5846  CAJ AQD A1201     -21.806  15.847 -19.682  1.00  0.00           C""",
-            27, 0
+            27,
+            0,
         ),
     ]
 )
@@ -261,13 +264,15 @@ def line(request):
     return request.param
 
 
-@pytest.fixture(params=[1., 2., 4., 8.])
+@pytest.fixture(params=[1.0, 2.0, 4.0, 8.0])
 def length(request):
     return request.param
 
-@pytest.fixture(params=[1e-6, 0.1, 1., 2.]) # small amount for comparison stability
+
+@pytest.fixture(params=[1e-6, 0.1, 1.0, 2.0])  # small amount for comparison stability
 def buffer(request):
     return request.param
+
 
 def test_extract_residue_lines(pdbfile):
     pdb_filepath, n_hetatm_lines, n_residue_lines = pdbfile
@@ -275,11 +280,13 @@ def test_extract_residue_lines(pdbfile):
 
     assert len(lines) == n_residue_lines
 
+
 def test_extract_hetatm_lines(pdbfile):
     pdb_filepath, n_hetatm_lines, n_residue_lines = pdbfile
-    lines =  autobox.extract_hetatm_lines(pdb_filepath)
+    lines = autobox.extract_hetatm_lines(pdb_filepath)
 
     assert len(lines) == n_hetatm_lines
+
 
 def test_parse_line(line):
     line, coords = line
@@ -287,23 +294,23 @@ def test_parse_line(line):
 
     assert (x, y, z) == coords
 
+
 def sample_spherical(npoints, ndim=3):
     vec = np.random.randn(ndim, npoints)
     vec /= np.linalg.norm(vec, axis=0)
 
     return vec
 
+
 def coords(length):
     N = 100
-    return length*sample_spherical(N)
+    return length * sample_spherical(N)
+
 
 def test_minimum_bounding_box(length, buffer):
     X = coords(length).T
     center, size = np.array(autobox.minimum_bounding_box(X, buffer))
-    mins = center - (size+buffer)
-    maxs = center + (size+buffer)
+    mins = center - (size + buffer)
+    maxs = center + (size + buffer)
 
-    assert all([
-        [min_c <= c <= max_c for c, min_c, max_c in zip(xyz, mins, maxs)]
-        for xyz in X
-    ])
+    assert all([[min_c <= c <= max_c for c, min_c, max_c in zip(xyz, mins, maxs)] for xyz in X])

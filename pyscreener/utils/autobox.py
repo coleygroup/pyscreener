@@ -140,7 +140,7 @@ def parse_coordinates(line: str) -> Tuple[float, float, float]:
         x = float(line[PDBRecord.X_COORD.value])
         y = float(line[PDBRecord.Y_COORD.value])
         z = float(line[PDBRecord.Z_COORD.value])
-    except:
+    except ValueError:
         raise BadPDBFileError(f'could not parse line: "{line}"')
 
     return x, y, z

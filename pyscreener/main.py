@@ -59,7 +59,7 @@ def main():
     print(ray.cluster_resources())
     print(flush=True)
 
-    print(f"Preparing and screening inputs ...", flush=True)
+    print("Preparing and screening inputs ...", flush=True)
     metadata_template = ps.build_metadata(args.screen_type, args.metadata_template)
     virtual_screen = ps.virtual_screen(
         args.screen_type,

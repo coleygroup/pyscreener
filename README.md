@@ -123,6 +123,7 @@ To test whether your environment is setup correctly with respect to pathing and 
 where `SCREEN_TYPE` and `METADATA_TEMPLATE` and values as described above
 
 If the checks pass, then your environment is set up correctly.
+
 ## Using pyscreener as a library
 To check if `pyscreener` is set up properly, you can run the following:
 ```python
@@ -144,7 +145,7 @@ The object model of pyscreener relies on four classes:
 
 To perform docking calls inside your python code using `pyscreener`, you must first initialize a `DockingVirtualScreen` object either through the factory `pyscreener.virtual_screen` function or manually initializing one. The following section will show an example of how to perform computational from inside a python interpreter.
 
-### Example
+### Examples
 the following code snippet will dock benzene (SMILES string `"c1ccccc1"`) against the D4 dopamine receptor (PDB ID `5WIU`) using a predefined docking box and Autodock Vina
 
 ```python
@@ -172,6 +173,8 @@ A few notes from the above example:
   supply = ps.LigandSupply(['integration-tests/inputs/ligands.csv'])
   virtual_screen(supply.ligands)
   ```
+
+for more examples, check out the [examples](./examples/) folder!
 
 ## Testing
 

@@ -56,7 +56,7 @@ class VinaMetadata(CalculationMetadata):
     software: Union[Software, str] = Software.VINA
     exhaustiveness: int = 8
     num_modes: int = 9
-    energy_range: float = 3.
+    energy_range: float = 3.0
     extra: Union[str, Iterable[str]] = ""
     prepared_ligand: Optional[Union[str, Path]] = None
     prepared_receptor: Optional[Union[str, Path]] = None

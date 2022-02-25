@@ -9,17 +9,19 @@ import ray
 
 import pyscreener as ps
 
+
 def check():
     ps.check_env(sys.argv[1], json.loads(sys.argv[2]))
     exit(0)
 
+
 def main():
     args = ps.args.gen_args()
-    
+
     if args.smoke_test:
         ps.check_env(args.screen_type, args.metadata_template)
         exit(0)
-        
+
     print(
         """\
 ***************************************************************
@@ -111,9 +113,7 @@ def main():
 
     results = virtual_screen.all_results()
     if not args.no_sort:
-        results = sorted(
-            results, key=lambda r: r.score if r.score is not None else float("inf")
-        )
+        results = sorted(results, key=lambda r: r.score if r.score is not None else float("inf"))
     smis_scores = [(r.smiles, r.score) for r in results]
 
     scores_filename = virtual_screen.path / "scores.csv"

@@ -145,7 +145,7 @@ def reduce_scores(
 
 def run_on_all_nodes(func: Callable) -> Callable:
     """A decorator to run a function on all nodes in a ray cluster.
-    
+
     Ex:
     >>> @run_on_all_nodes
     >>> def f():

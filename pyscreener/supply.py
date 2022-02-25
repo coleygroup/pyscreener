@@ -86,15 +86,11 @@ class LigandSupply(Iterable):
         self.filepaths = [Path(filepath) for filepath in filepaths]
         if formats is not None:
             self.formats = [
-                filetype
-                if isinstance(filetype, FileFormat)
-                else FileFormat.from_str(filetype)
+                filetype if isinstance(filetype, FileFormat) else FileFormat.from_str(filetype)
                 for filetype in formats
             ]
         else:
-            self.formats = [
-                LigandSupply.guess_format(filepath) for filepath in self.filepaths
-            ]
+            self.formats = [LigandSupply.guess_format(filepath) for filepath in self.filepaths]
 
         self.use_3d = use_3d
         self.optimize = optimize
@@ -126,11 +122,7 @@ class LigandSupply(Iterable):
             elif filetype == FileFormat.SDF:
                 ligands.extend(
                     LigandSupply.get_ligands_from_sdf(
-                        filepath,
-                        self.id_property,
-                        self.use_3d,
-                        self.optimize,
-                        self.path,
+                        filepath, self.id_property, self.use_3d, self.optimize, self.path
                     )
                 )
             elif filetype == FileFormat.SMI:
@@ -145,9 +137,7 @@ class LigandSupply(Iterable):
             else:
                 mols = [Chem.MolFromSmiles(smi) for smi in smis]
                 ligands.extend(
-                    LigandSupply.optimize_and_write_mols(
-                        mols, Path("ligand"), self.path
-                    )
+                    LigandSupply.optimize_and_write_mols(mols, Path("ligand"), self.path)
                 )
         self.ligands = ligands
 
@@ -184,10 +174,7 @@ class LigandSupply(Iterable):
 
     @staticmethod
     def get_ligands_from_file(
-        filepath: Path,
-        use_3d: bool = False,
-        optimize: bool = False,
-        path: Optional[Path] = None,
+        filepath: Path, use_3d: bool = False, optimize: bool = False, path: Optional[Path] = None
     ) -> list[str]:
         if use_3d:
             return LigandSupply.split_file(filepath)

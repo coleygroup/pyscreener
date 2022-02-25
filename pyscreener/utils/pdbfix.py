@@ -8,10 +8,7 @@ from openmm.app import PDBFile
 
 
 def pdbfix(
-    receptor: Optional[str] = None,
-    pdbid: Optional[str] = None,
-    pH: float = 7.0,
-    path: str = ".",
+    receptor: Optional[str] = None, pdbid: Optional[str] = None, pH: float = 7.0, path: str = "."
 ) -> str:
     """fix the input PDB file or ID
 

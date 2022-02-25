@@ -38,7 +38,7 @@ def autobox(
     return center, size
 
 
-def residues(pdbfile: str, residues: List[int], buffer: float = 0.) -> Tuple[Tuple, Tuple]:
+def residues(pdbfile: str, residues: List[int], buffer: float = 0.0) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a list of protein residues
 
     The ligand autobox is the minimum bounding box of the alpha carbons of the
@@ -70,6 +70,7 @@ def residues(pdbfile: str, residues: List[int], buffer: float = 0.) -> Tuple[Tup
 
     return minimum_bounding_box(np.array(coords), buffer)
 
+
 def extract_residues_lines(pdb_filepath, residues: Iterable[int]):
     """Extract the CA lines for the numbered residues in the input PDB file"""
     residues = set(residues)
@@ -85,8 +86,9 @@ def extract_residues_lines(pdb_filepath, residues: Iterable[int]):
                 and int(line[PDBRecord.RES_SEQ.value].strip()) in residues
             ):
                 lines.append(line)
-    
+
     return lines
+
 
 def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tuple]:
     """Generate a ligand autobox from a PDB file containing a docked ligand
@@ -118,6 +120,7 @@ def docked_ligand(docked_ligand_file: str, buffer: int = 10) -> Tuple[Tuple, Tup
 
     return minimum_bounding_box(np.array(coords), buffer)
 
+
 def extract_hetatm_lines(pdb_filepath: str):
     """extract the lines of the first HETAM in the PDB file"""
     lines = []
@@ -126,11 +129,10 @@ def extract_hetatm_lines(pdb_filepath: str):
             if "HETATM" == line[PDBRecord.NAME.value].strip():
                 lines.append(line)
                 break
-        lines.extend(takewhile(
-            lambda line: "HETATM" == line[PDBRecord.NAME.value].strip(), fid
-        ))
-        
+        lines.extend(takewhile(lambda line: "HETATM" == line[PDBRecord.NAME.value].strip(), fid))
+
     return lines
+
 
 def parse_coordinates(line: str) -> Tuple[float, float, float]:
     """Parse the x-, y-, and z-coordinates from an ATOM/HETATM record in a PDB file"""

@@ -26,23 +26,17 @@ This repository contains the source of pyscreener, both a library and software f
 - `numpy`, `openbabel`, `openmm`, [`pdbfixer`](git+https://github.com/openmm/pdbfixer.git), `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
 - all corresponding software downloaded and located on your PATH or under the path of a specific environment variable (see [external software](#external-software) for more details.)
 
-### environment setup with conda
+### Setup
 
 0. (if necessary) [install conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
-1. `conda create -n NAME -c conda-forge python=3.8 pip openbabel openmm rdkit pdbfixer`
-1. `conda activate NAME`
+1. `conda env create -f environment.yml`
+1. `conda activate pyscreener`
 1. `pip install pyscreener` (or if installing from source, `pip install .`)
 1. follow the corresponding directions below for the intended software
 
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)
 
 ### external software
-To test whether your environment is setup correctly with respect to pathing and environment variables, run `pyscreener-check` `--screen-type` and `--metadata-template` values, like so:
-
-`pyscreener-check SCREEN_TYPE METADATA_TEMPLATE`
-
-If the checks pass, then your environment is set up correctly.
-
 * vina-type software
   1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and add `prepare_receptor` to your PATH. If this step was successful, the command `which prepare_receptor` should output `path/to/prepare_receptor`. This can be done via either:
 
@@ -74,7 +68,7 @@ To add an executable to your PATH, you have three options:
 #### specifying an environment variable
 To set the `DOCK6` environment variable, run the following command: `export DOCK6=path/to/dock6`, where `path/to/dock6` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
-## Ray Setup
+### Ray Setup
 pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, don't need to do anything . However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster __before__ running pyscreener.
 
 #### Limiting the number of cores
@@ -121,6 +115,14 @@ Vina-type and DOCK6 docking simulations have a number of options unique to their
   - `buffer` (=`10.0`): the amount of extra space (in Angstroms) to be added around the ligand when selecting spheres
   - `enclose_spheres` (=`True`): whether to construct the docking box by enclosing all of the selected spheres or use only spheres within a predefined docking box
 
+### Testing your environment setup
+To test whether your environment is setup correctly with respect to pathing and environment variables, run `pyscreener` like so:
+
+`pyscreener --smoke-test --screen-type SCREEN_TYPE --metadata-template TEMPLATE`
+
+where `SCREEN_TYPE` and `METADATA_TEMPLATE` and values as described above
+
+If the checks pass, then your environment is set up correctly.
 ## Using pyscreener as a library
 To check if `pyscreener` is set up properly, you can run the following:
 ```python

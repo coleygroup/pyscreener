@@ -1,0 +1,1 @@
+pyscreener --config integration-tests/configs/test_vina.ini --ncpu 6

@@ -45,4 +45,4 @@ done
 sleep 30
 ###############################################################################
 
-python run.py --config integration-tests/configs/test_vina.ini --ncpu $SLURM_CPUS_PER_TASK
+pyscreener --config integration-tests/configs/test_vina.ini --ncpu $SLURM_CPUS_PER_TASK

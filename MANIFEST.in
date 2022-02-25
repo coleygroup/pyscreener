@@ -1,8 +1,6 @@
 include LICENSE
 include MANIFEST.in
 include CODE_OF_CONDUCT.md
-include versioneer.py
-include pyscreener/_version.py
 
 graft pyscreener
 global-exclude *.py[cod] __pycache__ *.so

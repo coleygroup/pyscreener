@@ -8,6 +8,7 @@ from .docking import build_metadata, check_env, virtual_screen
 from .supply import LigandSupply
 
 try:
-    __version__ = version("pyscreener")
-except PackageNotFoundError:
+    from . import _version
+    __version__ = _version.version
+except ModuleNotFoundError:
     __version__ = "1.1.1"

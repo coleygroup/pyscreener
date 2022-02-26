@@ -53,16 +53,7 @@ def out_path(tmp_path):
 @pytest.fixture
 def data(smi, receptor, center, size, in_path, out_path):
     return CalculationData(
-        smi,
-        receptor,
-        center,
-        size,
-        vina.VinaMetadata(),
-        -1,
-        "ligand",
-        None,
-        in_path,
-        out_path,
+        smi, receptor, center, size, vina.VinaMetadata(), -1, "ligand", None, in_path, out_path
     )
 
 

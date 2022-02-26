@@ -5,11 +5,20 @@ channels:
   - defaults
 
 dependencies:
+  - pdbfixer
   - pip
   - python=3.8
   - openbabel
   - openmm
   - rdkit
   - pip:
-    - -r requirements.txt
+    - colorama
+    - configargparse
+    - h5py
+    - numpy
+    - ray
+    - pandas
+    - scikit_learn
+    - scipy
+    - tqdm
 

@@ -88,6 +88,4 @@ class CalculationData:
         try:
             return self.result.score
         except AttributeError:
-            raise InvalidResultError(
-                'No attribute: "score" in Result object (self.result)!'
-            )
+            raise InvalidResultError('No attribute: "score" in Result object (self.result)!')

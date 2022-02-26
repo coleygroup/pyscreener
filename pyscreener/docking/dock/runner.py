@@ -68,7 +68,7 @@ class DOCKRunner(DockingRunner):
         """
         rec_mol2 = utils.prepare_mol2(data.receptor, data.in_path)
         rec_pdb = utils.prepare_pdb(data.receptor, data.in_path)
-        
+
         if rec_mol2 is None or rec_pdb is None:
             return data
 
@@ -423,11 +423,11 @@ class DOCKRunner(DockingRunner):
             fid.write(DOCKRunner.infile_line(kwargs, "grid_score_vdw_scale", "1"))
             fid.write(DOCKRunner.infile_line(kwargs, "grid_score_es_scale", "1"))
             fid.write(f"grid_score_grid_prefix {grid_prefix}\n")
-            
+
             fid.write(DOCKRunner.infile_line(kwargs, "multigrid_score_secondary", "no"))
             fid.write(DOCKRunner.infile_line(kwargs, "5_score_secondary", "no"))
             fid.write(DOCKRunner.infile_line(kwargs, "continuous_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs,"footprint_similarity_score_secondary", "no"))
+            fid.write(DOCKRunner.infile_line(kwargs, "footprint_similarity_score_secondary", "no"))
             fid.write(DOCKRunner.infile_line(kwargs, "pharmacophore_score_secondary", "no"))
             fid.write(DOCKRunner.infile_line(kwargs, "descriptor_score_secondary", "no"))
             fid.write(DOCKRunner.infile_line(kwargs, "gbsa_zou_score_secondary", "no"))
@@ -455,7 +455,7 @@ class DOCKRunner(DockingRunner):
             fid.write(f"vdw_defn_file {VDW_DEFN_FILE}\n")
             fid.write(f"flex_defn_file {FLEX_DEFN_FILE}\n")
             fid.write(f"flex_drive_file {FLEX_DRIVE_FILE}\n")
-        
+
             fid.write(f"ligand_outfile_prefix {outfile_prefix}\n")
             fid.write(DOCKRunner.infile_line(kwargs, "write_orientations", "no"))
             fid.write(DOCKRunner.infile_line(kwargs, "num_scored_conformers", "5"))

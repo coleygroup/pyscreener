@@ -1,6 +1,6 @@
 [//]: # (Badges)
-[![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/master/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/master)
-![CI](https://github.com/coleygroup/pyscreener/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/coleygroup/pyscreener/branch/main/graph/badge.svg)](https://codecov.io/gh/coleygroup/pyscreener/branch/main)
+[![CI](https://github.com/coleygroup/pyscreener/actions/workflows/CI.yaml/badge.svg)](https://github.com/coleygroup/pyscreener/actions/workflows/CI.yaml)
 [![Documentation Status](https://readthedocs.org/projects/pyscreener/badge/?version=latest)](https://pyscreener.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/pyscreener.svg)](https://badge.fury.io/py/pyscreener)
 
@@ -26,24 +26,17 @@ This repository contains the source of pyscreener, both a library and software f
 - `numpy`, `openbabel`, `openmm`, [`pdbfixer`](git+https://github.com/openmm/pdbfixer.git), `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
 - all corresponding software downloaded and located on your PATH or under the path of a specific environment variable (see [external software](#external-software) for more details.)
 
-### environment setup with conda
+### Setup
 
 0. (if necessary) [install conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
-1. `conda create -n NAME python=3.8 pip openbabel openmm rdkit`
-1. `conda activate NAME`
+1. `conda env create -f environment.yml`
+1. `conda activate pyscreener`
 1. `pip install pyscreener` (or if installing from source, `pip install .`)
-1. `pip install git+https://github.com/openmm/pdbfixer.git`
 1. follow the corresponding directions below for the intended software
 
 Before running `pyscreener`, be sure to first activate the environment: `conda activate pyscreener` (or whatever you've named your environment)
 
 ### external software
-To test whether your environment is setup correctly with respect to pathing and environment variables, run `pyscreener-check` `--screen-type` and `--metadata-template` values, like so:
-
-`pyscreener-check SCREEN_TYPE METADATA_TEMPLATE`
-
-If the checks pass, then your environment is set up correctly.
-
 * vina-type software
   1. install [ADFR Suite](https://ccsb.scripps.edu/adfr/downloads/) and add `prepare_receptor` to your PATH. If this step was successful, the command `which prepare_receptor` should output `path/to/prepare_receptor`. This can be done via either:
 
@@ -52,7 +45,7 @@ If the checks pass, then your environment is set up correctly.
       2. adding only `prepare_receptor` in the `bin` directory to your PATH as detailed [below](#adding-an-executable-to-your-path)
   
   
-  1. install any of the following docking software: [vina](http://vina.scripps.edu/), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
+  1. install any of the following docking software: [vina 1.1.2](https://vina.scripps.edu/downloads/) (**note:** pyscreener does not work with vina 1.2), [qvina2](https://qvina.github.io/), [smina](https://sourceforge.net/projects/smina/), [psovina](https://cbbio.online/software/psovina/index.html) and [ensure the desired software executable is in a folder that is located on your path](#adding-an-executable-to-your-path)
 
 * [DOCK6](http://dock.compbio.ucsf.edu/)
   1. [obtain a license for DOCK6](http://dock.compbio.ucsf.edu/Online_Licensing/dock_license_application.html)
@@ -75,7 +68,7 @@ To add an executable to your PATH, you have three options:
 #### specifying an environment variable
 To set the `DOCK6` environment variable, run the following command: `export DOCK6=path/to/dock6`, where `path/to/dock6` is the **full** path of the DOCK6 parent directory mentioned above. As this this environment variable must always be set before running pyscreener, the command should be placed inside your `~/.bashrc` or `~/.bash_profile` (if using a bash shell) to avoid needing to run the command every time you log in. _Note_: if using a non-bash shell, the specific file will be different.
 
-## Ray Setup
+### Ray Setup
 pyscreener uses [`ray`](https://docs.ray.io/en/master/index.html) as its parallel backend. If you plan to parallelize the software only across your local machine, don't need to do anything . However, if you wish to either (a.) limit the number of cores pyscreener will be run over or (b.) run it over a distributed setup (e.g., an HPC with many distinct nodes), you must manually start a ray cluster __before__ running pyscreener.
 
 #### Limiting the number of cores
@@ -101,9 +94,9 @@ pyscreener was designed to have a minimal interface under the principal that a h
 - a metadata template containing screen-specific options in a JSON-format string. See the [metadata](#metadata-templates) section below for more details.
 - the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking. A generally good value for this is between `2` and `8` depending on your compute setup. If you're docking molecule-by-molecule, e.g., reinforcement learning, then you will likely want this to be as many CPUs as are on your machine.
 
-There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `psycreener --help`
+There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `pyscreener --help`. All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). 
 
-All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). Assuming everything is working and installed properly, you can run any of these files via the following command: `pyscreener --config integration-tests/configs/<config>`
+To check if everything is working and installed properly, first run pyscreener like so: `pyscreener --config path/to/your/config --smoke-test`
 
 ### Metadata Templates
 Vina-type and DOCK6 docking simulations have a number of options unique to their preparation and simulation pipeline, and these options are termed simulation "metadata" in `pyscreener`. At present, only a few of these options are supported for both families of docking software, but future updates will add support for more of these options. These options may be specified via a JSON struct to the `--metadata-template` argument. Below is a list of the supported options for both types of docking screen (default options provided in parentheses next to the parameter)
@@ -122,7 +115,28 @@ Vina-type and DOCK6 docking simulations have a number of options unique to their
   - `buffer` (=`10.0`): the amount of extra space (in Angstroms) to be added around the ligand when selecting spheres
   - `enclose_spheres` (=`True`): whether to construct the docking box by enclosing all of the selected spheres or use only spheres within a predefined docking box
 
+### Testing your environment setup
+To test whether your environment is setup correctly with respect to pathing and environment variables, run `pyscreener` like so:
+
+`pyscreener --smoke-test --screen-type SCREEN_TYPE --metadata-template TEMPLATE`
+
+where `SCREEN_TYPE` and `METADATA_TEMPLATE` and values as described above
+
+If the checks pass, then your environment is set up correctly.
+
 ## Using pyscreener as a library
+To check if `pyscreener` is set up properly, you can run the following:
+```python
+>>> import pyscreener as ps
+
+>>> software = "..."
+>>> metadata = {...}
+
+>>> ps.check_env(software, metadata)
+...
+```
+where software is the name of the software you intend to use and metadata is a dictionary containing the metadata template. Please see the [metadata templates](#metadata-templates) section for details on possible key-value pairs.
+
 The object model of pyscreener relies on four classes:
 * [`CalculationData`](pyscreener/docking/data.py): a simple object containing the broadstrokes specifications of a docking calculation common to all types of docking calculations (e.g., Vina, DOCK6, etc.): the SMILES string, the target receptor, the center/size of a docking box, the metadata, and the result.
 * [`CalculationMetadata`](pyscreener/docking/metadata.py): a nondescript object that contains software-specific fields. For example, a Vina-type calculation requires a `software` parameter, whereas a DOCK6 calculation requires a number of different parameters for receptor preparation. Most importantly, the metadata will always contain two fields of abstract type: `prepared_ligand` and `prepared_receptor`.
@@ -131,7 +145,7 @@ The object model of pyscreener relies on four classes:
 
 To perform docking calls inside your python code using `pyscreener`, you must first initialize a `DockingVirtualScreen` object either through the factory `pyscreener.virtual_screen` function or manually initializing one. The following section will show an example of how to perform computational from inside a python interpreter.
 
-### Example
+### Examples
 the following code snippet will dock benzene (SMILES string `"c1ccccc1"`) against the D4 dopamine receptor (PDB ID `5WIU`) using a predefined docking box and Autodock Vina
 
 ```python
@@ -159,6 +173,8 @@ A few notes from the above example:
   supply = ps.LigandSupply(['integration-tests/inputs/ligands.csv'])
   virtual_screen(supply.ligands)
   ```
+
+for more examples, check out the [examples](./examples/) folder!
 
 ## Testing
 

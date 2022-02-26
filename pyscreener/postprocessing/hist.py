@@ -11,12 +11,7 @@ sns.set_theme(style="white", context="paper")
 BINWIDTH = 0.1
 
 
-def histogram(
-    hist_mode: str,
-    Y: np.ndarray,
-    path: str = ".",
-    name: str = "distribution.png",
-):
+def histogram(hist_mode: str, Y: np.ndarray, path: str = ".", name: str = "distribution.png"):
     if hist_mode == "image":
         plot_hist(Y, path, name)
     elif hist_mode == "text":
@@ -44,7 +39,8 @@ def plot_hist(Y: np.ndarray, path: str = ".", name: str = "scores_distribution.p
     filepath = Path(path) / name
 
     fig.savefig(str(filepath), dpi=300)
-    print(f'Histogram saved to {filepath}!')
+    print(f"Histogram saved to {filepath}!")
+
 
 def print_hist(Y: np.ndarray):
     hist, bin_edges = np.histogram(
@@ -55,14 +51,12 @@ def print_hist(Y: np.ndarray):
         terminal_size = os.get_terminal_size()[0]
     except OSError:
         terminal_size = 80
-    base_width = max(
-        len(str(bin_edges.max().round(1))), len(str(bin_edges.min().round(1)))
-    )
+    base_width = max(len(str(bin_edges.max().round(1))), len(str(bin_edges.min().round(1))))
     width = terminal_size - (base_width + 2)
 
     counts = hist / hist.max()
     unit = ceil(hist.max() / width)
-    
+
     header_str = f"| Score Distribution (* = {unit} counts) |"
     border_str = f"+{'-'*(len(header_str)-2)}+"
 

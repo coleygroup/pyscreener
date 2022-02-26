@@ -52,9 +52,7 @@ class DockingVirtualScreen:
         self.path = path
 
         self.score_mode = (
-            score_mode
-            if isinstance(score_mode, ScoreMode)
-            else ScoreMode.from_str(score_mode)
+            score_mode if isinstance(score_mode, ScoreMode) else ScoreMode.from_str(score_mode)
         )
         self.repeat_score_mode = (
             repeat_score_mode
@@ -73,9 +71,7 @@ class DockingVirtualScreen:
         self.receptors = receptors or []
         if pdbids is not None:
             self.receptors = list(self.receptors)
-            self.receptors.extend(
-                [pdbfix.get_pdb(pdbid, path=self.path) for pdbid in pdbids]
-            )
+            self.receptors.extend([pdbfix.get_pdb(pdbid, path=self.path) for pdbid in pdbids])
 
         if self.center is None:
             if docked_ligand_file is None:
@@ -152,7 +148,7 @@ class DockingVirtualScreen:
         Parameters
         ----------
         *sources : Iterable[Union[str, Iterable[str]]]
-            an Iterable of SMILES strings, individual chemical files, or iterables thereof of the 
+            an Iterable of SMILES strings, individual chemical files, or iterables thereof of the
             ligands to dock
         smiles : bool, default=True
             whether the input ligand sources are all SMILES strigs. If false, treat the sources
@@ -161,7 +157,7 @@ class DockingVirtualScreen:
         Returns
         -------
         np.ndarray
-            a vector of length `n` containing the output score for each ligand, where `n` is the 
+            a vector of length `n` containing the output score for each ligand, where `n` is the
             total number of ligands that were supplied
         """
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
@@ -180,9 +176,7 @@ class DockingVirtualScreen:
         self.num_ligands += len(S)
         self.total_simulations += S.size
 
-        return reduce_scores(
-            S, self.repeat_score_mode, self.ensemble_score_mode, self.k
-        )
+        return reduce_scores(S, self.repeat_score_mode, self.ensemble_score_mode, self.k)
 
     @property
     def path(self):
@@ -221,15 +215,12 @@ class DockingVirtualScreen:
     @run_on_all_nodes
     def prepare_receptors(self):
         """Prepare the receptor file(s) for each of the simulation templates"""
-        return [
-            self.runner.prepare_receptor(template) for template in self.data_templates
-        ]
+        return [self.runner.prepare_receptor(template) for template in self.data_templates]
 
     def all_results(self, flatten: bool = True) -> List[Result]:
         """A flattened list of results from all of the completed simulations"""
         resultsss = [
-            [[s.result for s in sims] for sims in simss]
-            for simss in self.completed_simulationsss
+            [[s.result for s in sims] for sims in simss] for simss in self.completed_simulationsss
         ]
         if flatten:
             return list(chain(*(chain(*resultsss))))
@@ -243,11 +234,7 @@ class DockingVirtualScreen:
             planned_simulationsss = [
                 [
                     [
-                        replace(
-                            data_template,
-                            smi=smi,
-                            name=f"{self.base_name}_{i+len(self)}_{j}",
-                        )
+                        replace(data_template, smi=smi, name=f"{self.base_name}_{i+len(self)}_{j}")
                         for j in range(self.repeats)
                     ]
                     for data_template in self.data_templates

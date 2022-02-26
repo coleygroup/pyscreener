@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "main"
+    paths:
+      - "pyscreener/**"
+      - "tests/**"
   pull_request:
     branches:
       - "main"
@@ -17,25 +20,18 @@ jobs:
     strategy:
       matrix:
         os: [macOS-latest, ubuntu-latest]
-        python-version: [3.7, 3.8]
+        python-version: [3.8]
+      fail-fast: true
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Additional info about the build
-      shell: bash
-      run: |
-        uname -a
-        df -h
-        ulimit -a
+    - uses: actions/checkout@v2
 
     - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python-version }}
         environment-file: devtools/conda-envs/test_env.yaml
-
         channels: conda-forge,defaults
-
-        activate-environment: test
+        activate-environment: pyscreener-test
         auto-update-conda: false
         auto-activate-base: false
         show-channel-urls: true
@@ -43,12 +39,18 @@ jobs:
     - name: Install package
       shell: bash -l {0}
       run: |
-        python -m pip install . --no-deps
+        pip install flake8
+        pip install . --no-deps
+
+    - name: check for fatal syntax errors
+      shell: bash -l {0}
+      run: |
+        flake8 pyscreener --count --select=E9,F63,F7,F82 --show-source --statistics
 
     - name: Run tests
       shell: bash -l {0}
       run: |
-        pytest -v --cov=pyscreener --cov-report=xml --color=yes
+        pytest -k "not vina" --cov-report=xml --color=yes
 
     - name: CodeCov
       uses: codecov/codecov-action@v1

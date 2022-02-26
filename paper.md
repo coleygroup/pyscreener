@@ -88,12 +88,12 @@ By default, AutoDock Vina docks molecules using an `--exhaustiveness` value of 8
 ```python
 >>> metadata = ps.build_metadata("vina", dict(exhaustivness=32))
 ```
-We may also utilize other docking engines in the AutoDock Vina family by specifying the `software` for Vina-type metadata. Here, we use the accelerated optimization routine of QVina for faster docking. Note that we also support `software` values of `"smina"` and `"psovina"` in addition to `"vina"` and `"qvina"`.
+We may also utilize other docking engines in the AutoDock Vina family by specifying the `software` for Vina-type metadata. Here, we use the accelerated optimization routine of QVina for faster docking. Note that we also support `software` values of `"smina"` [@koes_lessons_2013] and `"psovina"` [@ng_psovina_2015] in addition to `"vina"` [@trott_autodock_2010] and `"qvina"` [@alhossary_fast_2015].
 ```python
 >>> metadata = ps.build_metadata("vina", dict(software="qvina"))
 ```
 
-It is also possible to dock molecules using DOCK6 in `pyscreener`. To do this, we must first construct DOCK6 metadata and specify that we are creating a DOCK6 virtual screen (note that DOCK6 is not multithreaded and thus does not benefit from being assigned multiple CPU cores per task):
+It is also possible to dock molecules using DOCK6 [@allen_dock_2015] in `pyscreener`. To do this, we must first construct DOCK6 metadata and specify that we are creating a DOCK6 virtual screen (note that DOCK6 is not multithreaded and thus does not benefit from being assigned multiple CPU cores per task):
 ```python
 >>> metadata = ps.build_metadata("dock")
 >>> virtual_screen = ps.virtual_screen(

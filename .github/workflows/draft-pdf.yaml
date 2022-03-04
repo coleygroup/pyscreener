@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - "joss-paper"
-    # paths:
-    #   - "paper.md"
+    paths:
+      - "paper.md"
 
 jobs:
   paper:

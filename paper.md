@@ -62,7 +62,8 @@ import pyscreener as ps
 
 metadata = ps.build_metadata("vina")
 virtual_screen = ps.virtual_screen(
-    "vina", receptors=["5WIU.pdb"],
+    "vina",
+    receptors=["5WIU.pdb"],
     center=(-18.2, 14.4, -16.1),
     size=(15.4, 13.9, 14.5),
     metadata_template=metadata,

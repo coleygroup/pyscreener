@@ -59,6 +59,7 @@ led to an approximate 2.5% increase in wall-time relative to the single-node set
 To illustrate `pyscreener`, we consider docking benezene (SMILES string `"c1ccccc1"`) against 5WIU with a docking box centered at (-18.2, 14.4, -16.1) with x-, y-, and z-radii (15.4, 13.9, 14.5). We may perform this docking using AutoDock Vina over 6 CPU cores via `pyscreener` like so:
 ```python
 import pyscreener as ps
+
 metadata = ps.build_metadata("vina")
 virtual_screen = ps.virtual_screen(
     "vina", receptors=["5WIU.pdb"],

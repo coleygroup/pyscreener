@@ -1,8 +1,6 @@
 """pyscreener
 pythonic interface to virtual screening software
 """
-from importlib.metadata import version, PackageNotFoundError
-
 from . import args
 from .docking import build_metadata, check_env, virtual_screen
 from .supply import LigandSupply

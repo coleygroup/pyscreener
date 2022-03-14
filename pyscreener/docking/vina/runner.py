@@ -5,6 +5,7 @@ import shutil
 import subprocess as sp
 import sys
 from typing import List, Optional, Tuple, Union
+import warnings
 
 from openbabel import pybel
 from rdkit.Chem import AllChem as Chem
@@ -12,7 +13,8 @@ import ray
 
 from pyscreener import utils
 from pyscreener.exceptions import MissingExecutableError
-from pyscreener.docking.data import CalculationData
+from pyscreener.warnings import ChargeWarning, ConformerWarning, SimulationFailureWarning
+from pyscreener.docking.sim import Simulation
 from pyscreener.docking.runner import DockingRunner
 from pyscreener.docking.result import Result
 from pyscreener.docking.vina.metadata import VinaMetadata
@@ -27,14 +29,14 @@ if shutil.which("prepare_receptor") is None:
 
 class VinaRunner(DockingRunner):
     @staticmethod
-    def prepare(data: CalculationData) -> CalculationData:
+    def prepare(data: Simulation) -> Simulation:
         data = VinaRunner.prepare_receptor(data)
         data = VinaRunner.prepare_ligand(data)
 
         return data
 
     @staticmethod
-    def prepare_receptor(data: CalculationData) -> CalculationData:
+    def prepare_receptor(data: Simulation) -> Simulation:
         """Prepare a receptor PDBQT file from its input file
 
         Parameters
@@ -63,24 +65,25 @@ class VinaRunner(DockingRunner):
         return data
 
     @staticmethod
-    def prepare_and_run(data: CalculationData) -> CalculationData:
+    def prepare_and_run(data: Simulation) -> Simulation:
         VinaRunner.prepare_ligand(data)
         VinaRunner.run(data)
 
         return data
 
     @staticmethod
-    def prepare_ligand(data: CalculationData) -> CalculationData:
-        if data.smi is not None:
-            VinaRunner.prepare_from_smi(data)
-        else:
-            VinaRunner.prepare_from_file(data)
-
-        return data
+    def prepare_ligand(data: Simulation) -> bool:
+        return (
+            VinaRunner.prepare_from_smi(data) if data.smi is not None
+            else VinaRunner.prepare_from_file(data)
+        )
 
     @staticmethod
-    def prepare_from_smi(data: CalculationData) -> CalculationData:
-        """Prepare an input ligand file from the ligand's SMILES string
+    def prepare_from_smi(data: Simulation) -> bool:
+        """Prepare the ligand PDQBT file from its SMILES string
+
+        Sets the `prepared_ligand` attribute of the metadata. If ligand preparation fails for any
+        reason, set the value to `None` and return.
 
         Parameters
         ----------
@@ -88,31 +91,47 @@ class VinaRunner(DockingRunner):
 
         Returns
         -------
-        CalculationData
+        bool
+            whether the ligand preparation succeeded
         """
         pdbqt = Path(data.in_path) / f"{data.name}.pdbqt"
 
-        mol = Chem.AddHs(Chem.MolFromSmiles(data.smi))
-        Chem.EmbedMolecule(mol)
-        Chem.MMFFOptimizeMolecule(mol)
+        mol = Chem.MolFromSmiles(data.smi)
+        if mol is None:
+            data.metadata.prepared_ligand = None
+            return False
+
+        mol = Chem.AddHs(mol)
+
+        try:
+            Chem.EmbedMolecule(mol)
+            Chem.MMFFOptimizeMolecule(mol)
+        except ValueError:
+            warnings.warn("Could not generate 3D conformer of molecule!", ConformerWarning)
 
         try:
             mol = pybel.readstring("mol", Chem.MolToMolBlock(mol))
-            # mol.make3D()
-            # mol.addh()
+        except IOError:
+            data.metadata.prepared_ligand = None
+            return False
+
+        try:
             mol.calccharges(model="gasteiger")
         except Exception:
-            pass
+            warnings.warn("Could not calculate charges for ligand!", ChargeWarning)
 
         mol.write("pdbqt", str(pdbqt), overwrite=True, opt={"h": None})
         data.metadata.prepared_ligand = pdbqt
 
-        return data
+        return True
 
     @staticmethod
-    def prepare_from_file(data: CalculationData) -> CalculationData:
-        """Convert the molecule contained in the arbitrary chemical file to a PDBQT file with the
-        same geometry
+    def prepare_from_file(data: Simulation) -> Simulation:
+        """Prepare the ligand PDQBT file from its input chemical file, retaining the input
+        geometry.
+
+        Sets the `prepared_ligand` attribute of the metadata. If ligand preparation fails for any
+        reason, set the value to `None` and return.
 
         Parameters
         ----------
@@ -120,11 +139,12 @@ class VinaRunner(DockingRunner):
 
         Returns
         -------
-        CalculationData
+        bool
+            whether the ligand preparation succeeded
         """
         fmt = Path(data.input_file).suffix.strip(".")
-        mols = list(pybel.readfile(fmt, data.input_file))
-        mol = mols[0]
+        
+        mol = next(pybel.readfile(fmt, data.input_file))
 
         pdbqt = Path(data.in_path) / f"{mol.title or data.name}.pdbqt"
         data.smi = mol.write()
@@ -132,29 +152,36 @@ class VinaRunner(DockingRunner):
             mol.addh()
             mol.calccharges(model="gasteiger")
         except Exception:
-            pass
+            warnings.warn("Could not calculate charges for ligand!", ChargeWarning)
 
         mol.write(format="pdbqt", filename=str(pdbqt), overwrite=True, opt={"h": None})
         data.metadata.prepared_ligand = pdbqt
 
-        return data
+        return True
 
     @staticmethod
-    def run(data: CalculationData) -> Optional[List[float]]:
-        """Dock the given ligand using the specified vina-type docking program
-        and parameters
+    def run(data: Simulation) -> Optional[List[float]]:
+        """run the given ligand using the specified vina-type docking program and parameters
 
+        sets the `result` attribute
         Returns
         -------
         scores : Optional[List[float]]
-            the conformer scores parsed from the log file
+            the conformer scores parsed from the log file. None if no scores were parseable from 
+            the logfile due to simulation failure.
         """
+        if data.metadata.prepared_receptor is None or data.metadata.prepared_ligand is None:
+            # data.result = Result(
+            #     data.smi, data.name, re.sub("[:,.]", "", ray.state.current_node_id()), None
+            # )
+            return None
+
         p_ligand = Path(data.metadata.prepared_ligand)
         ligand_name = p_ligand.stem
 
         name = f"{Path(data.receptor).stem}_{ligand_name}"
 
-        argv, out, log = VinaRunner.build_argv(
+        argv, _, log = VinaRunner.build_argv(
             ligand=data.metadata.prepared_ligand,
             receptor=data.metadata.prepared_receptor,
             software=data.metadata.software,
@@ -173,7 +200,9 @@ class VinaRunner(DockingRunner):
         try:
             ret.check_returncode()
         except sp.SubprocessError:
-            print(f'ERROR: docking failed. Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+            warnings.warn(
+                f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning
+            )
 
         scores = VinaRunner.parse_logfile(log)
         if scores is None:

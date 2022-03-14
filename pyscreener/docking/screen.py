@@ -14,8 +14,8 @@ import ray
 from tqdm import tqdm
 
 from pyscreener.utils import ScoreMode, autobox, pdbfix, reduce_scores, run_on_all_nodes
-from pyscreener.docking.data import CalculationData
-from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.docking.sim import Simulation
+from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.result import Result
 from pyscreener.docking.runner import DockingRunner
 
@@ -27,7 +27,7 @@ class DockingVirtualScreen:
         receptors: Optional[Iterable[str]],
         center: Optional[Tuple],
         size: Optional[Tuple],
-        metadata_template: CalculationMetadata,
+        metadata_template: SimulationMetadata,
         pdbids: Optional[Sequence[str]] = None,
         docked_ligand_file: Optional[str] = None,
         buffer: float = 10.0,
@@ -91,7 +91,7 @@ class DockingVirtualScreen:
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
 
         self.data_templates = [
-            CalculationData(
+            Simulation(
                 None,
                 receptor,
                 self.center,
@@ -168,7 +168,7 @@ class DockingVirtualScreen:
         self.completed_simulationsss.extend(completed_simulationsss)
         S = np.array(
             [
-                [[s.result.score for s in sims] for sims in simss]
+                [[s.result.score if s.result else None for s in sims] for sims in simss]
                 for simss in completed_simulationsss
             ],
             dtype=float,
@@ -229,7 +229,7 @@ class DockingVirtualScreen:
 
     def plan(
         self, sources: Iterable[str], smiles: bool = True
-    ) -> List[List[List[CalculationData]]]:
+    ) -> List[List[List[Simulation]]]:
         if smiles:
             planned_simulationsss = [
                 [
@@ -260,11 +260,11 @@ class DockingVirtualScreen:
         return planned_simulationsss
 
     def run(
-        self, planned_simulationsss: List[List[List[CalculationData]]]
-    ) -> List[List[List[CalculationData]]]:
+        self, simulationsss: List[List[List[Simulation]]]
+    ) -> List[List[List[Simulation]]]:
         refsss = [
             [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
-            for simss in planned_simulationsss
+            for simss in simulationsss
         ]
         return [
             [ray.get(refs) for refs in refss]

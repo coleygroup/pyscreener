@@ -11,7 +11,7 @@ import ray
 
 from pyscreener.exceptions import MisconfiguredDirectoryError, MissingEnvironmentVariableError
 from pyscreener.utils import calc_score
-from pyscreener.docking import CalculationData, DockingRunner, Result
+from pyscreener.docking import Simulation, DockingRunner, Result
 from pyscreener.docking.dock import utils
 from pyscreener.docking.dock.metadata import DOCKMetadata
 
@@ -40,14 +40,14 @@ for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
 
 class DOCKRunner(DockingRunner):
     @staticmethod
-    def prepare(data: CalculationData) -> CalculationData:
+    def prepare(data: Simulation) -> Simulation:
         data = DOCKRunner.prepare_receptor(data)
         data = DOCKRunner.prepare_ligand(data)
 
         return data
 
     @staticmethod
-    def prepare_receptor(data: CalculationData) -> CalculationData:
+    def prepare_receptor(data: Simulation) -> Simulation:
         """Prepare the files necessary to dock ligands against the input receptor using this
         Screener's parameters
 
@@ -115,14 +115,14 @@ class DOCKRunner(DockingRunner):
         return data
 
     @staticmethod
-    def prepare_and_run(data: CalculationData) -> CalculationData:
+    def prepare_and_run(data: Simulation) -> Simulation:
         DOCKRunner.prepare_ligand(data)
         DOCKRunner.run(data)
 
         return data
 
     @staticmethod
-    def prepare_ligand(data: CalculationData) -> CalculationData:
+    def prepare_ligand(data: Simulation) -> Simulation:
         if data.smi is not None:
             DOCKRunner.prepare_from_smi(data)
         else:
@@ -131,7 +131,7 @@ class DOCKRunner(DockingRunner):
         return data
 
     @staticmethod
-    def prepare_from_smi(data: CalculationData) -> CalculationData:
+    def prepare_from_smi(data: Simulation) -> Simulation:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
@@ -163,7 +163,7 @@ class DOCKRunner(DockingRunner):
         return data
 
     @staticmethod
-    def prepare_from_file(data: CalculationData) -> Optional[Tuple]:
+    def prepare_from_file(data: Simulation) -> Optional[Tuple]:
         """Convert a single ligand to the appropriate input format with specified geometry"""
         fmt = Path(data.input_file).suffix.strip(".")
         mols = list(pybel.readfile(fmt, data.input_file))
@@ -183,7 +183,7 @@ class DOCKRunner(DockingRunner):
         return data
 
     @staticmethod
-    def run(data: CalculationData) -> Optional[float]:
+    def run(data: Simulation) -> Optional[float]:
         """Dock this ligand into the ensemble of receptors
 
         Returns

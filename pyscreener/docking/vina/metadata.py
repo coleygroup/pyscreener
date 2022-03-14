@@ -4,12 +4,12 @@ import shlex
 from typing import Iterable, Optional, Union
 
 from pyscreener.exceptions import UnsupportedSoftwareError
-from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.vina.utils import Software
 
 
 @dataclass(repr=True, eq=False)
-class VinaMetadata(CalculationMetadata):
+class VinaMetadata(SimulationMetadata):
     """
 
     Attributes

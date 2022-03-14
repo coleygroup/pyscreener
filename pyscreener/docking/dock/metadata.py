@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.dock.utils import SphereMode
 
 
 @dataclass(repr=True, eq=False)
-class DOCKMetadata(CalculationMetadata):
+class DOCKMetadata(SimulationMetadata):
     probe_radius: float = 1.4
     steric_clash_dist: float = 0.0
     min_radius: float = 1.4

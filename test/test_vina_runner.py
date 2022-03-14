@@ -6,7 +6,7 @@ from pyscreener.exceptions import MissingExecutableError, NotSimulatedError
 from pyscreener.utils import calc_score
 
 try:
-    from pyscreener.docking import CalculationData, vina
+    from pyscreener.docking import Simulation, vina
 except MissingExecutableError:
     pytestmark = pytest.mark.skip()
 
@@ -52,7 +52,7 @@ def out_path(tmp_path):
 
 @pytest.fixture
 def data(smi, receptor, center, size, in_path, out_path):
-    return CalculationData(
+    return Simulation(
         smi, receptor, center, size, vina.VinaMetadata(), -1, "ligand", None, in_path, out_path
     )
 
@@ -64,7 +64,7 @@ def test_prepare_ligand(data):
 
 
 def test_prepare(receptor, center, size, in_path, out_path):
-    data = CalculationData(
+    data = Simulation(
         "c1ccccc1",
         receptor,
         center,

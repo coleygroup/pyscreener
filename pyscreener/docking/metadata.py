@@ -5,6 +5,6 @@ S = TypeVar("S")
 T = TypeVar("T")
 
 
-class CalculationMetadata(ABC):
+class SimulationMetadata(ABC):
     prepared_ligand: Optional[T] = None
     prepared_receptor: Optional[S] = None

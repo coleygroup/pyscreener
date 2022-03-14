@@ -12,8 +12,8 @@ from pyscreener.exceptions import MissingEnvironmentVariableError, Misconfigured
 from pyscreener.utils import AutoName
 
 with resources.path("pyscreener.docking.dock", ".") as p_module:
-    PREP_REC = p_module / "scripts" / "prep_rec.py"
-    WRITE_DMS = p_module / "scripts" / "write_dms.py"
+    PREP_REC = p_module / "scripts" / "prep_rec.py2"
+    WRITE_DMS = p_module / "scripts" / "write_dms.py2"
 
 try:
     DOCK6 = Path(os.environ["DOCK6"])

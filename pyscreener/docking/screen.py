@@ -41,7 +41,6 @@ class DockingVirtualScreen:
         k: int = 1,
         verbose: int = 0,
     ):
-        # super().__init__()
         self.runner = runner
         self.runner.validate_metadata(metadata_template)
 

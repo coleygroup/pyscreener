@@ -33,21 +33,21 @@ for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
     if not f.exists():
         raise MisconfiguredDirectoryError(
             f'$DOCK6 directory not configured properly! DOCK6 path is set as "{DOCK6}", but there '
-            f'is no "{f.name}" located under the "{f.parents}" directory. '
+            f'is no "{f.name}" located under the "{f.parents[0].name}" directory. '
             "See https://github.com/coleygroup/pyscreener#specifying-an-environment-variable for more information."
         )
 
 
 class DOCKRunner(DockingRunner):
     @staticmethod
-    def prepare(data: Simulation) -> Simulation:
-        data = DOCKRunner.prepare_receptor(data)
-        data = DOCKRunner.prepare_ligand(data)
+    def prepare(sim: Simulation) -> Simulation:
+        sim = DOCKRunner.prepare_receptor(sim)
+        sim = DOCKRunner.prepare_ligand(sim)
 
-        return data
+        return sim
 
     @staticmethod
-    def prepare_receptor(data: Simulation) -> Simulation:
+    def prepare_receptor(sim: Simulation) -> Simulation:
         """Prepare the files necessary to dock ligands against the input receptor using this
         Screener's parameters
 
@@ -66,111 +66,108 @@ class DOCKRunner(DockingRunner):
         None
             if receptor preparation fails at any point
         """
-        rec_mol2 = utils.prepare_mol2(data.receptor, data.in_path)
-        rec_pdb = utils.prepare_pdb(data.receptor, data.in_path)
+        rec_mol2 = utils.prepare_mol2(sim.receptor, sim.in_path)
+        rec_pdb = utils.prepare_pdb(sim.receptor, sim.in_path)
 
         if rec_mol2 is None or rec_pdb is None:
-            return data
+            return sim
 
-        rec_dms = utils.prepare_dms(rec_pdb, data.metadata.probe_radius, data.in_path)
+        rec_dms = utils.prepare_dms(rec_pdb, sim.metadata.probe_radius, sim.in_path)
         if rec_dms is None:
-            return data
+            return sim
 
         rec_sph = utils.prepare_sph(
             rec_dms,
-            data.metadata.steric_clash_dist,
-            data.metadata.min_radius,
-            data.metadata.max_radius,
-            data.in_path,
+            sim.metadata.steric_clash_dist,
+            sim.metadata.min_radius,
+            sim.metadata.max_radius,
+            sim.in_path,
         )
         if rec_sph is None:
-            return data
+            return sim
 
         rec_sph = utils.select_spheres(
             rec_sph,
-            data.metadata.sphere_mode,
-            data.center,
-            data.size,
-            data.metadata.docked_ligand_file,
-            data.metadata.buffer,
-            data.in_path,
+            sim.metadata.sphere_mode,
+            sim.center,
+            sim.size,
+            sim.metadata.docked_ligand_file,
+            sim.metadata.buffer,
+            sim.in_path,
         )
 
         rec_box = utils.prepare_box(
             rec_sph,
-            data.center,
-            data.size,
-            data.metadata.enclose_spheres,
-            data.metadata.buffer,
-            data.in_path,
+            sim.center,
+            sim.size,
+            sim.metadata.enclose_spheres,
+            sim.metadata.buffer,
+            sim.in_path,
         )
         if rec_box is None:
-            return data
+            return sim
 
-        grid_stem = utils.prepare_grid(rec_mol2, rec_box, data.in_path)
+        grid_stem = utils.prepare_grid(rec_mol2, rec_box, sim.in_path)
         if grid_stem is None:
-            return data
+            return sim
 
-        data.metadata.prepared_receptor = rec_sph, grid_stem
-        return data
-
-    @staticmethod
-    def prepare_and_run(data: Simulation) -> Simulation:
-        DOCKRunner.prepare_ligand(data)
-        DOCKRunner.run(data)
-
-        return data
+        sim.metadata.prepared_receptor = rec_sph, grid_stem
+        return sim
 
     @staticmethod
-    def prepare_ligand(data: Simulation) -> Simulation:
-        if data.smi is not None:
-            DOCKRunner.prepare_from_smi(data)
+    def prepare_and_run(sim: Simulation) -> Simulation:
+        DOCKRunner.prepare_ligand(sim)
+        DOCKRunner.run(sim)
+
+        return sim
+
+    @staticmethod
+    def prepare_ligand(sim: Simulation) -> Simulation:
+        if sim.smi is not None:
+            DOCKRunner.prepare_from_smi(sim)
         else:
-            DOCKRunner.prepare_from_file(data)
+            DOCKRunner.prepare_from_file(sim)
 
-        return data
+        return sim
 
     @staticmethod
-    def prepare_from_smi(data: Simulation) -> Simulation:
+    def prepare_from_smi(sim: Simulation) -> Simulation:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
         ----------
-        data: CalculationData
+        sim: CalculationData
 
         Returns
         -------
         CalculationData
         """
-        mol2 = Path(data.in_path) / f"{data.name}.mol2"
+        mol2 = Path(sim.in_path) / f"{sim.name}.mol2"
 
-        mol = Chem.AddHs(Chem.MolFromSmiles(data.smi))
+        mol = Chem.AddHs(Chem.MolFromSmiles(sim.smi))
         Chem.EmbedMolecule(mol)
         Chem.MMFFOptimizeMolecule(mol)
 
         try:
             mol = pybel.readstring("mol", Chem.MolToMolBlock(mol))
-            # mol = pybel.readstring(format="smi", string=data.smi)
-            # mol.make3D()
-            # mol.addh()
             mol.calccharges(model="gasteiger")
         except Exception:
             pass
 
         mol.write(format="mol2", filename=str(mol2), overwrite=True, opt={"h": None})
 
-        data.metadata.prepared_ligand = mol2
-        return data
+        sim.metadata.prepared_ligand = mol2
+        return sim
 
     @staticmethod
-    def prepare_from_file(data: Simulation) -> Optional[Tuple]:
+    def prepare_from_file(sim: Simulation) -> Optional[Tuple]:
         """Convert a single ligand to the appropriate input format with specified geometry"""
-        fmt = Path(data.input_file).suffix.strip(".")
-        mols = list(pybel.readfile(fmt, data.input_file))
-        mol = mols[0]
+        fmt = Path(sim.input_file).suffix.strip(".")
 
-        mol2 = Path(data.in_path) / f"{mol.title or data.name}.mol2"
-        data.smi = mol.write()
+        mol = next(pybel.readfile(fmt, sim.input_file))
+
+        mol2 = Path(sim.in_path) / f"{mol.title or sim.name}.mol2"
+        sim.smi = mol.write()
         try:
             mol.addh()
             mol.calccharges(model="gasteiger")
@@ -178,12 +175,12 @@ class DOCKRunner(DockingRunner):
             pass
 
         mol.write(format="mol2", filename=str(mol2), overwrite=True, opt={"h": None})
-        data.metadata.prepared_ligand = mol2
+        sim.metadata.prepared_ligand = mol2
 
-        return data
+        return sim
 
     @staticmethod
-    def run(data: Simulation) -> Optional[float]:
+    def run(sim: Simulation) -> Optional[float]:
         """Dock this ligand into the ensemble of receptors
 
         Returns
@@ -191,14 +188,14 @@ class DOCKRunner(DockingRunner):
         score : Optional[float]
             the ligand's docking score. None if DOCKing failed.
         """
-        p_ligand = Path(data.metadata.prepared_ligand)
+        p_ligand = Path(sim.metadata.prepared_ligand)
         ligand_name = p_ligand.stem
-        sph_file, grid_prefix = data.metadata.prepared_receptor
+        sph_file, grid_prefix = sim.metadata.prepared_receptor
 
         name = f"{Path(sph_file).stem}_{ligand_name}"
 
         infile, outfile_prefix = DOCKRunner.prepare_input_file(
-            p_ligand, sph_file, grid_prefix, name, data.in_path, data.out_path
+            p_ligand, sph_file, grid_prefix, name, sim.in_path, sim.out_path
         )
 
         logfile = Path(outfile_prefix).parent / f"{name}.log"
@@ -212,10 +209,10 @@ class DOCKRunner(DockingRunner):
             print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
 
         scores = DOCKRunner.parse_logfile(logfile)
-        score = None if scores is None else calc_score(scores, data.score_mode, data.k)
+        score = None if scores is None else calc_score(scores, sim.score_mode, sim.k)
 
-        data.result = Result(
-            data.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score
+        sim.result = Result(
+            sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score
         )
 
         return scores

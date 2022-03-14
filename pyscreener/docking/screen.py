@@ -53,18 +53,12 @@ class DockingVirtualScreen:
         self.score_mode = (
             score_mode if isinstance(score_mode, ScoreMode) else ScoreMode.from_str(score_mode)
         )
-        self.repeat_score_mode = (
-            repeat_score_mode
-            if isinstance(repeat_score_mode, ScoreMode)
-            else ScoreMode.from_str(repeat_score_mode)
-        )
         self.ensemble_score_mode = (
             ensemble_score_mode
             if isinstance(ensemble_score_mode, ScoreMode)
             else ScoreMode.from_str(ensemble_score_mode)
         )
 
-        self.repeats = repeats
         self.k = k
 
         self.receptors = receptors or []
@@ -115,8 +109,9 @@ class DockingVirtualScreen:
 
         self.data_templates = self.prepare_receptors()
 
-        self.planned_simulationsss = []
-        self.resultsss = []
+        self.planned_simulationss = []
+        self.run_simulationss = []
+        self.resultss = []
 
         self.num_ligands = 0
         self.total_simulations = 0
@@ -161,21 +156,20 @@ class DockingVirtualScreen:
         """
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
-        planned_simulationsss = self.plan(sources, smiles)
-        resultsss = self.run(planned_simulationsss)
+        planned_simulationss = self.plan(sources, smiles)
+        
+        resultss = self.run(planned_simulationss)
+        self.run_simulationss.extend(planned_simulationss)
+        self.resultss.extend(resultss)
 
-        self.resultsss.extend(resultsss)
         S = np.array(
-            [
-                [[r.score if r else None for r in results] for results in resultss]
-                for resultss in resultsss
-            ],
+            [[r.score if r else None for r in results] for results in resultss],
             dtype=float,
         )
         self.num_ligands += len(S)
         self.total_simulations += S.size
 
-        return reduce_scores(S, self.repeat_score_mode, self.ensemble_score_mode, self.k)
+        return reduce_scores(S, self.ensemble_score_mode, self.k)
 
     @property
     def path(self):
@@ -216,51 +210,46 @@ class DockingVirtualScreen:
         """Prepare the receptor file(s) for each of the simulation templates"""
         return [self.runner.prepare_receptor(template) for template in self.data_templates]
 
-    def all_results(self, flatten: bool = True) -> List[Result]:
+    def results(self) -> List[Result]:
         """A flattened list of results from all of the completed simulations"""
-        if flatten:
-            return list(chain(*(chain(*self.resultsss))))
+        return list(chain(*(chain(*self.resultss))))
 
-        return self.resultsss
+    def simulations(self) -> List[Simulation]:
+        """A flattened list of simulations from all of the completed simulations"""
+        return list(chain(*(chain(*self.run_simulationss))))
 
     def plan(self, sources: Iterable[str], smiles: bool = True) -> List[List[List[Simulation]]]:
         if smiles:
-            planned_simulationsss = [
+            planned_simulationss = [
                 [
-                    [
-                        replace(data_template, smi=smi, name=f"{self.base_name}_{i+len(self)}_{j}")
-                        for j in range(self.repeats)
-                    ]
+                    replace(data_template, smi=smi, name=f"{self.base_name}_{i+len(self)}")
                     for data_template in self.data_templates
                 ]
                 for i, smi in enumerate(sources)
             ]
         else:
-            planned_simulationsss = [
+            planned_simulationss = [
                 [
-                    [
-                        replace(
-                            data_template,
-                            input_file=filepath,
-                            name=f"{self.base_name}_{i+len(self)}_{j}",
-                        )
-                        for j in range(self.repeats)
-                    ]
+                    replace(
+                        data_template,
+                        input_file=filepath,
+                        name=f"{self.base_name}_{i+len(self)}",
+                    )
                     for data_template in self.data_templates
                 ]
                 for i, filepath in enumerate(sources)
             ]
 
-        return planned_simulationsss
+        return planned_simulationss
 
-    def run(self, simulationsss: List[List[List[Simulation]]]) -> List[List[List[Result]]]:
-        refsss = [
-            [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
-            for simss in simulationsss
+    def run(self, simulationss: List[List[List[Simulation]]]) -> List[List[List[Result]]]:
+        refss = [
+            [self.prepare_and_run.remote(s) for s in sims]
+            for sims in simulationss
         ]
         return [
-            [ray.get(refs) for refs in refss]
-            for refss in tqdm(refsss, desc="Docking", unit="ligand", smoothing=0.0)
+            ray.get(refs)
+            for refs in tqdm(refss, desc="Docking", unit="ligand", smoothing=0.0)
         ]
 
     @run_on_all_nodes

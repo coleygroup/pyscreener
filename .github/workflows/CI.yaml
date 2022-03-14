@@ -29,18 +29,16 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python-version }}
-        environment-file: devtools/conda-envs/test_env.yaml
+        environment-file: ./github/test-env.yaml
         channels: conda-forge,defaults
-        activate-environment: pyscreener-test
+        activate-environment: test
         auto-update-conda: false
         auto-activate-base: false
         show-channel-urls: true
 
     - name: Install package
       shell: bash -l {0}
-      run: |
-        pip install flake8
-        pip install . --no-deps
+      run: pip install . --no-deps
 
     - name: check for fatal syntax errors
       shell: bash -l {0}

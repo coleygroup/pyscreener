@@ -30,8 +30,8 @@ if shutil.which("prepare_receptor") is None:
 class VinaRunner(DockingRunner):
     @staticmethod
     def prepare(sim: Simulation) -> Simulation:
-        sim = VinaRunner.prepare_receptor(sim)
-        sim = VinaRunner.prepare_ligand(sim)
+        _ = VinaRunner.prepare_receptor(sim)
+        _ = VinaRunner.prepare_ligand(sim)
 
         return sim
 
@@ -65,29 +65,31 @@ class VinaRunner(DockingRunner):
         return sim
 
     @staticmethod
-    def prepare_and_run(sim: Simulation) -> Simulation:
-        VinaRunner.prepare_ligand(sim)
-        VinaRunner.run(sim)
+    def prepare_and_run(sim: Simulation) -> Optional[Result]:
+        if not VinaRunner.prepare_ligand(sim):
+            return None
 
-        return sim
+        _ = VinaRunner.run(sim)
+
+        return sim.result
 
     @staticmethod
     def prepare_ligand(sim: Simulation) -> bool:
-        return (
-            VinaRunner.prepare_from_smi(sim) if sim.smi is not None
-            else VinaRunner.prepare_from_file(sim)
-        )
+        if sim.smi is not None:
+            return VinaRunner.prepare_from_smi(sim)
+
+        return VinaRunner.prepare_from_file(sim)
 
     @staticmethod
     def prepare_from_smi(sim: Simulation) -> bool:
         """Prepare the ligand PDQBT file from its SMILES string
 
-        Sets the `prepared_ligand` attribute of the metadata. If ligand preparation fails for any
-        reason, set the value to `None` and return.
+        If successful, sets the `prepared_ligand` attribute of the metadata  and return True. 
+        Otherwise, do nothing and return False.
 
         Parameters
         ----------
-        sim : CalculationData
+        sim : Simulation
 
         Returns
         -------
@@ -98,7 +100,6 @@ class VinaRunner(DockingRunner):
 
         mol = Chem.MolFromSmiles(sim.smi)
         if mol is None:
-            sim.metadata.prepared_ligand = None
             return False
 
         mol = Chem.AddHs(mol)
@@ -112,7 +113,6 @@ class VinaRunner(DockingRunner):
         try:
             mol = pybel.readstring("mol", Chem.MolToMolBlock(mol))
         except IOError:
-            sim.metadata.prepared_ligand = None
             return False
 
         try:
@@ -135,7 +135,7 @@ class VinaRunner(DockingRunner):
 
         Parameters
         ----------
-        sim : CalculationData
+        sim : Simulation
 
         Returns
         -------
@@ -163,7 +163,10 @@ class VinaRunner(DockingRunner):
     def run(sim: Simulation) -> Optional[List[float]]:
         """run the given ligand using the specified vina-type docking program and parameters
 
-        sets the `result` attribute
+        If the simulation is not possible due to the prepared inputs not being set beforehand, do
+        nothing and return None. Otherwise, if the simulation itself fails, set the `result`
+        attribute of the simulation with a score of `None` **and** return `None`.
+
         Returns
         -------
         scores : Optional[List[float]]
@@ -171,9 +174,6 @@ class VinaRunner(DockingRunner):
             the logfile due to simulation failure.
         """
         if sim.metadata.prepared_receptor is None or sim.metadata.prepared_ligand is None:
-            # sim.result = Result(
-            #     sim.smi, sim.name, re.sub("[:,.]", "", ray.state.current_node_id()), None
-            # )
             return None
 
         p_ligand = Path(sim.metadata.prepared_ligand)

@@ -11,11 +11,16 @@ except MissingExecutableError:
     pytestmark = pytest.mark.skip()
 
 TEST_DIR = Path(__file__).parent
-RECEPTOR_FILEPATH = TEST_DIR / "5WIU.pdb"
+RECEPTOR_FILEPATH = TEST_DIR / "data" / "5WIU.pdb"
 
 
 @pytest.fixture(params=["CCCC", "c1ccccc1", "CC(=O)CC", "CN=C=O", "CC(=O)C"])
 def smi(request):
+    return request.param
+
+
+@pytest.fixture(params=["C1Ccc", "foo", "CCCooC"])
+def bad_smi(request):
     return request.param
 
 
@@ -51,20 +56,31 @@ def out_path(tmp_path):
 
 
 @pytest.fixture
-def data(smi, receptor, center, size, in_path, out_path):
+def sim(smi, receptor, center, size, in_path, out_path):
     return Simulation(
         smi, receptor, center, size, vina.VinaMetadata(), -1, "ligand", None, in_path, out_path
     )
 
+@pytest.fixture
+def bad_sim(bad_smi, receptor, center, size, in_path, out_path):
+    return Simulation(
+        bad_smi, receptor, center, size, vina.VinaMetadata(), -1, "ligand", None, in_path, out_path
+    )
 
-def test_prepare_ligand(data):
-    data = vina.VinaRunner.prepare_ligand(data)
+def test_prepare_ligand_success(sim):
+    success = vina.VinaRunner.prepare_ligand(sim)
 
-    assert data.metadata.prepared_ligand.exists()
+    assert success
+    assert sim.metadata.prepared_ligand.exists()
 
+def test_prepare_ligand_failure(bad_sim):
+    success = vina.VinaRunner.prepare_ligand(bad_sim)
+
+    assert not success
+    assert bad_sim.metadata.prepared_ligand is None
 
 def test_prepare(receptor, center, size, in_path, out_path):
-    data = Simulation(
+    sim = Simulation(
         "c1ccccc1",
         receptor,
         center,
@@ -76,18 +92,18 @@ def test_prepare(receptor, center, size, in_path, out_path):
         in_path,
         out_path,
     )
-    data = vina.VinaRunner.prepare(data)
+    vina.VinaRunner.prepare(sim)
 
-    assert data.metadata.prepared_receptor.exists()
-    assert data.metadata.prepared_ligand.exists()
+    assert sim.metadata.prepared_receptor.exists()
+    assert sim.metadata.prepared_ligand.exists()
 
 
-def test_run(data):
-    vina.VinaRunner.prepare(data)
+def test_run(sim):
+    vina.VinaRunner.prepare(sim)
 
     with pytest.raises(NotSimulatedError):
-        data.score
+        sim.score
 
-    scores = vina.VinaRunner.run(data)
+    scores = vina.VinaRunner.run(sim)
 
-    assert data.score == calc_score(scores, data.score_mode, data.k)
+    assert sim.score == calc_score(scores, sim.score_mode, sim.k)

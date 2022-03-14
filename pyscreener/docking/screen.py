@@ -116,7 +116,7 @@ class DockingVirtualScreen:
         self.data_templates = self.prepare_receptors()
 
         self.planned_simulationsss = []
-        self.completed_simulationsss = []
+        self.resultsss = []
 
         self.num_ligands = 0
         self.total_simulations = 0
@@ -162,13 +162,13 @@ class DockingVirtualScreen:
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
         planned_simulationsss = self.plan(sources, smiles)
-        completed_simulationsss = self.run(planned_simulationsss)
+        resultsss = self.run(planned_simulationsss)
 
-        self.completed_simulationsss.extend(completed_simulationsss)
+        self.resultsss.extend(resultsss)
         S = np.array(
             [
-                [[s.result.score if s.result else None for s in sims] for sims in simss]
-                for simss in completed_simulationsss
+                [[r.score if r else None for r in results] for results in resultss]
+                for resultss in resultsss
             ],
             dtype=float,
         )
@@ -218,13 +218,10 @@ class DockingVirtualScreen:
 
     def all_results(self, flatten: bool = True) -> List[Result]:
         """A flattened list of results from all of the completed simulations"""
-        resultsss = [
-            [[s.result for s in sims] for sims in simss] for simss in self.completed_simulationsss
-        ]
         if flatten:
-            return list(chain(*(chain(*resultsss))))
+            return list(chain(*(chain(*self.resultsss))))
 
-        return resultsss
+        return self.resultsss
 
     def plan(
         self, sources: Iterable[str], smiles: bool = True
@@ -260,7 +257,7 @@ class DockingVirtualScreen:
 
     def run(
         self, simulationsss: List[List[List[Simulation]]]
-    ) -> List[List[List[Simulation]]]:
+    ) -> List[List[List[Result]]]:
         refsss = [
             [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
             for simss in simulationsss

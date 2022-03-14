@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence
+from pyscreener.docking.result import Result
 
 from pyscreener.docking.sim import Simulation
 from pyscreener.docking.metadata import SimulationMetadata
@@ -23,7 +24,7 @@ class DockingRunner(ABC):
 
     @staticmethod
     @abstractmethod
-    def prepare_and_run(data: Simulation) -> Simulation:
+    def prepare_and_run(data: Simulation) -> Optional[Result]:
         """Prepare the receptor and ligand files then run the given simulation. Roughly equivlaent
         to `prepare_*()` followed by `run()` but doesn't return the the scores of the conformers"""
 

@@ -84,7 +84,7 @@ class VinaRunner(DockingRunner):
     def prepare_from_smi(sim: Simulation) -> bool:
         """Prepare the ligand PDQBT file from its SMILES string
 
-        If successful, sets the `prepared_ligand` attribute of the metadata  and return True. 
+        If successful, sets the `prepared_ligand` attribute of the metadata  and return True.
         Otherwise, do nothing and return False.
 
         Parameters
@@ -143,7 +143,7 @@ class VinaRunner(DockingRunner):
             whether the ligand preparation succeeded
         """
         fmt = Path(sim.input_file).suffix.strip(".")
-        
+
         mol = next(pybel.readfile(fmt, sim.input_file))
 
         pdbqt = Path(sim.in_path) / f"{mol.title or sim.name}.pdbqt"
@@ -170,7 +170,7 @@ class VinaRunner(DockingRunner):
         Returns
         -------
         scores : Optional[List[float]]
-            the conformer scores parsed from the log file. None if no scores were parseable from 
+            the conformer scores parsed from the log file. None if no scores were parseable from
             the logfile due to simulation failure.
         """
         if sim.metadata.prepared_receptor is None or sim.metadata.prepared_ligand is None:
@@ -200,9 +200,7 @@ class VinaRunner(DockingRunner):
         try:
             ret.check_returncode()
         except sp.SubprocessError:
-            warnings.warn(
-                f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning
-            )
+            warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = VinaRunner.parse_logfile(log)
         if scores is None:
@@ -210,9 +208,7 @@ class VinaRunner(DockingRunner):
         else:
             score = utils.calc_score(scores, sim.score_mode, sim.k)
 
-        sim.result = Result(
-            sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score
-        )
+        sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 
         return scores
 

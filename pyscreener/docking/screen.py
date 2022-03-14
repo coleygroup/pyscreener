@@ -223,9 +223,7 @@ class DockingVirtualScreen:
 
         return self.resultsss
 
-    def plan(
-        self, sources: Iterable[str], smiles: bool = True
-    ) -> List[List[List[Simulation]]]:
+    def plan(self, sources: Iterable[str], smiles: bool = True) -> List[List[List[Simulation]]]:
         if smiles:
             planned_simulationsss = [
                 [
@@ -255,9 +253,7 @@ class DockingVirtualScreen:
 
         return planned_simulationsss
 
-    def run(
-        self, simulationsss: List[List[List[Simulation]]]
-    ) -> List[List[List[Result]]]:
+    def run(self, simulationsss: List[List[List[Simulation]]]) -> List[List[List[Result]]]:
         refsss = [
             [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
             for simss in simulationsss

@@ -211,9 +211,7 @@ class DOCKRunner(DockingRunner):
         scores = DOCKRunner.parse_logfile(logfile)
         score = None if scores is None else calc_score(scores, sim.score_mode, sim.k)
 
-        sim.result = Result(
-            sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score
-        )
+        sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 
         return scores
 

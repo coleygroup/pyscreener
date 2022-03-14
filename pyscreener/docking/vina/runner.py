@@ -126,7 +126,7 @@ class VinaRunner(DockingRunner):
         return True
 
     @staticmethod
-    def prepare_from_file(sim: Simulation) -> Simulation:
+    def prepare_from_file(sim: Simulation) -> bool:
         """Prepare the ligand PDQBT file from its input chemical file, retaining the input
         geometry.
 
@@ -203,10 +203,7 @@ class VinaRunner(DockingRunner):
             warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = VinaRunner.parse_logfile(log)
-        if scores is None:
-            score = None
-        else:
-            score = utils.calc_score(scores, sim.score_mode, sim.k)
+        score = None if scores is None else utils.calc_score(scores, sim.score_mode, sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 

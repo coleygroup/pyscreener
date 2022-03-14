@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 import re
 import subprocess as sp
-import sys
-from typing import Mapping, Optional, Tuple, Union
+from typing import List, Mapping, Optional, Tuple, Union
+import warnings
 
 from openbabel import pybel
 from rdkit.Chem import AllChem as Chem
@@ -11,6 +11,7 @@ import ray
 
 from pyscreener.exceptions import MisconfiguredDirectoryError, MissingEnvironmentVariableError
 from pyscreener.utils import calc_score
+from pyscreener.warnings import ChargeWarning, ConformerWarning, SimulationFailureWarning
 from pyscreener.docking import Simulation, DockingRunner, Result
 from pyscreener.docking.dock import utils
 from pyscreener.docking.dock.metadata import DOCKMetadata
@@ -41,8 +42,8 @@ for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
 class DOCKRunner(DockingRunner):
     @staticmethod
     def prepare(sim: Simulation) -> Simulation:
-        sim = DOCKRunner.prepare_receptor(sim)
-        sim = DOCKRunner.prepare_ligand(sim)
+        _ = DOCKRunner.prepare_receptor(sim)
+        _ = DOCKRunner.prepare_ligand(sim)
 
         return sim
 
@@ -115,23 +116,23 @@ class DOCKRunner(DockingRunner):
         return sim
 
     @staticmethod
-    def prepare_and_run(sim: Simulation) -> Simulation:
-        DOCKRunner.prepare_ligand(sim)
-        DOCKRunner.run(sim)
+    def prepare_and_run(sim: Simulation) -> Optional[Result]:
+        if not DOCKRunner.prepare_ligand(sim):
+            return None
 
-        return sim
+        _ = DOCKRunner.run(sim)
+
+        return sim.result
 
     @staticmethod
-    def prepare_ligand(sim: Simulation) -> Simulation:
+    def prepare_ligand(sim: Simulation) -> bool:
         if sim.smi is not None:
-            DOCKRunner.prepare_from_smi(sim)
-        else:
-            DOCKRunner.prepare_from_file(sim)
+            return DOCKRunner.prepare_from_smi(sim)
 
-        return sim
+        return DOCKRunner.prepare_from_file(sim)
 
     @staticmethod
-    def prepare_from_smi(sim: Simulation) -> Simulation:
+    def prepare_from_smi(sim: Simulation) -> bool:
         """Prepare an input ligand file from the ligand's SMILES string
 
         Parameters
@@ -144,23 +145,33 @@ class DOCKRunner(DockingRunner):
         """
         mol2 = Path(sim.in_path) / f"{sim.name}.mol2"
 
-        mol = Chem.AddHs(Chem.MolFromSmiles(sim.smi))
-        Chem.EmbedMolecule(mol)
-        Chem.MMFFOptimizeMolecule(mol)
+        mol = Chem.MolFromSmiles(sim.smi)
+        if mol is None:
+            return False
+
+        try:
+            Chem.EmbedMolecule(mol)
+            Chem.MMFFOptimizeMolecule(mol)
+        except ValueError:
+            warnings.warn("Could not generate 3D conformer of molecule!", ConformerWarning)
 
         try:
             mol = pybel.readstring("mol", Chem.MolToMolBlock(mol))
+        except IOError:
+            return False
+
+        try:
             mol.calccharges(model="gasteiger")
         except Exception:
-            pass
+            warnings.warn("Could not calculate charges for ligand!", ChargeWarning)
 
         mol.write(format="mol2", filename=str(mol2), overwrite=True, opt={"h": None})
-
         sim.metadata.prepared_ligand = mol2
-        return sim
+
+        return True
 
     @staticmethod
-    def prepare_from_file(sim: Simulation) -> Optional[Tuple]:
+    def prepare_from_file(sim: Simulation) -> bool:
         """Convert a single ligand to the appropriate input format with specified geometry"""
         fmt = Path(sim.input_file).suffix.strip(".")
 
@@ -177,10 +188,10 @@ class DOCKRunner(DockingRunner):
         mol.write(format="mol2", filename=str(mol2), overwrite=True, opt={"h": None})
         sim.metadata.prepared_ligand = mol2
 
-        return sim
+        return True
 
     @staticmethod
-    def run(sim: Simulation) -> Optional[float]:
+    def run(sim: Simulation) -> Optional[List[float]]:
         """Dock this ligand into the ensemble of receptors
 
         Returns
@@ -188,6 +199,9 @@ class DOCKRunner(DockingRunner):
         score : Optional[float]
             the ligand's docking score. None if DOCKing failed.
         """
+        if sim.metadata.prepared_receptor is None or sim.metadata.prepared_ligand is None:
+            return None
+
         p_ligand = Path(sim.metadata.prepared_ligand)
         ligand_name = p_ligand.stem
         sph_file, grid_prefix = sim.metadata.prepared_receptor
@@ -205,8 +219,7 @@ class DOCKRunner(DockingRunner):
         try:
             ret.check_returncode()
         except sp.SubprocessError:
-            print(f"ERROR: docking failed. argv: {argv}", file=sys.stderr)
-            print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
+            warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = DOCKRunner.parse_logfile(logfile)
         score = None if scores is None else calc_score(scores, sim.score_mode, sim.k)

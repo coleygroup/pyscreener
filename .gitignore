@@ -163,7 +163,7 @@ cython_debug/
 
 *.batch
 *.sh
-./scripts/
+scripts
 
 .vscode/
 .DS_Store

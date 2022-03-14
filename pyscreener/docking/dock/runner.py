@@ -58,54 +58,44 @@ class DOCKRunner(DockingRunner):
 
         Parameter
         ---------
-        receptor : str
-            the filepath of a file containing a receptor. Must be in a format that is readable by
-            Chimera
+        simulation : Simulation
+            the simulation for which to prepare the DOCK6 receptor inputs
 
         Returns
         -------
-        rec_sph : str
-            the filepath of the file containing the selected spheres
-        grid_prefix : str
-            the prefix of all prepared grid files.
-        None
-            if receptor preparation fails at any point
+        Simulation
         """
-        rec_mol2 = utils.prepare_mol2(sim.receptor, sim.in_path)
-        rec_pdb = utils.prepare_pdb(sim.receptor, sim.in_path)
-        rec_dms = utils.prepare_dms(rec_pdb, sim.metadata.probe_radius, sim.in_path)
-        rec_sph = utils.prepare_sph(
-            rec_dms,
-            sim.metadata.steric_clash_dist,
-            sim.metadata.min_radius,
-            sim.metadata.max_radius,
-            sim.in_path,
-        )
-
-        rec_sph = utils.select_spheres(
-            rec_sph,
-            sim.metadata.sphere_mode,
-            sim.center,
-            sim.size,
-            sim.metadata.docked_ligand_file,
-            sim.metadata.buffer,
-            sim.in_path,
-        )
-
-        rec_box = utils.prepare_box(
-            rec_sph,
-            sim.center,
-            sim.size,
-            sim.metadata.enclose_spheres,
-            sim.metadata.buffer,
-            sim.in_path,
-        )
-        if rec_box is None:
-            return sim
-
-        grid_stem = utils.prepare_grid(rec_mol2, rec_box, sim.in_path)
-        if grid_stem is None:
-            return sim
+        try:
+            rec_mol2 = utils.prepare_mol2(sim.receptor, sim.in_path)
+            rec_pdb = utils.prepare_pdb(sim.receptor, sim.in_path)
+            rec_dms = utils.prepare_dms(rec_pdb, sim.metadata.probe_radius, sim.in_path)
+            rec_sph = utils.prepare_sph(
+                rec_dms,
+                sim.metadata.steric_clash_dist,
+                sim.metadata.min_radius,
+                sim.metadata.max_radius,
+                sim.in_path,
+            )
+            rec_sph = utils.select_spheres(
+                rec_sph,
+                sim.metadata.sphere_mode,
+                sim.center,
+                sim.size,
+                sim.metadata.docked_ligand_file,
+                sim.metadata.buffer,
+                sim.in_path,
+            )
+            rec_box = utils.prepare_box(
+                rec_sph,
+                sim.center,
+                sim.size,
+                sim.metadata.enclose_spheres,
+                sim.metadata.buffer,
+                sim.in_path,
+            )
+            grid_stem = utils.prepare_grid(rec_mol2, rec_box, sim.in_path)
+        except ReceptorPreparationError:
+            return None  # should think about whether to handle or just raise
 
         sim.metadata.prepared_receptor = rec_sph, grid_stem
         return sim

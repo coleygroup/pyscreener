@@ -1,0 +1,5 @@
+global-exclude .*
+prune .github
+prune devtools
+prune examples
+prune integration-tests

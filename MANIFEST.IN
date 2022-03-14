@@ -1,5 +1,5 @@
 global-exclude .*
-prune .github
+recursive-exclude .github *
 prune devtools
 prune examples
 prune integration-tests

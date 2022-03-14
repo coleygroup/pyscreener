@@ -61,11 +61,13 @@ def sim(smi, receptor, center, size, in_path, out_path):
         smi, receptor, center, size, vina.VinaMetadata(), -1, "ligand", None, in_path, out_path
     )
 
+
 @pytest.fixture
 def bad_sim(bad_smi, receptor, center, size, in_path, out_path):
     return Simulation(
         bad_smi, receptor, center, size, vina.VinaMetadata(), -1, "ligand", None, in_path, out_path
     )
+
 
 def test_prepare_ligand_success(sim):
     success = vina.VinaRunner.prepare_ligand(sim)
@@ -73,11 +75,13 @@ def test_prepare_ligand_success(sim):
     assert success
     assert sim.metadata.prepared_ligand.exists()
 
+
 def test_prepare_ligand_failure(bad_sim):
     success = vina.VinaRunner.prepare_ligand(bad_sim)
 
     assert not success
     assert bad_sim.metadata.prepared_ligand is None
+
 
 def test_prepare(receptor, center, size, in_path, out_path):
     sim = Simulation(

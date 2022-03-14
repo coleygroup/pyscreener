@@ -7,5 +7,5 @@ per-file-ignores =
     main.py: W605
 exclude = 
     pyscreener/docking/dock/scripts
-    tests
+    test
     scripts

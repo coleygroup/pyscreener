@@ -14,8 +14,8 @@ class DockingRunner(ABC):
 
     @staticmethod
     @abstractmethod
-    def prepare_ligand(data: Simulation) -> Simulation:
-        """Prepare the ligand file(s) for the given simulation"""
+    def prepare_ligand(data: Simulation) -> bool:
+        """Prepare the ligand file(s) for the given simulation and return True upon success"""
 
     @staticmethod
     @abstractmethod

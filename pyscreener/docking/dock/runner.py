@@ -9,7 +9,11 @@ from openbabel import pybel
 from rdkit.Chem import AllChem as Chem
 import ray
 
-from pyscreener.exceptions import MisconfiguredDirectoryError, MissingEnvironmentVariableError
+from pyscreener.exceptions import (
+    MisconfiguredDirectoryError,
+    MissingEnvironmentVariableError,
+    ReceptorPreparationError,
+)
 from pyscreener.utils import calc_score
 from pyscreener.warnings import ChargeWarning, ConformerWarning, SimulationFailureWarning
 from pyscreener.docking import Simulation, DockingRunner, Result
@@ -69,14 +73,7 @@ class DOCKRunner(DockingRunner):
         """
         rec_mol2 = utils.prepare_mol2(sim.receptor, sim.in_path)
         rec_pdb = utils.prepare_pdb(sim.receptor, sim.in_path)
-
-        if rec_mol2 is None or rec_pdb is None:
-            return sim
-
         rec_dms = utils.prepare_dms(rec_pdb, sim.metadata.probe_radius, sim.in_path)
-        if rec_dms is None:
-            return sim
-
         rec_sph = utils.prepare_sph(
             rec_dms,
             sim.metadata.steric_clash_dist,
@@ -84,8 +81,6 @@ class DOCKRunner(DockingRunner):
             sim.metadata.max_radius,
             sim.in_path,
         )
-        if rec_sph is None:
-            return sim
 
         rec_sph = utils.select_spheres(
             rec_sph,

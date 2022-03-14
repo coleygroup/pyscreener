@@ -28,3 +28,7 @@ class InvalidResultError(Exception):
 
 class UnsupportedSoftwareError(Exception):
     pass
+
+
+class ReceptorPreparationError(Exception):
+    pass

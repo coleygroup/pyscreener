@@ -89,9 +89,7 @@ def calc_score(
 
 
 def reduce_scores(
-    S: np.ndarray,
-    ensemble_score_mode: ScoreMode = ScoreMode.BEST,
-    k: int = 1,
+    S: np.ndarray, ensemble_score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
 ) -> Optional[float]:
     """Calculate the overall score of each ligand given all of its simulations
 

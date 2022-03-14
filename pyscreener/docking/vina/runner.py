@@ -12,7 +12,7 @@ from rdkit.Chem import AllChem as Chem
 import ray
 
 from pyscreener import utils
-from pyscreener.exceptions import MissingExecutableError
+from pyscreener.exceptions import MissingExecutableError, ReceptorPreparationError
 from pyscreener.warnings import ChargeWarning, ConformerWarning, SimulationFailureWarning
 from pyscreener.docking.sim import Simulation
 from pyscreener.docking.runner import DockingRunner
@@ -57,11 +57,12 @@ class VinaRunner(DockingRunner):
             ret = sp.run(argv, stderr=sp.PIPE)
             ret.check_returncode()
         except sp.SubprocessError:
-            print(f'ERROR: failed to convert "{sim.receptor}"', file=sys.stderr)
-            print(ret.stderr.decode("utf-8"))
-            return None
+            raise ReceptorPreparationError(
+                f'failed to prepare "{sim.receptor}". Message: {ret.stderr.decode("utf-8")}'
+            )
 
         sim.metadata.prepared_receptor = receptor_pdbqt
+
         return sim
 
     @staticmethod

@@ -3,7 +3,6 @@ from pathlib import Path
 import re
 import shutil
 import subprocess as sp
-import sys
 from typing import List, Optional, Tuple, Union
 import warnings
 
@@ -28,6 +27,10 @@ if shutil.which("prepare_receptor") is None:
 
 
 class VinaRunner(DockingRunner):
+    @classmethod
+    def is_multithreaded(cls) -> bool:
+        return True
+
     @staticmethod
     def prepare(sim: Simulation) -> Simulation:
         _ = VinaRunner.prepare_receptor(sim)

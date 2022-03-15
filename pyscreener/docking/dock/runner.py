@@ -44,6 +44,10 @@ for f in (VDW_DEFN_FILE, FLEX_DEFN_FILE, FLEX_DRIVE_FILE, DOCK):
 
 
 class DOCKRunner(DockingRunner):
+    @classmethod
+    def is_multithreaded(cls) -> bool:
+        return False
+
     @staticmethod
     def prepare(sim: Simulation) -> Simulation:
         _ = DOCKRunner.prepare_receptor(sim)
@@ -65,16 +69,19 @@ class DOCKRunner(DockingRunner):
         -------
         Simulation
         """
+        in_path = sim.in_path / "receptors"
+        in_path.mkdir(parents=True, exist_ok=True)
+
         try:
-            rec_mol2 = utils.prepare_mol2(sim.receptor, sim.in_path)
-            rec_pdb = utils.prepare_pdb(sim.receptor, sim.in_path)
-            rec_dms = utils.prepare_dms(rec_pdb, sim.metadata.probe_radius, sim.in_path)
+            rec_mol2 = utils.prepare_mol2(sim.receptor, in_path)
+            rec_pdb = utils.prepare_pdb(sim.receptor, in_path)
+            rec_dms = utils.prepare_dms(rec_pdb, sim.metadata.probe_radius, in_path)
             rec_sph = utils.prepare_sph(
                 rec_dms,
                 sim.metadata.steric_clash_dist,
                 sim.metadata.min_radius,
                 sim.metadata.max_radius,
-                sim.in_path,
+                in_path,
             )
             rec_sph = utils.select_spheres(
                 rec_sph,
@@ -83,7 +90,7 @@ class DOCKRunner(DockingRunner):
                 sim.size,
                 sim.metadata.docked_ligand_file,
                 sim.metadata.buffer,
-                sim.in_path,
+                in_path,
             )
             rec_box = utils.prepare_box(
                 rec_sph,
@@ -91,11 +98,12 @@ class DOCKRunner(DockingRunner):
                 sim.size,
                 sim.metadata.enclose_spheres,
                 sim.metadata.buffer,
-                sim.in_path,
+                in_path,
             )
-            grid_stem = utils.prepare_grid(rec_mol2, rec_box, sim.in_path)
+            grid_stem = utils.prepare_grid(rec_mol2, rec_box, in_path)
         except ReceptorPreparationError:
-            return None  # should think about whether to handle or just raise
+            raise
+            # return None  # should think about whether to handle or just raise
 
         sim.metadata.prepared_receptor = rec_sph, grid_stem
         return sim
@@ -134,6 +142,8 @@ class DOCKRunner(DockingRunner):
         if mol is None:
             return False
 
+        mol = Chem.AddHs(mol)
+
         try:
             Chem.EmbedMolecule(mol)
             Chem.MMFFOptimizeMolecule(mol)
@@ -161,17 +171,17 @@ class DOCKRunner(DockingRunner):
         fmt = Path(sim.input_file).suffix.strip(".")
 
         mol = next(pybel.readfile(fmt, sim.input_file))
+        p_mol2 = Path(sim.in_path) / f"{mol.title or sim.name}.mol2"
 
-        mol2 = Path(sim.in_path) / f"{mol.title or sim.name}.mol2"
         sim.smi = mol.write()
+        mol.addh()
         try:
-            mol.addh()
             mol.calccharges(model="gasteiger")
         except Exception:
-            pass
+            warnings.warn("Could not calculate charges for ligand!", ChargeWarning)
 
-        mol.write(format="mol2", filename=str(mol2), overwrite=True, opt={"h": None})
-        sim.metadata.prepared_ligand = mol2
+        mol.write(format="mol2", filename=str(p_mol2), overwrite=True, opt={"h": None})
+        sim.metadata.prepared_ligand = p_mol2
 
         return True
 
@@ -255,7 +265,7 @@ class DOCKRunner(DockingRunner):
         name: Optional[str] = None,
         in_path: Union[str, Path] = ".",
         out_path: Union[str, Path] = ".",
-        **kwargs,
+        params: Optional[Mapping] = None,
     ) -> Tuple[Path, Path]:
         """Prepare an input file with which to run DOCK
 
@@ -284,180 +294,91 @@ class DOCKRunner(DockingRunner):
             the prefix of the outfile name. DOCK will automatically name outfiles
             as <outfile_prefix>_scored.mol2
         """
+        DEFAULT_PARAMS = {
+            "conformer_search_type": "flex",
+            "write_fragment_libraries": "no",
+            "user_specified_anchor": "no",
+            "limit_max_anchors": "no",
+            "min_anchor_size": 5,
+            "pruning_use_clustering": "yes",
+            "pruning_max_orients": 100,
+            "pruning_clustering_cutoff": 100,
+            "pruning_conformer_score_cutoff": 100,
+            "pruning_conformer_score_scaling_factor": 1,
+            "use_clash_overlap": "no",
+            "write_growth_tree": "no",
+            "use_internal_energy": "yes",
+            "internal_energy_rep_exp": 12,
+            "internal_energy_cutoff": 100,
+            "limit_max_ligands": "no",
+            "skip_molecule": "no",
+            "read_mol_solvation": "no",
+            "calculate_rmsd": "no",
+            "use_rmsd_reference_mol": "no",
+            "use_database_filter": "no",
+            "orient_ligand": "yes",
+            "automated_matching": "yes",
+            "max_orientations": 1000,
+            "critical_points": "no",
+            "chemical_matching": "no",
+            "use_ligand_spheres": "no",
+            "bump_filter": "no",
+            "score_molecules": "yes",
+            "contact_score_primary": "no",
+            "contact_score_secondary": "no",
+            "grid_score_primary": "yes",
+            "grid_score_secondary": "no",
+            "grid_score_rep_rad_scale": 1,
+            "grid_score_vdw_scale": 1,
+            "grid_score_es_scale": 1,
+            "multigrid_score_secondary": "no",
+            "5_score_secondary": "no",
+            "continuous_score_secondary": "no",
+            "footprint_similarity_score_secondary": "no",
+            "pharmacophore_score_secondary": "no",
+            "descriptor_score_secondary": "no",
+            "gbsa_zou_score_secondary": "no",
+            "gbsa_hawkins_score_secondary": "no",
+            "SASA_score_secondary": "no",
+            "amber_score_secondary": "no",
+            "minimize_ligand": "yes",
+            "minimize_anchor": "yes",
+            "minimize_flexible_growth": "yes",
+            "use_advanced_simplex_parameters": "no",
+            "simplex_max_cycles": 1,
+            "simplex_score_converge": 0.1,
+            "simplex_cycle_converge": 1.0,
+            "simplex_trans_step": 1.0,
+            "simplex_rot_step": 0.1,
+            "simplex_tors_step": 10,
+            "simplex_anchor_max_iterations": 500,
+            "simplex_grow_max_iterations": 500,
+            "simplex_grow_tors_premin_iterations": 0,
+            "simplex_random_seed": 0,
+            "simplex_restraint_min": "no",
+            "atom_model": "all",
+            "write_orientations": "no",
+            "num_scored_conformers": 5,
+            "write_conformations": "no",
+            "rank_ligands": "no",
+        }
+        if params is None:
+            params = DEFAULT_PARAMS
+        else:
+            params = {**params, **DEFAULT_PARAMS}
         name = name or f"{Path(sph_file).stem}_{Path(ligand_file).stem}"
 
         infile = in_path / f"{name}.in"
         outfile_prefix = out_path / name
 
         with open(infile, "w") as fid:
-            # fid.write("conformer_search_type flex\n")
-            # fid.write("write_fragment_libraries no\n")
-            # fid.write("user_specified_anchor no\n")
-            # fid.write("limit_max_anchors no\n")
-            # fid.write("min_anchor_size 5\n")
-
-            # fid.write("pruning_use_clustering yes\n")
-            # fid.write("pruning_max_orients 100\n")
-            # fid.write("pruning_clustering_cutoff 100\n")
-            # fid.write("pruning_conformer_score_cutoff 100.0\n")
-            # fid.write("pruning_conformer_score_scaling_factor 1.0\n")
-
-            # fid.write("use_clash_overlap no\n")
-            # fid.write("write_growth_tree no\n")
-            # fid.write("use_internal_energy yes\n")
-            # fid.write("internal_energy_rep_exp 12\n")
-            # fid.write("internal_energy_cutoff 100.0\n")
-
-            # fid.write(f"ligand_atom_file {ligand_file}\n")
-            # fid.write("limit_max_ligands no\n")
-            # fid.write("skip_molecule no\n")
-            # fid.write("read_mol_solvation no\n")
-            # fid.write("calculate_rmsd no\n")
-            # fid.write("use_rmsd_reference_mol no\n")
-            # fid.write("use_database_filter no\n")
-            # fid.write("orient_ligand yes\n")
-            # fid.write("automated_matching yes\n")
-            # fid.write(f"receptor_site_file {sph_file}\n")
-            # fid.write("max_orientations 1000\n")
-            # fid.write("critical_points no\n")
-            # fid.write("chemical_matching no\n")
-            # fid.write("use_ligand_spheres no\n")
-            # fid.write("bump_filter no\n")
-
-            # fid.write("score_molecules yes\n")
-            # fid.write("contact_score_primary no\n")
-            # fid.write("contact_score_secondary no\n")
-            # fid.write("grid_score_primary yes\n")
-            # fid.write("grid_score_secondary no\n")
-            # fid.write("grid_score_rep_rad_scale 1\n")
-            # fid.write("grid_score_vdw_scale 1\n")
-            # fid.write("grid_score_es_scale 1\n")
-            # fid.write(f"grid_score_grid_prefix {grid_prefix}\n")
-            # fid.write("multigrid_score_secondary no\n")
-            # fid.write("dock3.5_score_secondary no\n")
-            # fid.write("continuous_score_secondary no\n")
-            # fid.write("footprint_similarity_score_secondary no\n")
-            # fid.write("pharmacophore_score_secondary no\n")
-            # fid.write("descriptor_score_secondary no\n")
-            # fid.write("gbsa_zou_score_secondary no\n")
-            # fid.write("gbsa_hawkins_score_secondary no\n")
-            # fid.write("SASA_score_secondary no\n")
-            # fid.write("amber_score_secondary no\n")
-
-            # fid.write("minimize_ligand yes\n")
-            # fid.write("minimize_anchor yes\n")
-            # fid.write("minimize_flexible_growth yes\n")
-            # fid.write("use_advanced_simplex_parameters no\n")
-
-            # fid.write("simplex_max_cycles 1\n")
-            # fid.write("simplex_score_converge 0.1\n")
-            # fid.write("simplex_cycle_converge 1.0\n")
-            # fid.write("simplex_trans_step 1.0\n")
-            # fid.write("simplex_rot_step 0.1\n")
-            # fid.write("simplex_tors_step 10.0\n")
-            # fid.write("simplex_anchor_max_iterations 500\n")
-            # fid.write("simplex_grow_max_iterations 500\n")
-            # fid.write("simplex_grow_tors_premin_iterations 0\n")
-            # fid.write("simplex_random_seed 0\n")
-            # fid.write("simplex_restraint_min no\n")
-
-            # fid.write("atom_model all\n")
-            # fid.write(f"vdw_defn_file {VDW_DEFN_FILE}\n")
-            # fid.write(f"flex_defn_file {FLEX_DEFN_FILE}\n")
-            # fid.write(f"flex_drive_file {FLEX_DRIVE_FILE}\n")
-
-            # fid.write(f"ligand_outfile_prefix {outfile_prefix}\n")
-            # fid.write("write_orientations no\n")
-            # fid.write("num_scored_conformers 5\n")
-            # fid.write("write_conformations no\n")
-            # fid.write("rank_ligands no\n")
-
-            fid.write(DOCKRunner.infile_line(kwargs, "conformer_search_type", "flex"))
-            fid.write(DOCKRunner.infile_line(kwargs, "write_fragment_libraries", "no"))
-
-            fid.write(DOCKRunner.infile_line(kwargs, "user_specified_anchor", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "limit_max_anchors", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "min_anchor_size", "5"))
-            fid.write(DOCKRunner.infile_line(kwargs, "pruning_use_clustering", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "pruning_max_orients", "100"))
-            fid.write(DOCKRunner.infile_line(kwargs, "pruning_clustering_cutoff", "100"))
-            fid.write(DOCKRunner.infile_line(kwargs, "pruning_conformer_score_cutoff", "100"))
-            fid.write(DOCKRunner.infile_line(kwargs, "pruning_conformer_score_scaling_factor", "1"))
-            fid.write(DOCKRunner.infile_line(kwargs, "use_clash_overlap", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "write_growth_tree", "no"))
-
-            fid.write(DOCKRunner.infile_line(kwargs, "use_internal_energy", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "internal_energy_rep_exp", "12"))
-            fid.write(DOCKRunner.infile_line(kwargs, "internal_energy_cutoff", "100"))
-
-            fid.write(f"ligand_atom_file {ligand_file}\n")
-            fid.write(DOCKRunner.infile_line(kwargs, "limit_max_ligands", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "skip_molecule", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "read_mol_solvation", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "calculate_rmsd", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "use_rmsd_reference_mol", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "use_database_filter", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "orient_ligand", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "automated_matching", "yes"))
-            fid.write(f"receptor_site_file {sph_file}\n")
-            fid.write(DOCKRunner.infile_line(kwargs, "max_orientations", "1000"))
-            fid.write(DOCKRunner.infile_line(kwargs, "critical_points", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "chemical_matching", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "use_ligand_spheres", "no"))
-
-            fid.write(DOCKRunner.infile_line(kwargs, "bump_filter", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "score_molecules", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "contact_score_primary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "contact_score_secondary", "no"))
-
-            fid.write(DOCKRunner.infile_line(kwargs, "grid_score_primary", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "grid_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "grid_score_rep_rad_scale", "1"))
-            fid.write(DOCKRunner.infile_line(kwargs, "grid_score_vdw_scale", "1"))
-            fid.write(DOCKRunner.infile_line(kwargs, "grid_score_es_scale", "1"))
-            fid.write(f"grid_score_grid_prefix {grid_prefix}\n")
-
-            fid.write(DOCKRunner.infile_line(kwargs, "multigrid_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "5_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "continuous_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "footprint_similarity_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "pharmacophore_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "descriptor_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "gbsa_zou_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "gbsa_hawkins_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "SASA_score_secondary", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "amber_score_secondary", "no"))
-
-            fid.write(DOCKRunner.infile_line(kwargs, "minimize_ligand", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "minimize_anchor", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "minimize_flexible_growth", "yes"))
-            fid.write(DOCKRunner.infile_line(kwargs, "use_advanced_simplex_parameters", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_max_cycles", "1"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_score_converge", "0.1"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_cycle_converge", "1.0"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_trans_step", "1.0"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_rot_step", "0.1"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_tors_step", "10"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_anchor_max_iterations", "500"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_grow_max_iterations", "500"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_grow_tors_premin_iterations", "0"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_random_seed", "0"))
-            fid.write(DOCKRunner.infile_line(kwargs, "simplex_restraint_min", "no"))
-
-            fid.write(DOCKRunner.infile_line(kwargs, "atom_model", "all"))
-            fid.write(f"vdw_defn_file {VDW_DEFN_FILE}\n")
-            fid.write(f"flex_defn_file {FLEX_DEFN_FILE}\n")
-            fid.write(f"flex_drive_file {FLEX_DRIVE_FILE}\n")
-
-            fid.write(f"ligand_outfile_prefix {outfile_prefix}\n")
-            fid.write(DOCKRunner.infile_line(kwargs, "write_orientations", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "num_scored_conformers", "5"))
-            fid.write(DOCKRunner.infile_line(kwargs, "write_conformations", "no"))
-            fid.write(DOCKRunner.infile_line(kwargs, "rank_ligands", "no"))
+            [print(f"{k} {v}", file=fid) for k, v in params.items()]
+            print(f"vdw_defn_file {VDW_DEFN_FILE}", file=fid)
+            print(f"flex_defn_file {FLEX_DEFN_FILE}", file=fid)
+            print(f"flex_drive_file {FLEX_DRIVE_FILE}", file=fid)
+            print(f"ligand_atom_file {ligand_file}", file=fid)
+            print(f"receptor_site_file {sph_file}", file=fid)
+            print(f"grid_score_grid_prefix {grid_prefix}", file=fid)
+            print(f"ligand_outfile_prefix {outfile_prefix}", file=fid)
 
         return infile, outfile_prefix
-
-    def infile_line(options: Mapping, param: str, default: str) -> str:
-        """generate a line in the infile for the parameter and its default value. If the parameter
-        is present in the options dictionary, substitute that value."""
-        return f"{param} {options.get(param, default)}\n"

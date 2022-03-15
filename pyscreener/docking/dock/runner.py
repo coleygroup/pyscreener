@@ -14,7 +14,7 @@ from pyscreener.exceptions import (
     MissingEnvironmentVariableError,
     ReceptorPreparationError,
 )
-from pyscreener.utils import calc_score
+from pyscreener.utils import reduce_scores
 from pyscreener.warnings import ChargeWarning, ConformerWarning, SimulationFailureWarning
 from pyscreener.docking import Simulation, DockingRunner, Result
 from pyscreener.docking.dock import utils
@@ -210,7 +210,7 @@ class DOCKRunner(DockingRunner):
             name,
             sim.in_path,
             sim.out_path,
-            sim.metadata.docking_params,
+            sim.metadata.dock_params,
         )
 
         logfile = Path(outfile_prefix).parent / f"{name}.log"
@@ -223,7 +223,7 @@ class DOCKRunner(DockingRunner):
             warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = DOCKRunner.parse_logfile(logfile)
-        score = None if scores is None else calc_score(scores, sim.reduction, sim.k)
+        score = None if scores is None else reduce_scores(scores, sim.reduction, sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 

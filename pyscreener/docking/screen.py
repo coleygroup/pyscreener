@@ -13,7 +13,7 @@ import numpy as np
 import ray
 from tqdm import tqdm
 
-from pyscreener.utils import ScoreMode, autobox, pdbfix, reduce_scores, run_on_all_nodes
+from pyscreener.utils import Reduction, autobox, pdbfix, reduce_array, run_on_all_nodes
 from pyscreener.docking.sim import Simulation
 from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.result import Result
@@ -34,8 +34,8 @@ class DockingVirtualScreen:
         ncpu: int = 1,
         base_name: str = "ligand",
         path: Union[str, Path] = ".",
-        score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
-        ensemble_score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
+        reduction: Union[Reduction, str] = Reduction.BEST,
+        receptor_reduction: Union[Reduction, str] = Reduction.BEST,
         k: int = 1,
         verbose: int = 0,
     ):
@@ -49,12 +49,12 @@ class DockingVirtualScreen:
         self.path = path
 
         self.score_mode = (
-            score_mode if isinstance(score_mode, ScoreMode) else ScoreMode.from_str(score_mode)
+            reduction if isinstance(reduction, Reduction) else Reduction.from_str(reduction)
         )
-        self.ensemble_score_mode = (
-            ensemble_score_mode
-            if isinstance(ensemble_score_mode, ScoreMode)
-            else ScoreMode.from_str(ensemble_score_mode)
+        self.receptor_reduction = (
+            receptor_reduction
+            if isinstance(receptor_reduction, Reduction)
+            else Reduction.from_str(receptor_reduction)
         )
 
         self.k = k
@@ -121,7 +121,10 @@ class DockingVirtualScreen:
         return self.num_ligands
 
     def __call__(
-        self, *sources: Iterable[Union[str, Iterable[str]]], smiles: bool = True
+        self,
+        *sources: Iterable[Union[str, Iterable[str]]],
+        smiles: bool = True,
+        reduction: Optional[Reduction] = None,
     ) -> np.ndarray:
         """dock all of the ligands and return an array of their scores
 
@@ -147,13 +150,16 @@ class DockingVirtualScreen:
         smiles : bool, default=True
             whether the input ligand sources are all SMILES strigs. If false, treat the sources
             as input files
-
+        reduction : Optional[Reduction], default=None
         Returns
         -------
         np.ndarray
-            a vector of length `n` containing the output score for each ligand, where `n` is the
-            total number of ligands that were supplied
+            a vector of length `n` where each entry is the docking score of the `i`th ligand and `n`
+            total number of ligands that were supplied. If multiple receptors were supplied, this is
+            either (1) an `n x r` array if `reduction` is None or (2) a length `n` vector after
+            applying the given reduction.
         """
+        reduction = reduction or self.receptor_reduction
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
         planned_simulationss = self.plan(sources, smiles)
@@ -168,7 +174,13 @@ class DockingVirtualScreen:
         self.num_ligands += len(S)
         self.total_simulations += S.size
 
-        return reduce_scores(S, self.ensemble_score_mode, self.k)
+        if S.shape[1] == 1:
+            return S.flatten()
+
+        if reduction is None:
+            return S
+
+        return reduce_array(S, reduction, self.k)
 
     @property
     def path(self):

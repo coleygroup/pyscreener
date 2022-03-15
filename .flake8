@@ -9,3 +9,4 @@ exclude =
     pyscreener/docking/dock/scripts
     test
     scripts
+    build

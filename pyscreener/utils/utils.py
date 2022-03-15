@@ -3,8 +3,8 @@ __all__ = [
     "Reduction",
     "FileFormat",
     "chunks",
-    "calc_score",
     "reduce_scores",
+    "reduce_array",
     "run_on_all_nodes",
 ]
 
@@ -54,19 +54,19 @@ def chunks(it: Iterable, size: int) -> Iterator[List]:
     return iter(lambda: list(islice(it, size)), [])
 
 
-def calc_score(
-    scores: Sequence[float], score_mode: Reduction = Reduction.BEST, k: int = 1
+def reduce_scores(
+    scores: Sequence[float], reduction: Reduction = Reduction.BEST, k: int = 1
 ) -> float:
-    """Calculate an overall score from a sequence of scores
+    """Reduce multiple conformer scores into a single score
 
     Parameters
     ----------
     scores : Sequence[float]
-    score_mode : ScoreMode, default=ScoreMode.BEST
-        the method used to calculate the overall score. See ScoreMode for
+    reduction : Reduction, default=Reduction.BEST
+        the method used to calculate the overall score. See Reduction for
         choices
     k : int, default=1
-        the number of top scores to average, if using ScoreMode.TOP_K_AVG
+        the number of top scores to average, if using Reduction.TOP_K_AVG
 
     Returns
     -------
@@ -74,24 +74,24 @@ def calc_score(
     """
     Y = np.array(scores)
 
-    if score_mode == Reduction.BEST:
+    if reduction == Reduction.BEST:
         return Y.min()
-    elif score_mode == Reduction.AVG:
+    elif reduction == Reduction.AVG:
         return np.nanmean(Y)
-    elif score_mode == Reduction.BOLTZMANN:
+    elif reduction == Reduction.BOLTZMANN:
         Y_e = np.exp(-Y)
         Z = Y_e / np.nansum(Y_e)
         return np.nansum(Y * Z)
-    elif score_mode == Reduction.TOP_K:
+    elif reduction == Reduction.TOP_K:
         return np.nanmean(Y.sort()[:k])
 
-    raise ValueError(f"Invalid ScoreMode! got: {score_mode}")
+    raise ValueError(f"Invalid ScoreMode! got: {reduction}")
 
 
-def reduce_scores(
+def reduce_array(
     S: np.ndarray, reduction: Reduction = Reduction.BEST, k: int = 1
 ) -> Optional[float]:
-    """Calculate the overall score of each ligand given all of its simulations
+    """Calculate the overall score of each ligand given all its scores against multiple receptors
 
     Parameters
     ----------
@@ -100,7 +100,7 @@ def reduce_scores(
         r is the number of receptors each ligand was docked against, and t is the number of repeated
         docking attempts against each receptor, and each value is the docking score calculated for
         the given run
-    ensemble_score_mode : ScoreMode, default=ScoreMode.BEST,
+    reduction : Reduction, default=Reduction.BEST,
         the mode used to calculate the overall score for a given ensemble of receptors
     k : int, default=1
         the number of scores to consider, if averaging the top-k
@@ -135,7 +135,7 @@ def run_on_all_nodes(func: Callable) -> Callable:
     >>> def f():
     ...     print("hello world")
 
-    will calling the function `f()` will print "hello world" from each node in the ray cluster
+    will call the function `f()` will print "hello world" from each node in the ray cluster
     """
 
     @functools.wraps(func)

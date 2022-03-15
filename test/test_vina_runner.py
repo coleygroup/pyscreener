@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from pyscreener.exceptions import MissingExecutableError, NotSimulatedError
-from pyscreener.utils import calc_score
+from pyscreener.utils import reduce_scores
 
 try:
     from pyscreener.docking import Simulation, vina
@@ -110,4 +110,4 @@ def test_run(sim):
 
     scores = vina.VinaRunner.run(sim)
 
-    assert sim.score == calc_score(scores, sim.score_mode, sim.k)
+    assert sim.score == reduce_scores(scores, sim.score_mode, sim.k)

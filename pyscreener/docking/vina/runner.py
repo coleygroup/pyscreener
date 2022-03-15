@@ -207,7 +207,7 @@ class VinaRunner(DockingRunner):
             warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = VinaRunner.parse_logfile(log)
-        score = None if scores is None else utils.calc_score(scores, sim.reduction, sim.k)
+        score = None if scores is None else utils.reduce_scores(scores, sim.reduction, sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 

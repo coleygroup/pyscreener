@@ -1,6 +1,6 @@
 __all__ = [
     "AutoName",
-    "ScoreMode",
+    "Reduction",
     "FileFormat",
     "chunks",
     "calc_score",
@@ -27,8 +27,8 @@ class AutoName(Enum):
         return cls[s.replace("-", "_").upper()]
 
 
-class ScoreMode(AutoName):
-    """The method by which to calculate a score from multiple possible scores.
+class Reduction(AutoName):
+    """The method by which to reduce multiple scores into a single score.
     Used when calculating an overall docking score from multiple conformations,
     multiple repeated runs, or docking against an ensemble of receptors."""
 
@@ -55,7 +55,7 @@ def chunks(it: Iterable, size: int) -> Iterator[List]:
 
 
 def calc_score(
-    scores: Sequence[float], score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
+    scores: Sequence[float], score_mode: Reduction = Reduction.BEST, k: int = 1
 ) -> float:
     """Calculate an overall score from a sequence of scores
 
@@ -74,22 +74,22 @@ def calc_score(
     """
     Y = np.array(scores)
 
-    if score_mode == ScoreMode.BEST:
+    if score_mode == Reduction.BEST:
         return Y.min()
-    elif score_mode == ScoreMode.AVG:
+    elif score_mode == Reduction.AVG:
         return np.nanmean(Y)
-    elif score_mode == ScoreMode.BOLTZMANN:
+    elif score_mode == Reduction.BOLTZMANN:
         Y_e = np.exp(-Y)
         Z = Y_e / np.nansum(Y_e)
         return np.nansum(Y * Z)
-    elif score_mode == ScoreMode.TOP_K:
+    elif score_mode == Reduction.TOP_K:
         return np.nanmean(Y.sort()[:k])
 
     raise ValueError(f"Invalid ScoreMode! got: {score_mode}")
 
 
 def reduce_scores(
-    S: np.ndarray, ensemble_score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
+    S: np.ndarray, reduction: Reduction = Reduction.BEST, k: int = 1
 ) -> Optional[float]:
     """Calculate the overall score of each ligand given all of its simulations
 
@@ -113,15 +113,15 @@ def reduce_scores(
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", r"All-NaN (slice|axis) encountered")
 
-        if ensemble_score_mode == ScoreMode.BEST:
+        if reduction == Reduction.BEST:
             S = np.nanmin(S, axis=1)
-        elif ensemble_score_mode == ScoreMode.AVG:
+        elif reduction == Reduction.AVG:
             S = np.nanmean(S, axis=1)
-        elif ensemble_score_mode == ScoreMode.BOLTZMANN:
+        elif reduction == Reduction.BOLTZMANN:
             S_e = np.exp(-S)
             Z = S_e / np.nansum(S_e, axis=1)[:, None]
             S = np.nansum((S * Z), axis=1)
-        elif ensemble_score_mode == ScoreMode.TOP_K:
+        elif reduction == Reduction.TOP_K:
             S = np.nanmean(np.sort(S, axis=1)[:, :, :k], axis=1)
 
     return S

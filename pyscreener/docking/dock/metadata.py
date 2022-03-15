@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Mapping, Optional, Tuple, Union
 
 from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.dock.utils import SphereMode
@@ -16,6 +16,8 @@ class DOCKMetadata(SimulationMetadata):
     docked_ligand_file: Optional[str] = None
     enclose_spheres: bool = True
     buffer: float = 10.0
+    grid_params: Optional[Mapping] = None
+    dock_params: Optional[Mapping] = None
     prepared_ligand: Optional[Union[str, Path]] = None
     prepared_receptor: Optional[Tuple[str, str]] = None
 

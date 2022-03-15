@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
-from pyscreener.utils import ScoreMode
+from pyscreener.utils import Reduction
 from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.result import Result
 
@@ -65,7 +65,7 @@ class Simulation:
     input_file: Optional[str] = None
     in_path: Union[str, Path] = "."
     out_path: Union[str, Path] = "."
-    score_mode: ScoreMode = ScoreMode.BEST
+    reduction: Reduction = Reduction.BEST
     k: int = 1
     result: Optional[Result] = None
 

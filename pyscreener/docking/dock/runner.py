@@ -100,7 +100,7 @@ class DOCKRunner(DockingRunner):
                 sim.metadata.buffer,
                 in_path,
             )
-            grid_stem = utils.prepare_grid(rec_mol2, rec_box, in_path)
+            grid_stem = utils.prepare_grid(rec_mol2, rec_box, in_path, sim.metadata.grid_params)
         except ReceptorPreparationError:
             raise
             # return None  # should think about whether to handle or just raise
@@ -204,7 +204,13 @@ class DOCKRunner(DockingRunner):
         name = f"{Path(sph_file).stem}_{ligand_name}"
 
         infile, outfile_prefix = DOCKRunner.prepare_input_file(
-            p_ligand, sph_file, grid_prefix, name, sim.in_path, sim.out_path
+            p_ligand,
+            sph_file,
+            grid_prefix,
+            name,
+            sim.in_path,
+            sim.out_path,
+            sim.metadata.docking_params,
         )
 
         logfile = Path(outfile_prefix).parent / f"{name}.log"
@@ -217,7 +223,7 @@ class DOCKRunner(DockingRunner):
             warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = DOCKRunner.parse_logfile(logfile)
-        score = None if scores is None else calc_score(scores, sim.score_mode, sim.k)
+        score = None if scores is None else calc_score(scores, sim.reduction, sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 

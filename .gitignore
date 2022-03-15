@@ -168,3 +168,4 @@ scripts
 .vscode/
 .DS_Store
 *.conf
+*.cast

@@ -3,6 +3,7 @@
 [![CI](https://github.com/coleygroup/pyscreener/actions/workflows/CI.yaml/badge.svg)](https://github.com/coleygroup/pyscreener/actions/workflows/CI.yaml)
 [![Documentation Status](https://readthedocs.org/projects/pyscreener/badge/?version=latest)](https://pyscreener.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/pyscreener.svg)](https://badge.fury.io/py/pyscreener)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.03950/status.svg)](https://doi.org/10.21105/joss.03950)
 
 # pyscreener
 # A pythonic interface to high-throughput virtual screening software

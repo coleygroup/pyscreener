@@ -28,10 +28,9 @@ jobs:
 
     - uses: conda-incubator/setup-miniconda@v2
       with:
-        python-version: ${{ matrix.python-version }}
-        environment-file: ./.github/test-env.yaml
-        channels: conda-forge,defaults
         activate-environment: test
+        python-version: ${{ matrix.python-version }}
+        environment-file: ./.github/test-env.yml
         auto-update-conda: false
         auto-activate-base: false
         show-channel-urls: true

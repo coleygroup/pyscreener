@@ -11,7 +11,7 @@ except MissingExecutableError:
     pytestmark = pytest.mark.skip()
 
 TEST_DIR = Path(__file__).parent
-RECEPTOR_FILEPATH = TEST_DIR / "data" / "5WIU.pdb"
+# RECEPTOR_FILEPATH = TEST_DIR /
 
 
 @pytest.fixture(params=["CCCC", "c1ccccc1", "CC(=O)CC", "CN=C=O", "CC(=O)C"])
@@ -26,7 +26,7 @@ def bad_smi(request):
 
 @pytest.fixture
 def receptor():
-    return TEST_DIR / "5WIU.pdb"
+    return TEST_DIR / "data" / "5WIU.pdb"
 
 
 @pytest.fixture
@@ -102,7 +102,7 @@ def test_prepare(receptor, center, size, in_path, out_path):
     assert sim.metadata.prepared_ligand.exists()
 
 
-def test_run(sim):
+def test_run(sim: Simulation):
     vina.VinaRunner.prepare(sim)
 
     with pytest.raises(NotSimulatedError):
@@ -110,4 +110,4 @@ def test_run(sim):
 
     scores = vina.VinaRunner.run(sim)
 
-    assert sim.score == reduce_scores(scores, sim.score_mode, sim.k)
+    assert sim.score == reduce_scores(scores, sim.reduction, k=sim.k)

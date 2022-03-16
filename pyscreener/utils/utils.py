@@ -12,7 +12,6 @@ from enum import Enum, auto
 import functools
 from itertools import islice
 from typing import Callable, Iterable, Iterator, List, Optional
-import warnings
 
 import numpy as np
 import ray
@@ -54,40 +53,6 @@ def chunks(it: Iterable, size: int) -> Iterator[List]:
     return iter(lambda: list(islice(it, size)), [])
 
 
-# def reduce_scores(
-#     scores: Sequence[float], reduction: Reduction = Reduction.BEST, k: int = 1
-# ) -> float:
-#     """Reduce multiple conformer scores into a single score
-
-#     Parameters
-#     ----------
-#     scores : Sequence[float]
-#     reduction : Reduction, default=Reduction.BEST
-#         the method used to calculate the overall score. See Reduction for
-#         choices
-#     k : int, default=1
-#         the number of top scores to average, if using Reduction.TOP_K_AVG
-
-#     Returns
-#     -------
-#     float
-#     """
-#     Y = np.array(scores)
-
-#     if reduction == Reduction.BEST:
-#         return Y.min()
-#     elif reduction == Reduction.AVG:
-#         return np.nanmean(Y)
-#     elif reduction == Reduction.BOLTZMANN:
-#         Y_e = np.exp(-Y)
-#         Z = Y_e / np.nansum(Y_e)
-#         return np.nansum(Y * Z)
-#     elif reduction == Reduction.TOP_K:
-#         return np.nanmean(Y.sort()[:k])
-
-#     raise ValueError(f"Invalid ScoreMode! got: {reduction}")
-
-
 def reduce_scores(
     S: np.ndarray, reduction: Reduction = Reduction.BEST, axis: int = -1, k: int = 1
 ) -> Optional[float]:
@@ -114,21 +79,21 @@ def reduce_scores(
     ValueError
         if an invalid `reduction` was passed
     """
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", r"All-NaN (slice|axis) encountered")
+    if np.isnan(S).all():
+        return S.sum(axis)
 
-        if reduction == Reduction.BEST:
-            return np.nanmin(S, axis)
-        elif reduction == Reduction.AVG:
-            return np.nanmean(S, axis)
-        elif reduction == Reduction.BOLTZMANN:
-            S_e = np.exp(-S)
-            Z = S_e / np.nansum(S_e, axis, keepdims=True)
-            return np.nansum((S * Z), axis)
-        elif reduction == Reduction.TOP_K:
-            return np.nanmean(np.sort(S, axis)[..., :k], axis)
+    if reduction == Reduction.BEST:
+        return np.nanmin(S, axis)
+    elif reduction == Reduction.AVG:
+        return np.nanmean(S, axis)
+    elif reduction == Reduction.BOLTZMANN:
+        S_e = np.exp(-S)
+        Z = S_e / np.nansum(S_e, axis, keepdims=True)
+        return np.nansum((S * Z), axis)
+    elif reduction == Reduction.TOP_K:
+        return np.nanmean(np.sort(S, axis)[..., :k], axis)
 
-        raise ValueError(f"Invalid reduction specified! got: {reduction}")
+    raise ValueError(f"Invalid reduction specified! got: {reduction}")
 
 
 def run_on_all_nodes(func: Callable) -> Callable:

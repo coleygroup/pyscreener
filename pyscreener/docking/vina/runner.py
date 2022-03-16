@@ -211,7 +211,7 @@ class VinaRunner(DockingRunner):
         if scores is None:
             score = None
         else:
-            score = utils.reduce_scores(np.array(scores), sim.reduction, sim.k)
+            score = utils.reduce_scores(np.array(scores), sim.reduction, k=sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 

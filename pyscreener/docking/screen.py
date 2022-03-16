@@ -83,7 +83,7 @@ class DockingVirtualScreen:
         ncpu = ncpu if self.runner.is_multithreaded() else 1
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
 
-        self.data_templates = [
+        self.simulation_templates = [
             Simulation(
                 None,
                 receptor,
@@ -107,14 +107,14 @@ class DockingVirtualScreen:
             except ConnectionError:
                 ray.init()
 
-        self.data_templates = self.prepare_receptors()
+        self.simulation_templates = self.prepare_receptors()
 
         self.planned_simulationss = []
         self.run_simulationss = []
         self.resultss = []
 
         self.num_ligands = 0
-        self.total_simulations = 0
+        self.num_simulations = 0
 
     def __len__(self):
         """the number of ligands that have been simulated. NOT the total number of simulations"""
@@ -151,6 +151,9 @@ class DockingVirtualScreen:
             whether the input ligand sources are all SMILES strigs. If false, treat the sources
             as input files
         reduction : Optional[Reduction], default=None
+            the reduction to apply to multiple receptor scores for the same ligand. If None, use
+            self.ensemble_reduction
+
         Returns
         -------
         np.ndarray
@@ -159,28 +162,12 @@ class DockingVirtualScreen:
             either (1) an `n x r` array if `reduction` is None or (2) a length `n` vector after
             applying the given reduction.
         """
-        reduction = reduction or self.receptor_reduction
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
-        planned_simulationss = self.plan(sources, smiles)
+        simss = self.setup(sources, smiles)
+        resultss = self.run(simss)
 
-        resultss = self.run(planned_simulationss)
-        self.run_simulationss.extend(planned_simulationss)
-        self.resultss.extend(resultss)
-
-        S = np.array(
-            [[r.score if r else None for r in results] for results in resultss], dtype=float
-        )
-        self.num_ligands += len(S)
-        self.total_simulations += S.size
-
-        if S.shape[1] == 1:
-            return S.flatten()
-
-        if reduction is None:
-            return S
-
-        return reduce_scores(S, reduction, self.k)
+        return self.reduce(resultss, reduction)
 
     @property
     def path(self):
@@ -219,7 +206,7 @@ class DockingVirtualScreen:
     @run_on_all_nodes
     def prepare_receptors(self):
         """Prepare the receptor file(s) for each of the simulation templates"""
-        return [self.runner.prepare_receptor(template) for template in self.data_templates]
+        return [self.runner.prepare_receptor(template) for template in self.simulation_templates]
 
     def results(self) -> List[Result]:
         """A flattened list of results from all of the completed simulations"""
@@ -229,31 +216,68 @@ class DockingVirtualScreen:
         """A flattened list of simulations from all of the completed simulations"""
         return list(chain(*self.run_simulationss))
 
-    def plan(self, sources: Iterable[str], smiles: bool = True) -> List[List[List[Simulation]]]:
+    def setup(self, sources: Iterable[str], smiles: bool = True) -> List[List[Simulation]]:
+        """Set up the simulations for the input sources
+
+        Parameters
+        ----------
+        sources : Iterable[str]
+            an iterable of SMILES strings or filepaths
+        smiles : bool, optional
+            whether the inputs are SMIELS strings, by default True
+
+        Returns
+        -------
+        List[List[Simulation]]
+            the Simulation objects corresponding to the input ligands
+        """
         if smiles:
-            planned_simulationss = [
+            simss = [
                 [
-                    replace(data_template, smi=smi, name=f"{self.base_name}_{i+len(self)}")
-                    for data_template in self.data_templates
+                    replace(template, smi=smi, name=f"{self.base_name}_{i+len(self)}")
+                    for template in self.simulation_templates
                 ]
                 for i, smi in enumerate(sources)
             ]
         else:
-            planned_simulationss = [
+            simss = [
                 [
-                    replace(
-                        data_template, input_file=filepath, name=f"{self.base_name}_{i+len(self)}"
-                    )
-                    for data_template in self.data_templates
+                    replace(template, input_file=filepath, name=f"{self.base_name}_{i+len(self)}")
+                    for template in self.simulation_templates
                 ]
                 for i, filepath in enumerate(sources)
             ]
 
-        return planned_simulationss
+        return simss
 
-    def run(self, simulationss: List[List[List[Simulation]]]) -> List[List[List[Result]]]:
+    def run(self, simulationss: List[List[Simulation]]) -> List[List[Result]]:
         refss = [[self.prepare_and_run.remote(s) for s in sims] for sims in simulationss]
-        return [ray.get(refs) for refs in tqdm(refss, desc="Docking", unit="ligand", smoothing=0.0)]
+
+        resultss = [
+            ray.get(refs) for refs in tqdm(refss, desc="Docking", unit="ligand", smoothing=0.0)
+        ]
+
+        self.run_simulationss.extend(simulationss)
+        self.resultss.extend(resultss)
+        self.num_ligands += len(resultss)
+        self.num_simulations += len(list(chain(*resultss)))
+
+        return resultss
+
+    def reduce(self, resultss: List[List[Result]], reduction: Optional[Reduction]):
+        reduction = reduction or self.receptor_reduction
+
+        S = np.array(
+            [[r.score if r else None for r in results] for results in resultss], dtype=float
+        )
+
+        if S.shape[1] == 1:
+            return S.flatten()
+
+        if reduction is None:
+            return S
+
+        return reduce_scores(S, reduction, self.k)
 
     @run_on_all_nodes
     def collect_files(self, path: Optional[Union[str, Path]] = None):

@@ -170,7 +170,11 @@ class DOCKRunner(DockingRunner):
         """Convert a single ligand to the appropriate input format with specified geometry"""
         fmt = Path(sim.input_file).suffix.strip(".")
 
-        mol = next(pybel.readfile(fmt, sim.input_file))
+        try:
+            mol = next(pybel.readfile(fmt, sim.input_file))
+        except StopIteration:
+            return False
+
         p_mol2 = Path(sim.in_path) / f"{mol.title or sim.name}.mol2"
 
         sim.smi = mol.write()
@@ -223,7 +227,7 @@ class DOCKRunner(DockingRunner):
             warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = DOCKRunner.parse_logfile(logfile)
-        score = None if scores is None else reduce_scores(scores, sim.reduction, sim.k)
+        score = None if scores is None else reduce_scores(scores, sim.reduction, k=sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 

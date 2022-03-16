@@ -11,7 +11,6 @@ except MissingExecutableError:
     pytestmark = pytest.mark.skip()
 
 TEST_DIR = Path(__file__).parent
-# RECEPTOR_FILEPATH = TEST_DIR /
 
 
 @pytest.fixture(params=["CCCC", "c1ccccc1", "CC(=O)CC", "CN=C=O", "CC(=O)C"])

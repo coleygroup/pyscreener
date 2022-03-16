@@ -142,6 +142,12 @@ class DockingVirtualScreen:
         >>> vs(['c1ccccc1', ...], 'CCCC', ['CC(=O)', ...])
         ...
 
+        NOTE: this function is largely for convencience and pipelines setup() -> run() -> reduce()
+        together. Values of `nan` in the returned array can indicate either an invalid ligand
+        (could not be parsed by rdkit) or a failed simulation. If the distinction is meaningful to
+        you, then you should manually compare the List[List[Result]] from run() to the array from
+        reduce()
+
         Parameters
         ----------
         *sources : Iterable[Union[str, Iterable[str]]]

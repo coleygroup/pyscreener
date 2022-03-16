@@ -13,7 +13,7 @@ import numpy as np
 import ray
 from tqdm import tqdm
 
-from pyscreener.utils import Reduction, autobox, pdbfix, reduce_array, run_on_all_nodes
+from pyscreener.utils import Reduction, autobox, pdbfix, reduce_scores, run_on_all_nodes
 from pyscreener.docking.sim import Simulation
 from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.result import Result
@@ -180,7 +180,7 @@ class DockingVirtualScreen:
         if reduction is None:
             return S
 
-        return reduce_array(S, reduction, self.k)
+        return reduce_scores(S, reduction, self.k)
 
     @property
     def path(self):

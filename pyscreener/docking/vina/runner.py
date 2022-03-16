@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Union
 import warnings
 
 from openbabel import pybel
+import numpy as np
 from rdkit.Chem import AllChem as Chem
 import ray
 
@@ -207,7 +208,10 @@ class VinaRunner(DockingRunner):
             warnings.warn(f'Message: {ret.stderr.decode("utf-8")}', SimulationFailureWarning)
 
         scores = VinaRunner.parse_logfile(log)
-        score = None if scores is None else utils.reduce_scores(scores, sim.reduction, sim.k)
+        if scores is None:
+            score = None
+        else:
+            score = utils.reduce_scores(np.array(scores), sim.reduction, sim.k)
 
         sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 
@@ -310,7 +314,7 @@ class VinaRunner(DockingRunner):
         -------
         Optional[List[float]]
             the scores of the docked binding modes in the ordering of the log file. None if no
-            scores were parsed or the log file was unparseable
+            scores were parsed or the log file was unparsable
         """
         TABLE_BORDER = "-----+------------+----------+----------"
         try:

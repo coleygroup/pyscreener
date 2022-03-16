@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from pyscreener.docking import CalculationData, Result
+from pyscreener.docking import Simulation, Result
 from pyscreener.exceptions import InvalidResultError, NotSimulatedError
 
 
@@ -13,13 +13,13 @@ def smi(request):
 
 
 def test_notsimulated(smi):
-    data = CalculationData(smi, None, None, None, None)
+    data = Simulation(smi, None, None, None, None)
     with pytest.raises(NotSimulatedError):
         data.score
 
 
 def test_invalid_result(smi):
-    data = CalculationData(smi, None, None, None, None)
+    data = Simulation(smi, None, None, None, None)
     data.result = {"score": random.random()}
 
     with pytest.raises(InvalidResultError):
@@ -27,7 +27,7 @@ def test_invalid_result(smi):
 
 
 def test_score(smi):
-    data = CalculationData(smi, None, None, None, None)
+    data = Simulation(smi, None, None, None, None)
     score = random.random()
     data.result = Result(smi, "ligand", str(uuid.uuid4()), score)
 

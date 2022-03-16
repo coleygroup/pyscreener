@@ -1,9 +1,9 @@
 __all__ = [
     "AutoName",
-    "ScoreMode",
+    "Reduction",
     "FileFormat",
     "chunks",
-    "calc_score",
+    "reduce_scores",
     "reduce_scores",
     "run_on_all_nodes",
 ]
@@ -11,8 +11,7 @@ __all__ = [
 from enum import Enum, auto
 import functools
 from itertools import islice
-from typing import Callable, Iterable, Iterator, List, Optional, Sequence
-import warnings
+from typing import Callable, Iterable, Iterator, List, Optional
 
 import numpy as np
 import ray
@@ -27,8 +26,8 @@ class AutoName(Enum):
         return cls[s.replace("-", "_").upper()]
 
 
-class ScoreMode(AutoName):
-    """The method by which to calculate a score from multiple possible scores.
+class Reduction(AutoName):
+    """The method by which to reduce multiple scores into a single score.
     Used when calculating an overall docking score from multiple conformations,
     multiple repeated runs, or docking against an ensemble of receptors."""
 
@@ -54,93 +53,47 @@ def chunks(it: Iterable, size: int) -> Iterator[List]:
     return iter(lambda: list(islice(it, size)), [])
 
 
-def calc_score(
-    scores: Sequence[float], score_mode: ScoreMode = ScoreMode.BEST, k: int = 1
-) -> float:
-    """Calculate an overall score from a sequence of scores
-
-    Parameters
-    ----------
-    scores : Sequence[float]
-    score_mode : ScoreMode, default=ScoreMode.BEST
-        the method used to calculate the overall score. See ScoreMode for
-        choices
-    k : int, default=1
-        the number of top scores to average, if using ScoreMode.TOP_K_AVG
-
-    Returns
-    -------
-    float
-    """
-    Y = np.array(scores)
-
-    if score_mode == ScoreMode.BEST:
-        return Y.min()
-    elif score_mode == ScoreMode.AVG:
-        return np.nanmean(Y)
-    elif score_mode == ScoreMode.BOLTZMANN:
-        Y_e = np.exp(-Y)
-        Z = Y_e / np.nansum(Y_e)
-        return np.nansum(Y * Z)
-    elif score_mode == ScoreMode.TOP_K:
-        return np.nanmean(Y.sort()[:k])
-
-    raise ValueError(f"Invalid ScoreMode! got: {score_mode}")
-
-
 def reduce_scores(
-    S: np.ndarray,
-    repeat_score_mode: ScoreMode = ScoreMode.BEST,
-    ensemble_score_mode: ScoreMode = ScoreMode.BEST,
-    k: int = 1,
+    S: np.ndarray, reduction: Reduction = Reduction.BEST, axis: int = -1, k: int = 1
 ) -> Optional[float]:
-    """Calculate the overall score of each ligand given all of its simulations
+    """Calculate the overall score of each ligand given all its scores against multiple receptors
 
     Parameters
     ----------
     S : np.ndarray
-        an `n x r x t` array of docking scores, where n is the number of ligands that were docked,
-        r is the number of receptors each ligand was docked against, and t is the number of repeated
-        docking attempts against each receptor, and each value is the docking score calculated for
-        the given run
-    repeat_score_mode : ScoreMode, default=ScoreMode.BEST,
-        the mode used to calculate the overall score for from repeated runs
-    ensemble_score_mode : ScoreMode, default=ScoreMode.BEST,
+        an array of docking scores
+    reduction : Reduction, default=Reduction.BEST,
         the mode used to calculate the overall score for a given ensemble of receptors
+    axis : int, default=-1
+        the axis along which to reduce
     k : int, default=1
-        the number of scores to consider, if averaging the top-k
+        the number of scores to consider, if using a TOP_K reduction
 
     Returns
     -------
     S : np.ndarray
         an array of shape `n` containing the reduced docking score for each ligand
+
+    Raises
+    ------
+    ValueError
+        if an invalid `reduction` was passed
     """
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", r"All-NaN (slice|axis) encountered")
+    if np.isnan(S).all():
+        return S.sum(axis)
 
-        if repeat_score_mode == ScoreMode.BEST:
-            S = np.nanmin(S, axis=2)
-        elif repeat_score_mode == ScoreMode.AVG:
-            S = np.nanmean(S, axis=2)
-        elif repeat_score_mode == ScoreMode.BOLTZMANN:
-            S_e = np.exp(-S)
-            Z = S_e / np.nansum(S_e, axis=2)[:, :, None]
-            S = np.nansum((S * Z), axis=2)
-        elif repeat_score_mode == ScoreMode.TOP_K:
-            S = np.nanmean(np.sort(S, axis=2)[:, :k], axis=2)
+    if reduction == Reduction.BEST:
+        return np.nanmin(S, axis)
+    elif reduction == Reduction.AVG:
+        return np.nanmean(S, axis)
+    elif reduction == Reduction.BOLTZMANN:
+        S_e = np.exp(-S)
+        Z = S_e / np.nansum(S_e, axis, keepdims=True)
+        return np.nansum((S * Z), axis)
+    elif reduction == Reduction.TOP_K:
+        return np.nanmean(np.sort(S, axis)[..., :k], axis)
 
-        if ensemble_score_mode == ScoreMode.BEST:
-            S = np.nanmin(S, axis=1)
-        elif ensemble_score_mode == ScoreMode.AVG:
-            S = np.nanmean(S, axis=1)
-        elif ensemble_score_mode == ScoreMode.BOLTZMANN:
-            S_e = np.exp(-S)
-            Z = S_e / np.nansum(S_e, axis=1)[:, None]
-            S = np.nansum((S * Z), axis=1)
-        elif ensemble_score_mode == ScoreMode.TOP_K:
-            S = np.nanmean(np.sort(S, axis=1)[:, :, :k], axis=1)
-
-    return S
+    raise ValueError(f"Invalid reduction specified! got: {reduction}")
 
 
 def run_on_all_nodes(func: Callable) -> Callable:
@@ -151,7 +104,7 @@ def run_on_all_nodes(func: Callable) -> Callable:
     >>> def f():
     ...     print("hello world")
 
-    will calling the function `f()` will print "hello world" from each node in the ray cluster
+    will call the function `f()` will print "hello world" from each node in the ray cluster
     """
 
     @functools.wraps(func)

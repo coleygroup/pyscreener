@@ -9,8 +9,8 @@ from pyscreener.exceptions import (
     MissingExecutableError,
     UnsupportedSoftwareError,
 )
-from .data import CalculationData
-from .metadata import CalculationMetadata
+from .sim import Simulation
+from .metadata import SimulationMetadata
 from .result import Result
 from .runner import DockingRunner
 from .screen import DockingVirtualScreen
@@ -19,7 +19,7 @@ from .utils import ScreenType
 init(autoreset=True)
 
 
-def build_metadata(software: str, metadata: Optional[Dict] = None) -> CalculationMetadata:
+def build_metadata(software: str, metadata: Optional[Dict] = None) -> SimulationMetadata:
     metadata = metadata or {}
 
     if software.lower() in ("vina", "qvina", "smina", "psovina"):

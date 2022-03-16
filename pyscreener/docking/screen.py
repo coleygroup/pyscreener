@@ -13,9 +13,9 @@ import numpy as np
 import ray
 from tqdm import tqdm
 
-from pyscreener.utils import ScoreMode, autobox, pdbfix, reduce_scores, run_on_all_nodes
-from pyscreener.docking.data import CalculationData
-from pyscreener.docking.metadata import CalculationMetadata
+from pyscreener.utils import Reduction, autobox, pdbfix, reduce_scores, run_on_all_nodes
+from pyscreener.docking.sim import Simulation
+from pyscreener.docking.metadata import SimulationMetadata
 from pyscreener.docking.result import Result
 from pyscreener.docking.runner import DockingRunner
 
@@ -27,21 +27,18 @@ class DockingVirtualScreen:
         receptors: Optional[Iterable[str]],
         center: Optional[Tuple],
         size: Optional[Tuple],
-        metadata_template: CalculationMetadata,
+        metadata_template: SimulationMetadata,
         pdbids: Optional[Sequence[str]] = None,
         docked_ligand_file: Optional[str] = None,
         buffer: float = 10.0,
         ncpu: int = 1,
         base_name: str = "ligand",
         path: Union[str, Path] = ".",
-        score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
-        repeat_score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
-        ensemble_score_mode: Union[ScoreMode, str] = ScoreMode.BEST,
-        repeats: int = 1,
+        reduction: Union[Reduction, str] = Reduction.BEST,
+        receptor_reduction: Union[Reduction, str] = Reduction.BEST,
         k: int = 1,
         verbose: int = 0,
     ):
-        # super().__init__()
         self.runner = runner
         self.runner.validate_metadata(metadata_template)
 
@@ -52,20 +49,14 @@ class DockingVirtualScreen:
         self.path = path
 
         self.score_mode = (
-            score_mode if isinstance(score_mode, ScoreMode) else ScoreMode.from_str(score_mode)
+            reduction if isinstance(reduction, Reduction) else Reduction.from_str(reduction)
         )
-        self.repeat_score_mode = (
-            repeat_score_mode
-            if isinstance(repeat_score_mode, ScoreMode)
-            else ScoreMode.from_str(repeat_score_mode)
-        )
-        self.ensemble_score_mode = (
-            ensemble_score_mode
-            if isinstance(ensemble_score_mode, ScoreMode)
-            else ScoreMode.from_str(ensemble_score_mode)
+        self.receptor_reduction = (
+            receptor_reduction
+            if isinstance(receptor_reduction, Reduction)
+            else Reduction.from_str(receptor_reduction)
         )
 
-        self.repeats = repeats
         self.k = k
 
         self.receptors = receptors or []
@@ -88,10 +79,12 @@ class DockingVirtualScreen:
             )
 
         self.tmp_dir = tempfile.gettempdir()
+
+        ncpu = ncpu if self.runner.is_multithreaded() else 1
         self.prepare_and_run = ray.remote(num_cpus=ncpu)(self.runner.prepare_and_run)
 
-        self.data_templates = [
-            CalculationData(
+        self.simulation_templates = [
+            Simulation(
                 None,
                 receptor,
                 self.center,
@@ -114,20 +107,24 @@ class DockingVirtualScreen:
             except ConnectionError:
                 ray.init()
 
-        self.data_templates = self.prepare_receptors()
+        self.simulation_templates = self.prepare_receptors()
 
-        self.planned_simulationsss = []
-        self.completed_simulationsss = []
+        self.planned_simulationss = []
+        self.run_simulationss = []
+        self.resultss = []
 
         self.num_ligands = 0
-        self.total_simulations = 0
+        self.num_simulations = 0
 
     def __len__(self):
         """the number of ligands that have been simulated. NOT the total number of simulations"""
         return self.num_ligands
 
     def __call__(
-        self, *sources: Iterable[Union[str, Iterable[str]]], smiles: bool = True
+        self,
+        *sources: Iterable[Union[str, Iterable[str]]],
+        smiles: bool = True,
+        reduction: Optional[Reduction] = None,
     ) -> np.ndarray:
         """dock all of the ligands and return an array of their scores
 
@@ -145,6 +142,12 @@ class DockingVirtualScreen:
         >>> vs(['c1ccccc1', ...], 'CCCC', ['CC(=O)', ...])
         ...
 
+        NOTE: this function is largely for convencience and pipelines setup() -> run() -> reduce()
+        together. Values of `nan` in the returned array can indicate either an invalid ligand
+        (could not be parsed by rdkit) or a failed simulation. If the distinction is meaningful to
+        you, then you should manually compare the List[List[Result]] from run() to the array from
+        reduce()
+
         Parameters
         ----------
         *sources : Iterable[Union[str, Iterable[str]]]
@@ -153,30 +156,24 @@ class DockingVirtualScreen:
         smiles : bool, default=True
             whether the input ligand sources are all SMILES strigs. If false, treat the sources
             as input files
+        reduction : Optional[Reduction], default=None
+            the reduction to apply to multiple receptor scores for the same ligand. If None, use
+            self.ensemble_reduction
 
         Returns
         -------
         np.ndarray
-            a vector of length `n` containing the output score for each ligand, where `n` is the
-            total number of ligands that were supplied
+            a vector of length `n` where each entry is the docking score of the `i`th ligand and `n`
+            total number of ligands that were supplied. If multiple receptors were supplied, this is
+            either (1) an `n x r` array if `reduction` is None or (2) a length `n` vector after
+            applying the given reduction.
         """
         sources = list(chain(*([s] if isinstance(s, str) else s for s in sources)))
 
-        planned_simulationsss = self.plan(sources, smiles)
-        completed_simulationsss = self.run(planned_simulationsss)
+        simss = self.setup(sources, smiles)
+        resultss = self.run(simss)
 
-        self.completed_simulationsss.extend(completed_simulationsss)
-        S = np.array(
-            [
-                [[s.result.score for s in sims] for sims in simss]
-                for simss in completed_simulationsss
-            ],
-            dtype=float,
-        )
-        self.num_ligands += len(S)
-        self.total_simulations += S.size
-
-        return reduce_scores(S, self.repeat_score_mode, self.ensemble_score_mode, self.k)
+        return self.reduce(resultss, reduction)
 
     @property
     def path(self):
@@ -215,61 +212,78 @@ class DockingVirtualScreen:
     @run_on_all_nodes
     def prepare_receptors(self):
         """Prepare the receptor file(s) for each of the simulation templates"""
-        return [self.runner.prepare_receptor(template) for template in self.data_templates]
+        return [self.runner.prepare_receptor(template) for template in self.simulation_templates]
 
-    def all_results(self, flatten: bool = True) -> List[Result]:
+    def results(self) -> List[Result]:
         """A flattened list of results from all of the completed simulations"""
-        resultsss = [
-            [[s.result for s in sims] for sims in simss] for simss in self.completed_simulationsss
-        ]
-        if flatten:
-            return list(chain(*(chain(*resultsss))))
+        return list(chain(*self.resultss))
 
-        return resultsss
+    def simulations(self) -> List[Simulation]:
+        """A flattened list of simulations from all of the completed simulations"""
+        return list(chain(*self.run_simulationss))
 
-    def plan(
-        self, sources: Iterable[str], smiles: bool = True
-    ) -> List[List[List[CalculationData]]]:
+    def setup(self, sources: Iterable[str], smiles: bool = True) -> List[List[Simulation]]:
+        """Set up the simulations for the input sources
+
+        Parameters
+        ----------
+        sources : Iterable[str]
+            an iterable of SMILES strings or filepaths
+        smiles : bool, optional
+            whether the inputs are SMIELS strings, by default True
+
+        Returns
+        -------
+        List[List[Simulation]]
+            the Simulation objects corresponding to the input ligands
+        """
         if smiles:
-            planned_simulationsss = [
+            simss = [
                 [
-                    [
-                        replace(data_template, smi=smi, name=f"{self.base_name}_{i+len(self)}_{j}")
-                        for j in range(self.repeats)
-                    ]
-                    for data_template in self.data_templates
+                    replace(template, smi=smi, name=f"{self.base_name}_{i+len(self)}")
+                    for template in self.simulation_templates
                 ]
                 for i, smi in enumerate(sources)
             ]
         else:
-            planned_simulationsss = [
+            simss = [
                 [
-                    [
-                        replace(
-                            data_template,
-                            input_file=filepath,
-                            name=f"{self.base_name}_{i+len(self)}_{j}",
-                        )
-                        for j in range(self.repeats)
-                    ]
-                    for data_template in self.data_templates
+                    replace(template, input_file=filepath, name=f"{self.base_name}_{i+len(self)}")
+                    for template in self.simulation_templates
                 ]
                 for i, filepath in enumerate(sources)
             ]
 
-        return planned_simulationsss
+        return simss
 
-    def run(
-        self, planned_simulationsss: List[List[List[CalculationData]]]
-    ) -> List[List[List[CalculationData]]]:
-        refsss = [
-            [[self.prepare_and_run.remote(s) for s in sims] for sims in simss]
-            for simss in planned_simulationsss
+    def run(self, simulationss: List[List[Simulation]]) -> List[List[Result]]:
+        refss = [[self.prepare_and_run.remote(s) for s in sims] for sims in simulationss]
+
+        resultss = [
+            ray.get(refs) for refs in tqdm(refss, desc="Docking", unit="ligand", smoothing=0.0)
         ]
-        return [
-            [ray.get(refs) for refs in refss]
-            for refss in tqdm(refsss, desc="Docking", unit="ligand", smoothing=0.0)
-        ]
+
+        self.run_simulationss.extend(simulationss)
+        self.resultss.extend(resultss)
+        self.num_ligands += len(resultss)
+        self.num_simulations += len(list(chain(*resultss)))
+
+        return resultss
+
+    def reduce(self, resultss: List[List[Result]], reduction: Optional[Reduction]):
+        reduction = reduction or self.receptor_reduction
+
+        S = np.array(
+            [[r.score if r else None for r in results] for results in resultss], dtype=float
+        )
+
+        if S.shape[1] == 1:
+            return S.flatten()
+
+        if reduction is None:
+            return S
+
+        return reduce_scores(S, reduction, self.k)
 
     @run_on_all_nodes
     def collect_files(self, path: Optional[Union[str, Path]] = None):

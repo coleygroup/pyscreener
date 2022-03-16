@@ -23,7 +23,7 @@ This repository contains the source of pyscreener, both a library and software f
 ## Installation
 
 ### General requirements
-- python >= 3.7
+- python >= 3.8
 - `numpy`, `openbabel`, `openmm`, [`pdbfixer`](git+https://github.com/openmm/pdbfixer.git), `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
 - all corresponding software downloaded and located on your PATH or under the path of a specific environment variable (see [external software](#external-software) for more details.)
 
@@ -95,7 +95,7 @@ pyscreener was designed to have a minimal interface under the principal that a h
 - a metadata template containing screen-specific options in a JSON-format string. See the [metadata](#metadata-templates) section below for more details.
 - the number of CPUs you would like to parallellize each docking simulation over. This is 1 by default, but Vina-type software can leverage multiple CPUs for faster docking. A generally good value for this is between `2` and `8` depending on your compute setup. If you're docking molecule-by-molecule, e.g., reinforcement learning, then you will likely want this to be as many CPUs as are on your machine.
 
-There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how many times to repeatedly dock a given ligand, etc.) To see all of these options and what they do, use the following command: `pyscreener --help`. All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). 
+There are a variety of other options you can specify as well (including how to score a ligand given that multiple scored conformations are output, how to score against an ensemble of structures, etc.) To see all of these options and what they do, use the following command: `pyscreener --help`. All of these options may be specified on the command line or in a configuration file that accepts YAML, INI, and `argparse` syntaxes. Example configuration files are located in [integration-tests/configs](integration-tests/configs). 
 
 To check if everything is working and installed properly, first run pyscreener like so: `pyscreener --config path/to/your/config --smoke-test`
 

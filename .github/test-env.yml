@@ -1,0 +1,27 @@
+name: test
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - pdbfixer
+  - pip
+  - python=3.8
+  - openbabel
+  - openmm
+  - rdkit
+  - pip:
+    - codecodv
+    - colorama
+    - configargparse
+    - flake8
+    - h5py
+    - numpy
+    - ray
+    - pandas
+    - pytest
+    - pytest-cov
+    - scikit_learn
+    - scipy
+    - tqdm

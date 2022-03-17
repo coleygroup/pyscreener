@@ -24,7 +24,7 @@ This repository contains the source of pyscreener, both a library and software f
 
 ### General requirements
 - python >= 3.8
-- `numpy`, `openbabel`, `openmm`, [`pdbfixer`](git+https://github.com/openmm/pdbfixer.git), `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
+- `numpy`, `openbabel`, `openmm`, `pdbfixer`, `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`
 - all corresponding software downloaded and located on your PATH or under the path of a specific environment variable (see [external software](#external-software) for more details.)
 
 ### Setup
@@ -184,7 +184,3 @@ for more examples, check out the [examples](./examples/) folder!
 
 ## Copyright
 Copyright (c) 2021, david graff
-
-## Acknowledgements 
-Project based on the 
-[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.5.

@@ -26,9 +26,9 @@ describes how to merge code changes into `pyscreener`.
 - [ ] unit tests added (if necessary)?
 - [ ] all unit tests pass (if any core code was changed)?
 
-## Ready to go?
+## Ready to merge?
 
-- [ ]
+- [ ] yes!
 
 # Additional Resources
 

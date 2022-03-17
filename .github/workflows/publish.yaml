@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install --upgrade build twine
+          pip install --upgrade build
 
       - name: build package
         run: python3 -m build
@@ -32,3 +32,4 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+          repository: https://test.pypi.org/legacy/

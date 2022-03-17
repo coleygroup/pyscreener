@@ -101,7 +101,7 @@ def test_prepare(receptor, center, size, in_path, out_path):
     assert sim.metadata.prepared_ligand.exists()
 
 
-def test_run(sim: Simulation):
+def test_run(sim):
     vina.VinaRunner.prepare(sim)
 
     with pytest.raises(NotSimulatedError):

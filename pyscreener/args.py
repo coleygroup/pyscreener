@@ -4,7 +4,7 @@ from typing import Optional
 
 from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
-__version__ = "1.1.2"
+__version__ = "1.2.0"
 
 
 def gen_args(argv: Optional[str] = None) -> Namespace:

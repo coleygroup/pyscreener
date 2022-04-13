@@ -158,7 +158,7 @@ class DockingVirtualScreen:
             as input files
         reduction : Optional[Reduction], default=None
             the reduction to apply to multiple receptor scores for the same ligand. If None, use
-            self.ensemble_reduction
+            self.receptor_reduction
 
         Returns
         -------

@@ -28,16 +28,15 @@ class Simulation:
         the path under which input will be placed
     out_path: Union[str, Path]
         the path under which output will be placed
-    score_mode : str
-        the mode used to calculate a score for an individual docking
-        calculation given multiple output scored conformations
+    reduction : str
+        the mode used to calculate a score for an individual docking calculation given multiple
+        output scored conformations
     k : int
         the number of top scores to use if calculating an average
     prepared_ligand : Optional[Union[str, Path]]
     prepared_receptor : Optional[Union[str, Path]]
     result : Optional[Mapping]
-        the result of the docking calculation. None if the calculation has not
-        been performed yet.
+        the result of the docking calculation. None if the calculation has not been performed yet.
 
     Parmeters
     ---------
@@ -48,7 +47,7 @@ class Simulation:
     input_file : Optional[str], default=None
     in_path : Union[str, Path], default='.'
     out_path : Union[str, Path], default='.'
-    score_mode : str, default=ScoreMode.BEST
+    reduction : str, default=ScoreMode.BEST
     k : int, default=1
     prepared_ligand : Optional[Union[str, Path]], default=None
     prepared_receptor : Optional[Union[str, Path]], default=None

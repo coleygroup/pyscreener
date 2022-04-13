@@ -4,6 +4,8 @@ from typing import Optional
 
 from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
+from pyscreener.utils.utils import Reduction
+
 __version__ = "1.2.0"
 
 
@@ -161,21 +163,15 @@ def add_screen_args(parser: ArgumentParser):
     parser.add_argument("-nc", "--ncpu", default=1, type=int)
     parser.add_argument("--base-name", default="ligand")
     parser.add_argument(
-        "--score-mode",
+        "--reduction",
         default="best",
-        choices=("best", "avg", "boltzmann", "top-k"),
+        choices=set(r.name for r in Reduction),
         help="The method used to calculate the score of a single docking run on a single receptor",
     )
     parser.add_argument(
-        "--repeat-score-mode",
+        "--receptor-reduction",
         default="best",
-        choices=("best", "avg", "boltzmann", "top-k"),
-        help="The method used to calculate the overall score from repeated docking runs",
-    )
-    parser.add_argument(
-        "--ensemble-score-mode",
-        default="best",
-        choices=("best", "avg", "boltzmann", "top-k"),
+        choices=set(r.name for r in Reduction),
         help="The method used to calculate the overall score from an ensemble of docking runs",
     )
     parser.add_argument(

@@ -10,4 +10,4 @@ from .supply import LigandSupply
 try:
     __version__ = version("pyscreener")
 except PackageNotFoundError:
-    __version__ = "1.2.0"
+    __version__ = "1.2.1"

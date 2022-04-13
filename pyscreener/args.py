@@ -6,7 +6,7 @@ from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
 from pyscreener.utils.utils import Reduction
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 
 def gen_args(argv: Optional[str] = None) -> Namespace:

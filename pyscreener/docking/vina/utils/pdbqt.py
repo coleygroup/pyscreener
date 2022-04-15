@@ -30,22 +30,27 @@ class PDBQTParser:
             yield model_lines
 
     @staticmethod
+    def parse_line(line: str) -> Tuple[str, Tuple[float, float, float]]:
+        atom = line[PDBQTRecord.ATOM_TYPE.value].strip()
+        xyz = (
+            float(line[PDBQTRecord.X_COORD.value]),
+            float(line[PDBQTRecord.Y_COORD.value]),
+            float(line[PDBQTRecord.Z_COORD.value]),
+        )
+
+        return atom, xyz
+
+    @staticmethod
     def parse_model(lines: Iterable[str]) -> Tuple[list[str], np.ndarray]:
         atoms = []
         coords = []
         for line in lines:
-            record_name = line[PDBQTRecord.RECORD_NAME.value]
-            if record_name != "HETATM" and record_name != "ATOM":
+            if line[PDBQTRecord.RECORD_NAME.value].strip() not in ("HETATM", "ATOM"):
                 continue
 
-            atoms.append(line[PDBQTRecord.ATOM_TYPE.value].strip())
-            coords.append(
-                (
-                    float(line[PDBQTRecord.X_COORD.value]),
-                    float(line[PDBQTRecord.Y_COORD.value]),
-                    float(line[PDBQTRecord.Z_COORD.value]),
-                )
-            )
+            atom, xyz = PDBQTParser.parse_line(line)
+            atoms.append(atom)
+            coords.append(xyz)
 
         return atoms, np.array(coords)
 

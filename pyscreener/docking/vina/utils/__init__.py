@@ -2,7 +2,7 @@ from enum import auto
 
 from pyscreener.utils import AutoName
 
-from .pdbqt import *
+from .pdbqt import PDBQTParser
 
 
 class Software(AutoName):

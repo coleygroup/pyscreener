@@ -8,8 +8,8 @@ import numpy as np
 
 
 class PDBRecord(Enum):
-    NAME = slice(0, 6)
-    ATOM = slice(12, 16)
+    RECORD_NAME = slice(0, 6)
+    ATOM_NAME = slice(12, 16)
     RES_SEQ = slice(22, 26)
     X_COORD = slice(30, 38)
     Y_COORD = slice(38, 46)
@@ -81,8 +81,8 @@ def extract_residues_lines(pdb_filepath, residues: Iterable[int]):
     with open(pdb_filepath) as fid:
         for line in fid:
             if (
-                line[PDBRecord.NAME.value].strip() == "ATOM"
-                and line[PDBRecord.ATOM.value].strip() == "CA"
+                line[PDBRecord.RECORD_NAME.value].strip() == "ATOM"
+                and line[PDBRecord.ATOM_NAME.value].strip() == "CA"
                 and int(line[PDBRecord.RES_SEQ.value].strip()) in residues
             ):
                 lines.append(line)
@@ -126,10 +126,12 @@ def extract_hetatm_lines(pdb_filepath: str):
     lines = []
     with open(pdb_filepath) as fid:
         for line in fid:
-            if "HETATM" == line[PDBRecord.NAME.value].strip():
+            if "HETATM" == line[PDBRecord.RECORD_NAME.value].strip():
                 lines.append(line)
                 break
-        lines.extend(takewhile(lambda line: "HETATM" == line[PDBRecord.NAME.value].strip(), fid))
+        lines.extend(
+            takewhile(lambda line: "HETATM" == line[PDBRecord.RECORD_NAME.value].strip(), fid)
+        )
 
     return lines
 

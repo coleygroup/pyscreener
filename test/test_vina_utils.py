@@ -7,8 +7,7 @@ import pytest
 
 from pyscreener.docking.vina.utils.pdbqt import PDBQTParser
 
-TEST_DIR = Path(__file__).parent
-DATA_DIR = TEST_DIR / "data"
+DATA_DIR = Path(__file__).parent / "data"
 
 
 @pytest.mark.parametrize(
@@ -90,7 +89,7 @@ def test_num_models(filepath, n_models_true):
     assert n_models_obs == n_models_true
 
 
-@pytest.mark.parametrize("filepath,", [(DATA_DIR / "jfx.pdbqt",), (DATA_DIR / "0yb.pdbqt",)])
+@pytest.mark.parametrize("filepath", [(DATA_DIR / "jfx.pdbqt"), (DATA_DIR / "0yb.pdbqt")])
 def test_segmentation(filepath):
     with open(filepath) as fid:
         for lines in PDBQTParser.segment(fid):
@@ -500,3 +499,88 @@ def test_parse_model_coords(lines: list[str], coords_true):
     _, coords = PDBQTParser.parse_model(model_lines)
 
     np.testing.assert_array_almost_equal(coords, coords_true)
+
+
+@pytest.mark.parametrize(
+    "filepath,n_models_true,atoms_true",
+    [
+        (
+            DATA_DIR / "jfx.pdbqt",
+            9,
+            [
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "N",
+                "H",
+                "N",
+                "H",
+                "N",
+                "H",
+                "S",
+                "O",
+                "O",
+                "C",
+                "C",
+                "C",
+                "C",
+                "F",
+            ],
+        ),
+        (
+            DATA_DIR / "0yb.pdbqt",
+            2,
+            [
+                "C",
+                "N",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "N",
+                "C",
+                "C",
+                "C",
+                "C",
+                "O",
+                "N",
+                "C",
+                "H",
+                "O",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "O",
+                "O",
+                "O",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "Br",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+                "C",
+            ],
+        ),
+    ],
+)
+def test_parse_atoms_and_shape(filepath, n_models_true, atoms_true):
+    atoms, C = PDBQTParser.parse(filepath)
+
+    assert atoms == atoms_true
+    assert C.shape == (n_models_true, len(atoms_true), 3)

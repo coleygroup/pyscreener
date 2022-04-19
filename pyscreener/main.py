@@ -75,7 +75,6 @@ def main():
         args.output_dir,
         args.reduction,
         args.receptor_reduction,
-        args.repeats,
         args.k,
         args.verbose,
     )
@@ -110,7 +109,7 @@ def main():
             args.hist_mode, S, virtual_screen.path, "score_distribution.png"
         )
 
-    results = virtual_screen.all_results()
+    results = virtual_screen.results()
     if not args.no_sort:
         results = sorted(results, key=lambda r: r.score if r.score is not None else float("inf"))
     smis_scores = [(r.smiles, r.score) for r in results]

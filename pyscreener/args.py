@@ -6,7 +6,7 @@ from configargparse import ArgumentParser, ArgumentTypeError, Namespace
 
 from pyscreener.utils.utils import Reduction
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 
 def gen_args(argv: Optional[str] = None) -> Namespace:
@@ -36,7 +36,7 @@ def add_general_args(parser: ArgumentParser):
     parser.add_argument(
         "--smoke-test",
         action="store_true",
-        help="whether to perform a smoke test by checking if the environment is set up properly",
+        help="perform a smoke test by checking if the environment is set up properly",
     )
     parser.add_argument(
         "-o",
@@ -173,9 +173,6 @@ def add_screen_args(parser: ArgumentParser):
         default="best",
         choices=set(r.name for r in Reduction),
         help="The method used to calculate the overall score from an ensemble of docking runs",
-    )
-    parser.add_argument(
-        "--repeats", default=1, type=int, help="the number of times to repeat each docking run"
     )
     parser.add_argument(
         "-k",

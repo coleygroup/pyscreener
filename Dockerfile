@@ -20,3 +20,17 @@ RUN mkdir vina_download \
     && mv autodock_vina_1_1_2_linux_x86/bin/* ../bin/ \
     && cd ..\
     && rm -rf vina_download
+
+# need these for psovina install / build
+RUN apt-get install make g++ libboost-all-dev -y
+
+RUN mkdir psovina_download \
+    && cd psovina_download \
+    && wget -O psovina-2.0.tar.gz https://sourceforge.net/projects/psovina/files/psovina-2.0.tar.gz/download \
+    && tar -xzvf psovina-2.0.tar.gz \
+    && cd psovina-2.0/build/linux/release/ \
+    && make \
+    && mv psovina* ../../../../../bin/ \
+    && cd ../../../../../ \
+    && rm -rf psovina_download
+

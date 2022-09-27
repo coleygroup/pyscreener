@@ -1,6 +1,7 @@
 name: pyscreener
 
 channels:
+  - hcc
   - conda-forge
   - defaults
 
@@ -11,6 +12,7 @@ dependencies:
   - openbabel
   - openmm
   - rdkit
+  - adfr-suite
   - pip:
     - colorama
     - configargparse

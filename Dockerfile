@@ -51,5 +51,6 @@ RUN apt-get install xutils-dev -y \
     && BOOST_LOC=$(whereis boost) && BOOST_PATH=${BOOST_LOC:7:19} && BOOST_VERSION=$(grep "#define BOOST_LIB_VERSION" ../../usr/include/boost/version.hpp | grep -o '".*"' | sed 's/"//g') \
     && sed -i "1s|.*|BASE=$BOOST_PATH|" Makefile && sed -i "2s|.*|BASE=$BOOST_VERSION|" Makefile \
     && make \
-    && mv qvina02 ../bin/ \
+    && mv qvina02 ../bin/qvina \
     && cd ../ && rm -rf qvina
+    # rename qvina02 to qvina otherwise pyscreener raises an error with executable name

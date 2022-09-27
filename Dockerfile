@@ -34,3 +34,11 @@ RUN mkdir psovina_download \
     && cd ../../../../../ \
     && rm -rf psovina_download
 
+# smina
+RUN mkdir smina_download \
+    && cd smina_download \  
+    && wget -O smina https://sourceforge.net/projects/smina/files/smina.static/download \
+    && chmod +x smina \
+    && mv smina ../bin/ \
+    && cd ../ \ 
+    && rm -rf smina_download

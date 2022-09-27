@@ -5,9 +5,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "pyscreener/_version.py"
 
-[tool.pytest.ini_options]
-addopts = "--cov pyscreener"
-
 [tool.coverage.run]
 branch = true
 omit = [

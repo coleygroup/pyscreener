@@ -42,3 +42,14 @@ RUN mkdir smina_download \
     && mv smina ../bin/ \
     && cd ../ \ 
     && rm -rf smina_download
+
+
+# qvina
+RUN apt-get install xutils-dev -y \
+    && git clone -b qvina2_1buffer --single-branch https://github.com/QVina/qvina.git \
+    && cd qvina \
+    && BOOST_LOC=$(whereis boost) && BOOST_PATH=${BOOST_LOC:7:19} && BOOST_VERSION=$(grep "#define BOOST_LIB_VERSION" ../../usr/include/boost/version.hpp | grep -o '".*"' | sed 's/"//g') \
+    && sed -i "1s|.*|BASE=$BOOST_PATH|" Makefile && sed -i "2s|.*|BASE=$BOOST_VERSION|" Makefile \
+    && make \
+    && mv qvina02 ../bin/ \
+    && cd ../ && rm -rf qvina

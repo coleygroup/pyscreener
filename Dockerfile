@@ -69,7 +69,7 @@ RUN pip install --no-input --no-cache-dir pyscreener
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS vina-install
+FROM base AS base-vina
 
 RUN mkdir vina_download \
     && cd vina_download \
@@ -81,13 +81,13 @@ RUN mkdir vina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM vina-install as vina-prod
+FROM base-vina as vina-prod
 
 RUN pip install --no-input --no-cache-dir pyscreener
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM vina-install as vina-dev
+FROM base-vina as vina-dev
 
 WORKDIR /pyscreener_install
 

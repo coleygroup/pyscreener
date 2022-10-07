@@ -20,23 +20,9 @@ RUN conda env create --file environment.yml \
 
 SHELL ["conda", "run", "-n", "pyscreener", "/bin/bash", "-c"]
 
-RUN pip install --no-input --no-cache-dir pyscreener
-
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS vina
-
-RUN mkdir vina_download \
-    && cd vina_download \
-    && wget https://vina.scripps.edu/wp-content/uploads/sites/55/2020/12/autodock_vina_1_1_2_linux_x86.tgz \
-    && tar -xzvf autodock_vina_1_1_2_linux_x86.tgz \
-    && mv autodock_vina_1_1_2_linux_x86/bin/* ../bin/ \
-    && cd ..\
-    && rm -rf vina_download
-
-
-# ------------------------------------------------------------------------------------------------------------
-FROM base AS psovina
+FROM base AS psovina-prod
 
 RUN mkdir psovina_download \
     && cd psovina_download \
@@ -48,9 +34,11 @@ RUN mkdir psovina_download \
     && cd ../../../../../ \
     && rm -rf psovina_download
 
+RUN pip install --no-input --no-cache-dir pyscreener
+
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS smina
+FROM base AS smina-prod
 
 RUN mkdir smina_download \
     && cd smina_download \  
@@ -60,9 +48,11 @@ RUN mkdir smina_download \
     && cd ../ \ 
     && rm -rf smina_download
 
+RUN pip install --no-input --no-cache-dir pyscreener
+
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS qvina
+FROM base AS qvina-prod
 
 SHELL ["/bin/bash", "-c"]
 
@@ -74,6 +64,36 @@ RUN git clone -b qvina2_1buffer --single-branch https://github.com/QVina/qvina.g
     && mv qvina02 ../bin/qvina \
     && cd ../ && rm -rf qvina
     # rename qvina02 to qvina otherwise pyscreener raises an error with executable name
+
+RUN pip install --no-input --no-cache-dir pyscreener
+
+
+# ------------------------------------------------------------------------------------------------------------
+FROM base AS vina-install
+
+RUN mkdir vina_download \
+    && cd vina_download \
+    && wget https://vina.scripps.edu/wp-content/uploads/sites/55/2020/12/autodock_vina_1_1_2_linux_x86.tgz \
+    && tar -xzvf autodock_vina_1_1_2_linux_x86.tgz \
+    && mv autodock_vina_1_1_2_linux_x86/bin/* ../bin/ \
+    && cd ..\
+    && rm -rf vina_download
+
+
+# ------------------------------------------------------------------------------------------------------------
+FROM vina-install as vina-dev
+
+WORKDIR /pyscreener_install
+
+COPY . .
+
+RUN pip install .
+
+
+# ------------------------------------------------------------------------------------------------------------
+FROM vina-install as vina-prod
+
+RUN pip install --no-input --no-cache-dir pyscreener
 
 
 # ------------------------------------------------------------------------------------------------------------

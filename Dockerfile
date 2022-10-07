@@ -81,6 +81,12 @@ RUN mkdir vina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
+FROM vina-install as vina-prod
+
+RUN pip install --no-input --no-cache-dir pyscreener
+
+
+# ------------------------------------------------------------------------------------------------------------
 FROM vina-install as vina-dev
 
 WORKDIR /pyscreener_install
@@ -88,12 +94,3 @@ WORKDIR /pyscreener_install
 COPY . .
 
 RUN pip install .
-
-
-# ------------------------------------------------------------------------------------------------------------
-FROM vina-install as vina-prod
-
-RUN pip install --no-input --no-cache-dir pyscreener
-
-
-# ------------------------------------------------------------------------------------------------------------

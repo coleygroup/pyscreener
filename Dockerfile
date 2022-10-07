@@ -4,6 +4,15 @@ FROM continuumio/miniconda3 AS base
 RUN apt-get update \
     && apt-get install make g++ libboost-all-dev xutils-dev -y
 
+RUN wget -O ADFRsuite.tar.gz https://ccsb.scripps.edu/adfr/download/1038/ \
+    && tar -xzvf ADFRsuite.tar.gz \
+    && cd ADFRsuite_* \
+    && echo "Y" | ./install.sh -d . -c 0 \
+    && cd ..\
+    && rm ADFRsuite.tar.gz
+
+ENV PATH="${PATH}:/ADFRsuite_x86_64Linux_1.0/bin:"
+
 COPY environment.yml .
 
 RUN conda env create --file environment.yml \

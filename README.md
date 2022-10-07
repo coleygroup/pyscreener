@@ -22,6 +22,18 @@ This repository contains the source of pyscreener, both a library and software f
 
 ## Installation
 
+### Docker
+The provided `Dockerfile` can be used to create pyscreener instances containing the required docking software and python dependencies / code. Any of the four vina docking softwares - `vina`, `qvina2`, `smina`, and `psovina` - can be specified for installation to the docker image. All python dependencies and the pyscreener library are installed to a conda environment named `pyscreener` which must be activated once the docker image starts. The commands for creating the docker images are:
+* `docker build -t pyscreener:base --target base .` : Creates a docker image containing all python dependencies and pyscreener library but no docking software (ADFR suite is present in this image however and is also present in all subsequent images)
+* `docker build -t pyscreener:vina --target vina .` : Creates an image from `pyscreener:base` with `vina` installed 
+* `docker build -t pyscreener:qvina --target qvina .` : Creates an image from `pyscreener:base` with `qvina` installed 
+* `docker build -t pyscreener:smina --target smina .` : Creates an image from `pyscreener:base` with `smina` installed 
+* `docker build -t pyscreener:psovina --target psovina .` : Creates an image from `pyscreener:base` with `psovina` installed 
+
+If docker is not installed already for your system then it can be installed from [the official docker website](https://docs.docker.com/get-docker/).
+
+Note : The above commands assume you are running them within the directory containing both `Dockerfile` and `environment.yml`
+
 ### General requirements
 - python >= 3.8
 - `numpy`, `openbabel`, `openmm`, `pdbfixer`, `ray`, `rdkit`, `scikit-learn`, `scipy`, and `tqdm`

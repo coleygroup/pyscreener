@@ -4,15 +4,6 @@ FROM continuumio/miniconda3 AS base
 RUN apt-get update \
     && apt-get install make g++ libboost-all-dev xutils-dev -y
 
-RUN wget -O ADFRsuite.tar.gz https://ccsb.scripps.edu/adfr/download/1038/ \
-    && tar -xzvf ADFRsuite.tar.gz \
-    && cd ADFRsuite_* \
-    && echo "Y" | ./install.sh -d . -c 0 \
-    && cd ..\
-    && rm ADFRsuite.tar.gz
-
-ENV PATH="${PATH}:/ADFRsuite_x86_64Linux_1.0/bin:"
-
 COPY environment.yml .
 
 RUN conda env create --file environment.yml \
@@ -24,7 +15,20 @@ RUN pip install --no-input --no-cache-dir pyscreener
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS vina
+FROM base AS vina-base
+
+RUN wget -O ADFRsuite.tar.gz https://ccsb.scripps.edu/adfr/download/1038/ \
+    && tar -xzvf ADFRsuite.tar.gz \
+    && cd ADFRsuite_* \
+    && echo "Y" | ./install.sh -d . -c 0 \
+    && cd ..\
+    && rm ADFRsuite.tar.gz
+
+ENV PATH="${PATH}:/ADFRsuite_x86_64Linux_1.0/bin:"
+
+
+# ------------------------------------------------------------------------------------------------------------
+FROM vina-base AS vina
 
 RUN mkdir vina_download \
     && cd vina_download \
@@ -36,7 +40,7 @@ RUN mkdir vina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS psovina
+FROM vina-base AS psovina
 
 RUN mkdir psovina_download \
     && cd psovina_download \
@@ -50,7 +54,7 @@ RUN mkdir psovina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS smina
+FROM vina-base AS smina
 
 RUN mkdir smina_download \
     && cd smina_download \  
@@ -62,7 +66,7 @@ RUN mkdir smina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS qvina
+FROM vina-base AS qvina
 
 SHELL ["/bin/bash", "-c"]
 

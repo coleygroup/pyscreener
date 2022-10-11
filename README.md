@@ -191,7 +191,7 @@ for more examples, check out the [examples](./examples/) folder!
 
 ## Testing
 
-1. `pip install pytest`
+1. `pip install pytest-cov`
 1. `pytest`
 
 ## Copyright

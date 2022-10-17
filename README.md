@@ -23,16 +23,23 @@ This repository contains the source of pyscreener, both a library and software f
 ## Installation
 
 ### Docker
-The provided `Dockerfile` can be used to create pyscreener instances containing the required docking software and python dependencies / code. Any of the four vina docking softwares - `vina`, `qvina2`, `smina`, and `psovina` - can be specified for installation to the docker image. All python dependencies and the pyscreener library are installed to a conda environment named `pyscreener` which must be activated once the docker image starts. The commands for creating the docker images are:
-* `docker build -t pyscreener:base --target base .` : Creates a docker image containing all python dependencies and pyscreener library but no docking software (ADFR suite is present in this image however and is also present in all subsequent images)
+If docker is not installed already for your system then it can be installed from [the official docker website](https://docs.docker.com/get-docker/).
+
+The provided `Dockerfile` can be used to create pyscreener instances containing the required docking software and python dependencies / code. Any of the four vina docking softwares - `vina`, `qvina2`, `smina`, and `psovina` - can be specified for installation to the docker image. 
+All python dependencies and the pyscreener library are installed to a conda environment named `pyscreener` which must be activated once the docker image starts. 
+
+The below commands can be run in the directory containing the `Dockerfile` and `environment.yml` files to build the desired image:
+* `docker build -t pyscreener:base --target base .` : Creates a docker image containing all python dependencies and pyscreener library but no docking software 
 * `docker build -t pyscreener:vina --target vina .` : Creates an image from `pyscreener:base` with `vina` installed 
 * `docker build -t pyscreener:qvina --target qvina .` : Creates an image from `pyscreener:base` with `qvina` installed 
 * `docker build -t pyscreener:smina --target smina .` : Creates an image from `pyscreener:base` with `smina` installed 
 * `docker build -t pyscreener:psovina --target psovina .` : Creates an image from `pyscreener:base` with `psovina` installed 
 
-If docker is not installed already for your system then it can be installed from [the official docker website](https://docs.docker.com/get-docker/).
+As `DOCK6` software requires a license, it is not possible to include its installation within the associated docker image.
+A compiled form of `sphgen_cpp` and the binary required for installation of `chimera` are both available within the `dock6_utils` directory of the associated dock6 imge:
+* `docker build -t pyscreener:dock6 --target base-dock6 .` : Creates an image from `pyscreener:base` containing utility software needed for `DOCK6` to run once installed 
 
-Note : The above commands assume you are running them within the directory containing both `Dockerfile` and `environment.yml`
+Note : If installing using docker, then the below installation stages are not required.
 
 ### General requirements
 - python >= 3.8

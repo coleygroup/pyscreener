@@ -15,7 +15,27 @@ RUN pip install --no-input --no-cache-dir pyscreener
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM base AS vina-base
+FROM base as base-dock6
+
+RUN apt-get install libxss1 xscreensaver xscreensaver-gl-extra xvfb -y \
+    && mkdir dock6_utils
+
+RUN cd dock6_utils \
+    && mkdir sphgen_cpp_download && cd sphgen_cpp_download \
+    && wget http://dock.compbio.ucsf.edu/Contributed_Code/code/sphgen_cpp.1.2.tar.gz \
+    && tar -xzvf sphgen_cpp.1.2.tar.gz \
+    && cd sphgen_cpp.1.2 \
+    && make \
+    && mv sphgen_cpp ../../ \
+    && cd ../../ && rm -rf sphgen_cpp_download
+
+RUN cd dock6_utils \
+    && wget -O chimera-installer.bin "https://www.cgl.ucsf.edu/chimera/cgi-bin/secure/chimera-get.py?ident=OHeQer2WSaxn%2FepyqXlK%2BP9gulBVQ9j%2B1xtw0AnmnvIv&file=linux_x86_64%2Fchimera-1.16-linux_x86_64.bin&choice=Notified" \
+    && chmod +x chimera-installer.bin
+
+
+# ------------------------------------------------------------------------------------------------------------
+FROM base AS base-vina
 
 RUN wget -O ADFRsuite.tar.gz https://ccsb.scripps.edu/adfr/download/1038/ \
     && tar -xzvf ADFRsuite.tar.gz \
@@ -28,7 +48,7 @@ ENV PATH="${PATH}:/ADFRsuite_x86_64Linux_1.0/bin:"
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM vina-base AS vina
+FROM base-vina AS vina
 
 RUN mkdir vina_download \
     && cd vina_download \
@@ -40,7 +60,7 @@ RUN mkdir vina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM vina-base AS psovina
+FROM base-vina AS psovina
 
 RUN mkdir psovina_download \
     && cd psovina_download \
@@ -54,7 +74,7 @@ RUN mkdir psovina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM vina-base AS smina
+FROM base-vina AS smina
 
 RUN mkdir smina_download \
     && cd smina_download \  
@@ -66,7 +86,7 @@ RUN mkdir smina_download \
 
 
 # ------------------------------------------------------------------------------------------------------------
-FROM vina-base AS qvina
+FROM base-vina AS qvina
 
 SHELL ["/bin/bash", "-c"]
 

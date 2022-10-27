@@ -39,7 +39,9 @@ As `DOCK6` software requires a license, it is not possible to include its instal
 A compiled form of `sphgen_cpp` and the binary required for installation of `chimera` are both available within the `dock6_utils` directory of the associated dock6 imge:
 * `docker build -t pyscreener:dock6 --target base-dock6 .` : Creates an image from `pyscreener:base` containing utility software needed for `DOCK6` to run once installed 
 
-Note : If installing using docker, then the below installation stages are not required with the exception of `DOCK6` however.
+Notes : 
+1. Within the docker container, the environment `base` will e activated by default which contains all the required python dependencies so there is no need to manually activate an environment once inside the container
+2. If installing using docker, then the below installation stages are not required with the exception of `DOCK6` however.
 
 ### General requirements
 - python >= 3.8

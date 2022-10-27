@@ -72,3 +72,22 @@ RUN apt-get install git -y \
 
 
 # ------------------------------------------------------------------------------------------------------------
+FROM base as base-dock6
+
+RUN mkdir ../dock6_utils
+
+RUN cd ../dock6_utils \
+    && mkdir sphgen_cpp_download && cd sphgen_cpp_download \
+    && wget http://dock.compbio.ucsf.edu/Contributed_Code/code/sphgen_cpp.1.2.tar.gz \
+    && tar -xzvf sphgen_cpp.1.2.tar.gz \
+    && cd sphgen_cpp.1.2 \
+    && make \
+    && mv sphgen_cpp ../../ \
+    && cd ../../ && rm -rf sphgen_cpp_download
+
+RUN cd ../dock6_utils \
+    && wget -O chimera-installer.bin "https://www.cgl.ucsf.edu/chimera/cgi-bin/secure/chimera-get.py?ident=OHeQer2WSaxn%2FepyqXlK%2BP9gulBVQ9j%2B1xtw0AnmnvIv&file=linux_x86_64%2Fchimera-1.16-linux_x86_64.bin&choice=Notified" \
+    && chmod +x chimera-installer.bin
+
+
+# ------------------------------------------------------------------------------------------------------------

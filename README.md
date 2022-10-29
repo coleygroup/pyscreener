@@ -40,7 +40,7 @@ A compiled form of `sphgen_cpp` and the binary required for installation of `chi
 * `docker build -t pyscreener:dock6 --target base-dock6 .` : Creates an image from `pyscreener:base` containing utility software needed for `DOCK6` to run once installed 
 
 **Notes :** 
-1. Within the docker container, the environment `base` will e activated by default which contains all the required python dependencies so there is no need to manually activate an environment once inside the container
+1. Within the docker container, the environment `base` will be activated by default. This contains all the required python dependencies so there is no need to manually activate an environment once inside the container
 2. If installing using docker, then the below installation stages are not required with the exception of `DOCK6` however.
 
 ### General requirements

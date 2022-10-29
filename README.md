@@ -36,7 +36,7 @@ The below commands can be run in the directory containing the `Dockerfile` and `
 * `docker build -t pyscreener:psovina --target psovina .` : Creates an image from `pyscreener:base` with `psovina` installed 
 
 As `DOCK6` software requires a license, it is not possible to include its installation within the associated docker image.
-A compiled form of `sphgen_cpp` and the binary required for installation of `chimera` are both available within the `dock6_utils` directory of the associated dock6 imge:
+A compiled form of `sphgen_cpp` and the binary required for installation of `chimera` are both available within the `dock6_utils` directory of the associated dock6 image:
 * `docker build -t pyscreener:dock6 --target base-dock6 .` : Creates an image from `pyscreener:base` containing utility software needed for `DOCK6` to run once installed 
 
 Notes : 

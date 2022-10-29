@@ -41,7 +41,7 @@ A compiled form of `sphgen_cpp` and the binary required for installation of `chi
 
 **Notes :** 
 1. Within the docker container, the environment `base` will be activated by default. This contains all the required python dependencies so there is no need to manually activate an environment once inside the container
-2. If installing using docker, then the below installation stages are not required with the exception of `DOCK6` however.
+2. If installing using docker, then the below installation stages are not required for the corresponding vina-type software. However, the DOCK6 directions must still be followed.
 
 ### General requirements
 - python >= 3.8

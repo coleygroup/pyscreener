@@ -229,8 +229,7 @@ class DOCKRunner(DockingRunner):
         scores = DOCKRunner.parse_logfile(logfile)
         score = None if scores is None else reduce_scores(scores, sim.reduction, k=sim.k)
 
-        node_id = re.sub("[:,.]", "", ray.util.get_node_ip_address())
-        sim.result = Result(sim.smi, name, node_id, score)
+        sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
 
         return scores
 

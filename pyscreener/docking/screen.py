@@ -313,7 +313,7 @@ class DockingVirtualScreen:
         out_path = Path(path or self.path)
         out_path.mkdir(parents=True, exist_ok=True)
 
-        output_id = re.sub(r"[:,.]", "", ray.state.current_node_id())
+        output_id = re.sub(r"[:,.]", "", ray.util.get_node_ip_address())
         tmp_tar = (self.tmp_dir / output_id).with_suffix(".tar.gz")
 
         with tarfile.open(tmp_tar, "w:gz") as tar:

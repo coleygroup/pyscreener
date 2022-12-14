@@ -10,13 +10,13 @@ dependencies:
   - python=3.8
   - openbabel
   - openmm
-  - rdkit
   - pip:
     - colorama
     - configargparse
     - h5py
     - numpy
-    - ray
+    - ray[default]>=2.0
+    - rdkit
     - pandas
     - scikit_learn
     - scipy

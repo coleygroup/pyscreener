@@ -213,7 +213,8 @@ class VinaRunner(DockingRunner):
         else:
             score = utils.reduce_scores(np.array(scores), sim.reduction, k=sim.k)
 
-        sim.result = Result(sim.smi, name, re.sub("[:,.]", "", ray.state.current_node_id()), score)
+        node_id = re.sub("[:,.]", "", ray.util.get_node_ip_address())
+        sim.result = Result(sim.smi, name, node_id, score)
 
         return scores
 
